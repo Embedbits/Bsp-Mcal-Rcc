@@ -65,7 +65,9 @@ typedef enum
 #if defined(LPTIM1)
     RCC_CLK_MUX_LPTIM1_PCLK3          , /**< Low Power Timer 1 clock enable with APB3 as clock source. */
     RCC_CLK_MUX_LPTIM1_PLL2P          , /**< Low Power Timer 1 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source. */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_LPTIM1_PLL3R          , /**< Low Power Timer 1 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source. */
+#endif
     RCC_CLK_MUX_LPTIM1_LSE            , /**< Low Power Timer 1 clock enable with Low Speed External (LSE) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM1_LSI            , /**< Low Power Timer 1 clock enable with Low Speed Internal (LSI) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM1_LPCLK          , /**< Low Power Timer 1 clock enable with Low-Power Clock domain (PER) oscillator as clock source. */
@@ -73,7 +75,9 @@ typedef enum
 #if defined(LPTIM2)
     RCC_CLK_MUX_LPTIM2_PCLK1          , /**< Low Power Timer 2 clock enable with APB1 as clock source. */
     RCC_CLK_MUX_LPTIM2_PLL2P          , /**< Low Power Timer 2 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source. */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_LPTIM2_PLL3R          , /**< Low Power Timer 2 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source. */
+#endif
     RCC_CLK_MUX_LPTIM2_LSE            , /**< Low Power Timer 2 clock enable with Low Speed External (LSE) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM2_LSI            , /**< Low Power Timer 2 clock enable with Low Speed Internal (LSI) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM2_LPCLK          , /**< Low Power Timer 2 clock enable with Low-Power Clock domain (PER) oscillator as clock source. */
@@ -81,7 +85,9 @@ typedef enum
 #if defined(LPTIM3)
     RCC_CLK_MUX_LPTIM3_PCLK3          , /**< Low Power Timer 3 clock enable with APB3 as clock source. */
     RCC_CLK_MUX_LPTIM3_PLL2P          , /**< Low Power Timer 3 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source. */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_LPTIM3_PLL3R          , /**< Low Power Timer 3 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source. */
+#endif
     RCC_CLK_MUX_LPTIM3_LSE            , /**< Low Power Timer 3 clock enable with Low Speed External (LSE) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM3_LSI            , /**< Low Power Timer 3 clock enable with Low Speed Internal (LSI) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM3_LPCLK          , /**< Low Power Timer 3 clock enable with Low-Power Clock domain (PER) oscillator as clock source. */
@@ -89,7 +95,9 @@ typedef enum
 #if defined(LPTIM4)
     RCC_CLK_MUX_LPTIM4_PCLK3          , /**< Low Power Timer 4 clock enable with APB3 as clock source. */
     RCC_CLK_MUX_LPTIM4_PLL2P          , /**< Low Power Timer 4 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source. */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_LPTIM4_PLL3R          , /**< Low Power Timer 4 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source. */
+#endif
     RCC_CLK_MUX_LPTIM4_LSE            , /**< Low Power Timer 4 clock enable with Low Speed External (LSE) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM4_LSI            , /**< Low Power Timer 4 clock enable with Low Speed Internal (LSI) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM4_LPCLK          , /**< Low Power Timer 4 clock enable with Low-Power Clock domain (PER) oscillator as clock source. */
@@ -97,7 +105,9 @@ typedef enum
 #if defined(LPTIM5)
     RCC_CLK_MUX_LPTIM5_PCLK3          , /**< Low Power Timer 5 clock enable with APB3 as clock source. */
     RCC_CLK_MUX_LPTIM5_PLL2P          , /**< Low Power Timer 5 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source. */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_LPTIM5_PLL3R          , /**< Low Power Timer 5 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source. */
+#endif
     RCC_CLK_MUX_LPTIM5_LSE            , /**< Low Power Timer 5 clock enable with Low Speed External (LSE) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM5_LSI            , /**< Low Power Timer 5 clock enable with Low Speed Internal (LSI) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM5_LPCLK          , /**< Low Power Timer 5 clock enable with Low-Power Clock domain (PER) oscillator as clock source. */
@@ -105,7 +115,9 @@ typedef enum
 #if defined(LPTIM6)
     RCC_CLK_MUX_LPTIM6_PCLK3          , /**< Low Power Timer 6 clock enable with APB3 as clock source. */
     RCC_CLK_MUX_LPTIM6_PLL2P          , /**< Low Power Timer 6 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source. */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_LPTIM6_PLL3R          , /**< Low Power Timer 6 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source. */
+#endif
     RCC_CLK_MUX_LPTIM6_LSE            , /**< Low Power Timer 6 clock enable with Low Speed External (LSE) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM6_LSI            , /**< Low Power Timer 6 clock enable with Low Speed Internal (LSI) oscillator as clock source. */
     RCC_CLK_MUX_LPTIM6_LPCLK          , /**< Low Power Timer 6 clock enable with Low-Power Clock domain (PER) oscillator as clock source. */
@@ -116,28 +128,36 @@ typedef enum
 #if defined(SPI1)
     RCC_CLK_MUX_SPI1_PLL1Q            , /**< SPI/I2S 1 clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
     RCC_CLK_MUX_SPI1_PLL2P            , /**< SPI/I2S 1 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_SPI1_PLL3P            , /**< SPI/I2S 1 clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+#endif
     RCC_CLK_MUX_SPI1_PIN              , /**< SPI/I2S 1 clock enable with 16MHz High Speed Internal (HSI) oscillator as clock source */
     RCC_CLK_MUX_SPI1_LPCLK            , /**< SPI/I2S 1 clock enable with Low-Power Clock Domain (PER) as clock source */
 #endif /* SPI1 */
 #if defined(SPI2)
     RCC_CLK_MUX_SPI2_PLL1Q            , /**< SPI/I2S 2 clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
     RCC_CLK_MUX_SPI2_PLL2P            , /**< SPI/I2S 2 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_SPI2_PLL3P            , /**< SPI/I2S 2 clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+#endif
     RCC_CLK_MUX_SPI2_PIN              , /**< SPI/I2S 2 clock enable with 16MHz High Speed Internal (HSI) oscillator as clock source */
     RCC_CLK_MUX_SPI2_LPCLK            , /**< SPI/I2S 2 clock enable with Low-Power Clock Domain (PER) as clock source */
 #endif /* SPI2 */
 #if defined(SPI3)
     RCC_CLK_MUX_SPI3_PLL1Q            , /**< SPI/I2S 3 clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
     RCC_CLK_MUX_SPI3_PLL2P            , /**< SPI/I2S 3 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_SPI3_PLL3P            , /**< SPI/I2S 3 clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+#endif
     RCC_CLK_MUX_SPI3_PIN              , /**< SPI/I2S 3 clock enable with 16MHz High Speed Internal (HSI) oscillator as clock source */
     RCC_CLK_MUX_SPI3_LPCLK            , /**< SPI/I2S 3 clock enable with Low-Power Clock Domain (PER) as clock source */
 #endif /* SPI3 */
 #if defined(SPI4)
     RCC_CLK_MUX_SPI4_PCLK2            , /**< SPI 4 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_SPI4_PLL2Q            , /**< SPI 4 clock enable with Phase Locked Loop 2 output Q (PLL1Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_SPI4_PLL3Q            , /**< SPI 4 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_SPI4_HSI64            , /**< SPI 4 clock enable with 64MHz High Speed Internal oscillator (HSI64) as clock source */
     RCC_CLK_MUX_SPI4_CSI              , /**< SPI 4 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
     RCC_CLK_MUX_SPI4_HSE              , /**< SPI 4 clock enable with High Speed External clock (HSE) as clock source */
@@ -145,7 +165,9 @@ typedef enum
 #if defined(SPI5)
     RCC_CLK_MUX_SPI5_PCLK3            , /**< SPI 5 clock enable with APB3 (PCLK3) as clock source */
     RCC_CLK_MUX_SPI5_PLL2Q            , /**< SPI 5 clock enable with Phase Locked Loop 2 output Q (PLL1Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_SPI5_PLL3Q            , /**< SPI 5 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_SPI5_HSI64            , /**< SPI 5 clock enable with 64MHz High Speed Internal oscillator (HSI64) as clock source */
     RCC_CLK_MUX_SPI5_CSI              , /**< SPI 5 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
     RCC_CLK_MUX_SPI5_HSE              , /**< SPI 5 clock enable with High Speed External clock (HSE) as clock source */
@@ -153,7 +175,9 @@ typedef enum
 #if defined(SPI6)
     RCC_CLK_MUX_SPI6_PCLK2            , /**< SPI 6 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_SPI6_PLL2Q            , /**< SPI 6 clock enable with Phase Locked Loop 2 output Q (PLL1Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_SPI6_PLL3Q            , /**< SPI 6 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_SPI6_HSI64            , /**< SPI 6 clock enable with 64MHz High Speed Internal oscillator (HSI64) as clock source */
     RCC_CLK_MUX_SPI6_CSI              , /**< SPI 6 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
     RCC_CLK_MUX_SPI6_HSE              , /**< SPI 6 clock enable with High Speed External clock (HSE) as clock source */
@@ -162,25 +186,37 @@ typedef enum
 
 #if defined(I2C1)
     RCC_CLK_MUX_I2C1_PCLK1            , /**< I2C 1 clock enable with APB1 (PCLK1) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_I2C1_PLL3R            , /**< I2C 1 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#else
+    RCC_CLK_MUX_I2C1_PLL2R            , /**< I2C 1 clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source */
+#endif
     RCC_CLK_MUX_I2C1_HSI64            , /**< I2C 1 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_I2C1_CSI              , /**< I2C 1 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
 #endif /* I2C1 */
 #if defined(I2C2)
     RCC_CLK_MUX_I2C2_PCLK1            , /**< I2C 2 clock enable with APB1 (PCLK1) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_I2C2_PLL3R            , /**< I2C 2 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#else
+    RCC_CLK_MUX_I2C2_PLL2R            , /**< I2C 2 clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source */
+#endif
     RCC_CLK_MUX_I2C2_HSI64            , /**< I2C 2 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_I2C2_CSI              , /**< I2C 2 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
 #endif /* I2C2 */
 #if defined(I2C3)
     RCC_CLK_MUX_I2C3_PCLK3            , /**< I2C 3 clock enable with APB3 (PCLK3) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_I2C3_PLL3R            , /**< I2C 3 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#endif
     RCC_CLK_MUX_I2C3_HSI64            , /**< I2C 3 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_I2C3_CSI              , /**< I2C 3 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
 #endif /* I2C3 */
 #if defined(I2C4)
     RCC_CLK_MUX_I2C4_PCLK3            , /**< I2C 4 clock enable with APB3 (PCLK3) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_I2C4_PLL3R            , /**< I2C 4 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#endif
     RCC_CLK_MUX_I2C4_HSI64            , /**< I2C 4 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_I2C4_CSI              , /**< I2C 4 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
 #endif /* I2C4 */
@@ -188,12 +224,20 @@ typedef enum
 
 #if defined(I3C1)
     RCC_CLK_MUX_I3C1_PCLK1            , /**< I3C 1 Clock enable with APB1 (PCLK1) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_I3C1_PLL3R            , /**< I3C 1 Clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#else
+    RCC_CLK_MUX_I3C1_PLL2R            , /**< I3C 1 Clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source */
+#endif
     RCC_CLK_MUX_I3C1_HSI64            , /**< I3C 1 Clock enable with 64MHz High Speed Internal (HSI) oscillator output as clock source */
 #endif /* I3C1 */
 #if defined(I3C2)
-    RCC_CLK_MUX_I3C2_PCLK1            , /**< I3C 2 Clock enable with APB1 (PCLK1) as clock source */
+    RCC_CLK_MUX_I3C2_PCLK3            , /**< I3C 2 Clock enable with APB1 (PCLK1) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_I3C2_PLL3R            , /**< I3C 2 Clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#else
+    RCC_CLK_MUX_I3C2_PLL2R            , /**< I3C 2 Clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source */
+#endif
     RCC_CLK_MUX_I3C2_HSI64            , /**< I3C 2 Clock enable with 64MHz High Speed Internal (HSI) oscillator output as clock source */
 #endif /* I3C2 */
 
@@ -201,7 +245,9 @@ typedef enum
 #if defined(USART1)
     RCC_CLK_MUX_USART1_PCLK2          , /**< USART 1 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_USART1_PLL2Q          , /**< USART 1 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_USART1_PLL3Q          , /**< USART 1 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_USART1_HSI            , /**< USART 1 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_USART1_LSE            , /**< USART 1 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_USART1_CSI            , /**< USART 1 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -209,7 +255,9 @@ typedef enum
 #if defined(USART2)
     RCC_CLK_MUX_USART2_PCLK1          , /**< USART 2 clock enable with APB1 (PCLK1) as clock source */
     RCC_CLK_MUX_USART2_PLL2Q          , /**< USART 2 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_USART2_PLL3Q          , /**< USART 2 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_USART2_HSI            , /**< USART 2 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_USART2_LSE            , /**< USART 2 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_USART2_CSI            , /**< USART 2 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -217,7 +265,9 @@ typedef enum
 #if defined(USART3)
     RCC_CLK_MUX_USART3_PCLK1          , /**< USART 3 clock enable with APB1 (PCLK1) as clock source */
     RCC_CLK_MUX_USART3_PLL2Q          , /**< USART 3 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_USART3_PLL3Q          , /**< USART 3 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_USART3_HSI            , /**< USART 3 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_USART3_LSE            , /**< USART 3 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_USART3_CSI            , /**< USART 3 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -225,7 +275,9 @@ typedef enum
 #if defined(USART6)
     RCC_CLK_MUX_USART6_PCLK1          , /**< USART 6 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_USART6_PLL2Q          , /**< USART 6 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_USART6_PLL3Q          , /**< USART 6 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_USART6_HSI            , /**< USART 6 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_USART6_LSE            , /**< USART 6 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_USART6_CSI            , /**< USART 6 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -233,7 +285,9 @@ typedef enum
 #if defined(USART10)
     RCC_CLK_MUX_USART10_PCLK1         , /**< USART 10 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_USART10_PLL2Q         , /**< USART 10 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_USART10_PLL3Q         , /**< USART 10 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_USART10_HSI           , /**< USART 10 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_USART10_LSE           , /**< USART 10 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_USART10_CSI           , /**< USART 10 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -241,7 +295,9 @@ typedef enum
 #if defined(USART11)
     RCC_CLK_MUX_USART11_PCLK1         , /**< USART 11 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_USART11_PLL2Q         , /**< USART 11 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_USART11_PLL3Q         , /**< USART 11 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_USART11_HSI           , /**< USART 11 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_USART11_LSE           , /**< USART 11 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_USART11_CSI           , /**< USART 11 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -251,7 +307,9 @@ typedef enum
 #if defined(UART4)
     RCC_CLK_MUX_UART4_PCLK1           , /**< UART 4 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_UART4_PLL2Q           , /**< UART 4 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_UART4_PLL3Q           , /**< UART 4 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_UART4_HSI             , /**< UART 4 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_UART4_LSE             , /**< UART 4 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_UART4_CSI             , /**< UART 4 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -259,7 +317,9 @@ typedef enum
 #if defined(UART5)
     RCC_CLK_MUX_UART5_PCLK1           , /**< UART 5 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_UART5_PLL2Q           , /**< UART 5 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_UART5_PLL3Q           , /**< UART 5 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_UART5_HSI             , /**< UART 5 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_UART5_LSE             , /**< UART 5 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_UART5_CSI             , /**< UART 5 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -267,7 +327,9 @@ typedef enum
 #if defined(UART7)
     RCC_CLK_MUX_UART7_PCLK1           , /**< UART 7 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_UART7_PLL2Q           , /**< UART 7 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_UART7_PLL3Q           , /**< UART 7 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_UART7_HSI             , /**< UART 7 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_UART7_LSE             , /**< UART 7 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_UART7_CSI             , /**< UART 7 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -275,7 +337,9 @@ typedef enum
 #if defined(UART8)
     RCC_CLK_MUX_UART8_PCLK1           , /**< UART 8 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_UART8_PLL2Q           , /**< UART 8 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_UART8_PLL3Q           , /**< UART 8 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_UART8_HSI             , /**< UART 8 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_UART8_LSE             , /**< UART 8 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_UART8_CSI             , /**< UART 8 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -283,7 +347,9 @@ typedef enum
 #if defined(UART9)
     RCC_CLK_MUX_UART9_PCLK1           , /**< UART 9 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_UART9_PLL2Q           , /**< UART 9 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_UART9_PLL3Q           , /**< UART 9 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_UART9_HSI             , /**< UART 9 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_UART9_LSE             , /**< UART 9 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_UART9_CSI             , /**< UART 9 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -291,7 +357,9 @@ typedef enum
 #if defined(UART12)
     RCC_CLK_MUX_UART12_PCLK1          , /**< UART 12 clock enable with APB2 (PCLK2) as clock source */
     RCC_CLK_MUX_UART12_PLL2Q          , /**< UART 12 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_UART12_PLL3Q          , /**< UART 12 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_UART12_HSI            , /**< UART 12 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_UART12_LSE            , /**< UART 12 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_UART12_CSI            , /**< UART 12 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -301,7 +369,9 @@ typedef enum
 #if defined(LPUART1)
     RCC_CLK_MUX_LPUART1_PCLK3         , /**< Low-Power UART 1 clock enable with APB3 (PCLK3) as clock source */
     RCC_CLK_MUX_LPUART1_PLL2Q         , /**< Low-Power UART 1 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_LPUART1_PLL3Q         , /**< Low-Power UART 1 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_CLK_MUX_LPUART1_HSI           , /**< Low-Power UART 1 clock enable with High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_LPUART1_LSE           , /**< Low-Power UART 1 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_CLK_MUX_LPUART1_CSI           , /**< Low-Power UART 1 clock enable with Multi-Speed Internal Oscillator output K (MSIK) as clock source */
@@ -332,7 +402,11 @@ typedef enum
 #if defined(USB_DRD_FS)
     RCC_CLK_MUX_USB_NONE              , /**< USB Full Speed (12Mbps) clock disable */
     RCC_CLK_MUX_USB_PLL1Q             , /**< USB Full Speed (12Mbps) clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_USB_PLL3Q             , /**< USB Full Speed (12Mbps) clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#else
+    RCC_CLK_MUX_USB_PLL2Q             , /**< USB Full Speed (12Mbps) clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#endif
     RCC_CLK_MUX_USB_HSI48             , /**< USB Full Speed (12Mbps) clock enable with 48MHz High Speed Internal (HSE48) as clock source */
 #endif /* USB_OTG_HS */
 
@@ -340,14 +414,18 @@ typedef enum
 
 #if defined(SAI1)
     RCC_CLK_MUX_SAI1_PLL2P            , /**< Serial Audio Interface 1 (SAI1) clock enable with PLL 2 P output as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_SAI1_PLL3P            , /**< Serial Audio Interface 1 (SAI1) clock enable with PLL 3 P output as clock source */
+#endif
     RCC_CLK_MUX_SAI1_PLL1Q            , /**< Serial Audio Interface 1 (SAI1) clock enable with PLL 1 Q output as clock source */
     RCC_CLK_MUX_SAI1_CKIN             , /**< Serial Audio Interface 1 (SAI1) clock enable with clock input through pin as clock source */
     RCC_CLK_MUX_SAI1_LPCLK            , /**< Serial Audio Interface 1 (SAI1) clock enable with Low-Power Clock Domain (PER) as clock source*/
 #endif /* SAI1 */
 #if defined(SAI2)
     RCC_CLK_MUX_SAI2_PLL2P            , /**< Serial Audio Interface 1 (SAI1) clock enable with PLL 2 P output as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_SAI2_PLL3P            , /**< Serial Audio Interface 1 (SAI1) clock enable with PLL 3 P output as clock source */
+#endif
     RCC_CLK_MUX_SAI2_PLL1Q            , /**< Serial Audio Interface 1 (SAI1) clock enable with PLL 1 Q output as clock source */
     RCC_CLK_MUX_SAI2_CKIN             , /**< Serial Audio Interface 2 (SAI2) clock enable with clock input through pin as clock source */
     RCC_CLK_MUX_SAI2_LPCLK            , /**< Serial Audio Interface 2 (SAI2) clock enable with Low-Power Clock Domain (PER) as clock source*/

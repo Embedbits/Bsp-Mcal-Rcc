@@ -651,7 +651,9 @@ typedef enum
 {
     RCC_PLL_1 = 0u, /**< Phase Locked Loop 1     */
     RCC_PLL_2,      /**< Phase Locked Loop 2     */
+#if defined(RCC_CR_PLL3ON)
     RCC_PLL_3,      /**< Phase Locked Loop 3     */
+#endif
     RCC_PLL_CNT     /**< Count of available PLLs */
 }   rcc_PllId_t;
 

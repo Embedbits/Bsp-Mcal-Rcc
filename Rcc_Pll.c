@@ -256,6 +256,7 @@ static const rcc_PllConfig_t            rcc_Pll_Config[ RCC_PLL_CNT ] =
     .Out_R_DivMinValue = 1u,   /**< PLL 2 Output R minimum value.   */
     .Out_R_DivMaxValue = 128u, /**< PLL 2 Output R maximum value.   */
   },
+#if defined(RCC_CR_PLL3ON)
   {
     .PllId             = RCC_PLL_3,
 
@@ -328,6 +329,7 @@ static const rcc_PllConfig_t            rcc_Pll_Config[ RCC_PLL_CNT ] =
     .Out_R_DivMinValue = 1u,   /**< PLL 2 Output R minimum value.   */
     .Out_R_DivMaxValue = 128u, /**< PLL 2 Output R maximum value.   */
   },
+#endif
 };
 
 /* ========================= EXPORTED FUNCTIONS ============================= */

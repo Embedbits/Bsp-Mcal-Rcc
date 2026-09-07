@@ -59,7 +59,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(LPTIM1)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM1_PCLK3      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM1SEL   , .ClkSrcVal = LL_RCC_LPTIM1_CLKSOURCE_PCLK3     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM1_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM1_PLL2P      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM1SEL   , .ClkSrcVal = LL_RCC_LPTIM1_CLKSOURCE_PLL2P     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM1_PCLK3      },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM1_PLL3R      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM1SEL   , .ClkSrcVal = LL_RCC_LPTIM1_CLKSOURCE_PLL3R     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM1_PCLK3      },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_LPTIM1_LSE        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM1SEL   , .ClkSrcVal = LL_RCC_LPTIM1_CLKSOURCE_LSE       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM1_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM1_LSI        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM1SEL   , .ClkSrcVal = LL_RCC_LPTIM1_CLKSOURCE_LSI       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM1_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM1_LPCLK      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM1SEL   , .ClkSrcVal = LL_RCC_LPTIM1_CLKSOURCE_CLKP      , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM1_PCLK3      },
@@ -67,7 +69,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(LPTIM2)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM2_PCLK1      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM2SEL   , .ClkSrcVal = LL_RCC_LPTIM2_CLKSOURCE_PCLK1     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM2_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM2_PLL2P      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM2SEL   , .ClkSrcVal = LL_RCC_LPTIM2_CLKSOURCE_PLL2P     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM2_PCLK1      },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM2_PLL3R      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM2SEL   , .ClkSrcVal = LL_RCC_LPTIM2_CLKSOURCE_PLL3R     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM2_PCLK1      },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_LPTIM2_LSE        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM2SEL   , .ClkSrcVal = LL_RCC_LPTIM2_CLKSOURCE_LSE       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM2_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM2_LSI        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM2SEL   , .ClkSrcVal = LL_RCC_LPTIM2_CLKSOURCE_LSI       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM2_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM2_LPCLK      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM2SEL   , .ClkSrcVal = LL_RCC_LPTIM2_CLKSOURCE_CLKP      , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM2_PCLK1      },
@@ -75,7 +79,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(LPTIM3)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM3_PCLK3      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM3SEL   , .ClkSrcVal = LL_RCC_LPTIM3_CLKSOURCE_PCLK3     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM3_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM3_PLL2P      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM3SEL   , .ClkSrcVal = LL_RCC_LPTIM3_CLKSOURCE_PLL2P     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM3_PCLK3      },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM3_PLL3R      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM3SEL   , .ClkSrcVal = LL_RCC_LPTIM3_CLKSOURCE_PLL3R     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM3_PCLK3      },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_LPTIM3_LSE        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM3SEL   , .ClkSrcVal = LL_RCC_LPTIM3_CLKSOURCE_LSE       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM3_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM3_LSI        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM3SEL   , .ClkSrcVal = LL_RCC_LPTIM3_CLKSOURCE_LSI       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM3_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM3_LPCLK      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM3SEL   , .ClkSrcVal = LL_RCC_LPTIM3_CLKSOURCE_CLKP      , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM3_PCLK3      },
@@ -83,7 +89,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(LPTIM4)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM4_PCLK3      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM4SEL   , .ClkSrcVal = LL_RCC_LPTIM4_CLKSOURCE_PCLK3     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM4_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM4_PLL2P      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM4SEL   , .ClkSrcVal = LL_RCC_LPTIM4_CLKSOURCE_PLL2P     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM4_PCLK3      },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM4_PLL3R      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM4SEL   , .ClkSrcVal = LL_RCC_LPTIM4_CLKSOURCE_PLL3R     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM4_PCLK3      },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_LPTIM4_LSE        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM4SEL   , .ClkSrcVal = LL_RCC_LPTIM4_CLKSOURCE_LSE       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM4_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM4_LSI        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM4SEL   , .ClkSrcVal = LL_RCC_LPTIM4_CLKSOURCE_LSI       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM4_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM4_LPCLK      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM4SEL   , .ClkSrcVal = LL_RCC_LPTIM4_CLKSOURCE_CLKP      , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM4_PCLK3      },
@@ -91,7 +99,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(LPTIM5)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM5_PCLK3      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM5SEL   , .ClkSrcVal = LL_RCC_LPTIM5_CLKSOURCE_PCLK3     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM5_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM5_PLL2P      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM5SEL   , .ClkSrcVal = LL_RCC_LPTIM5_CLKSOURCE_PLL2P     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM5_PCLK3      },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM5_PLL3R      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM5SEL   , .ClkSrcVal = LL_RCC_LPTIM5_CLKSOURCE_PLL3R     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM5_PCLK3      },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_LPTIM5_LSE        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM5SEL   , .ClkSrcVal = LL_RCC_LPTIM5_CLKSOURCE_LSE       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM5_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM5_LSI        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM5SEL   , .ClkSrcVal = LL_RCC_LPTIM5_CLKSOURCE_LSI       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM5_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM5_LPCLK      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM5SEL   , .ClkSrcVal = LL_RCC_LPTIM5_CLKSOURCE_CLKP      , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM5_PCLK3      },
@@ -99,7 +109,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(LPTIM6)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM6_PCLK3      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM6SEL   , .ClkSrcVal = LL_RCC_LPTIM6_CLKSOURCE_PCLK3     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM6_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM6_PLL2P      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM6SEL   , .ClkSrcVal = LL_RCC_LPTIM6_CLKSOURCE_PLL2P     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM6_PCLK3      },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_LPTIM6_PLL3R      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM6SEL   , .ClkSrcVal = LL_RCC_LPTIM6_CLKSOURCE_PLL3R     , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM6_PCLK3      },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_LPTIM6_LSE        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM6SEL   , .ClkSrcVal = LL_RCC_LPTIM6_CLKSOURCE_LSE       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM6_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM6_LSI        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM6SEL   , .ClkSrcVal = LL_RCC_LPTIM6_CLKSOURCE_LSI       , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM6_PCLK3      },
   { .ClkMuxId = RCC_CLK_MUX_LPTIM6_LPCLK      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_LPTIM6SEL   , .ClkSrcVal = LL_RCC_LPTIM6_CLKSOURCE_CLKP      , .DefaultClkMuxId = RCC_CLK_MUX_LPTIM6_PCLK3      },
@@ -111,28 +123,36 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(SPI1)
   { .ClkMuxId = RCC_CLK_MUX_SPI1_PLL1Q        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI1SEL     , .ClkSrcVal = LL_RCC_SPI1_CLKSOURCE_PLL1Q       , .DefaultClkMuxId = RCC_CLK_MUX_SPI1_PLL1Q        },
   { .ClkMuxId = RCC_CLK_MUX_SPI1_PLL2P        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI1SEL     , .ClkSrcVal = LL_RCC_SPI1_CLKSOURCE_PLL2P       , .DefaultClkMuxId = RCC_CLK_MUX_SPI1_PLL1Q        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_SPI1_PLL3P        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI1SEL     , .ClkSrcVal = LL_RCC_SPI1_CLKSOURCE_PLL3P       , .DefaultClkMuxId = RCC_CLK_MUX_SPI1_PLL1Q        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_SPI1_PIN          , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI1SEL     , .ClkSrcVal = LL_RCC_SPI1_CLKSOURCE_PIN         , .DefaultClkMuxId = RCC_CLK_MUX_SPI1_PLL1Q        },
   { .ClkMuxId = RCC_CLK_MUX_SPI1_LPCLK        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI1SEL     , .ClkSrcVal = LL_RCC_SPI1_CLKSOURCE_CLKP        , .DefaultClkMuxId = RCC_CLK_MUX_SPI1_PLL1Q        },
 #endif /* SPI1 */
 #if defined(SPI2)
   { .ClkMuxId = RCC_CLK_MUX_SPI2_PLL1Q        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI2SEL     , .ClkSrcVal = LL_RCC_SPI2_CLKSOURCE_PLL1Q       , .DefaultClkMuxId = RCC_CLK_MUX_SPI2_PLL1Q        },
   { .ClkMuxId = RCC_CLK_MUX_SPI2_PLL2P        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI2SEL     , .ClkSrcVal = LL_RCC_SPI2_CLKSOURCE_PLL2P       , .DefaultClkMuxId = RCC_CLK_MUX_SPI2_PLL1Q        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_SPI2_PLL3P        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI2SEL     , .ClkSrcVal = LL_RCC_SPI2_CLKSOURCE_PLL3P       , .DefaultClkMuxId = RCC_CLK_MUX_SPI2_PLL1Q        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_SPI2_PIN          , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI2SEL     , .ClkSrcVal = LL_RCC_SPI2_CLKSOURCE_PIN         , .DefaultClkMuxId = RCC_CLK_MUX_SPI2_PLL1Q        },
   { .ClkMuxId = RCC_CLK_MUX_SPI2_LPCLK        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI2SEL     , .ClkSrcVal = LL_RCC_SPI2_CLKSOURCE_CLKP        , .DefaultClkMuxId = RCC_CLK_MUX_SPI2_PLL1Q        },
 #endif /* SPI2 */
 #if defined(SPI3)
   { .ClkMuxId = RCC_CLK_MUX_SPI3_PLL1Q        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI3SEL     , .ClkSrcVal = LL_RCC_SPI3_CLKSOURCE_PLL1Q       , .DefaultClkMuxId = RCC_CLK_MUX_SPI3_PLL1Q        },
   { .ClkMuxId = RCC_CLK_MUX_SPI3_PLL2P        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI3SEL     , .ClkSrcVal = LL_RCC_SPI3_CLKSOURCE_PLL2P       , .DefaultClkMuxId = RCC_CLK_MUX_SPI3_PLL1Q        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_SPI3_PLL3P        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI3SEL     , .ClkSrcVal = LL_RCC_SPI3_CLKSOURCE_PLL3P       , .DefaultClkMuxId = RCC_CLK_MUX_SPI3_PLL1Q        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_SPI3_PIN          , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI3SEL     , .ClkSrcVal = LL_RCC_SPI3_CLKSOURCE_PIN         , .DefaultClkMuxId = RCC_CLK_MUX_SPI3_PLL1Q        },
   { .ClkMuxId = RCC_CLK_MUX_SPI3_LPCLK        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI3SEL     , .ClkSrcVal = LL_RCC_SPI3_CLKSOURCE_CLKP        , .DefaultClkMuxId = RCC_CLK_MUX_SPI3_PLL1Q        },
 #endif /* SPI3 */
 #if defined(SPI4)
   { .ClkMuxId = RCC_CLK_MUX_SPI4_PCLK2        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI4SEL     , .ClkSrcVal = LL_RCC_SPI4_CLKSOURCE_PCLK2       , .DefaultClkMuxId = RCC_CLK_MUX_SPI4_PCLK2        },
   { .ClkMuxId = RCC_CLK_MUX_SPI4_PLL2Q        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI4SEL     , .ClkSrcVal = LL_RCC_SPI4_CLKSOURCE_PLL2Q       , .DefaultClkMuxId = RCC_CLK_MUX_SPI4_PCLK2        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_SPI4_PLL3Q        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI4SEL     , .ClkSrcVal = LL_RCC_SPI4_CLKSOURCE_PLL3Q       , .DefaultClkMuxId = RCC_CLK_MUX_SPI4_PCLK2        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_SPI4_HSI64        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI4SEL     , .ClkSrcVal = LL_RCC_SPI4_CLKSOURCE_HSI         , .DefaultClkMuxId = RCC_CLK_MUX_SPI4_PCLK2        },
   { .ClkMuxId = RCC_CLK_MUX_SPI4_CSI          , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI4SEL     , .ClkSrcVal = LL_RCC_SPI4_CLKSOURCE_CSI         , .DefaultClkMuxId = RCC_CLK_MUX_SPI4_PCLK2        },
   { .ClkMuxId = RCC_CLK_MUX_SPI4_HSE          , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI4SEL     , .ClkSrcVal = LL_RCC_SPI4_CLKSOURCE_HSE         , .DefaultClkMuxId = RCC_CLK_MUX_SPI4_PCLK2        },
@@ -140,7 +160,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(SPI5)
   { .ClkMuxId = RCC_CLK_MUX_SPI5_PCLK3        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI5SEL     , .ClkSrcVal = LL_RCC_SPI5_CLKSOURCE_PCLK3       , .DefaultClkMuxId = RCC_CLK_MUX_SPI5_PCLK3        },
   { .ClkMuxId = RCC_CLK_MUX_SPI5_PLL2Q        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI5SEL     , .ClkSrcVal = LL_RCC_SPI5_CLKSOURCE_PLL2Q       , .DefaultClkMuxId = RCC_CLK_MUX_SPI5_PCLK3        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_SPI5_PLL3Q        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI5SEL     , .ClkSrcVal = LL_RCC_SPI5_CLKSOURCE_PLL3Q       , .DefaultClkMuxId = RCC_CLK_MUX_SPI5_PCLK3        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_SPI5_HSI64        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI5SEL     , .ClkSrcVal = LL_RCC_SPI5_CLKSOURCE_HSI         , .DefaultClkMuxId = RCC_CLK_MUX_SPI5_PCLK3        },
   { .ClkMuxId = RCC_CLK_MUX_SPI5_CSI          , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI5SEL     , .ClkSrcVal = LL_RCC_SPI5_CLKSOURCE_CSI         , .DefaultClkMuxId = RCC_CLK_MUX_SPI5_PCLK3        },
   { .ClkMuxId = RCC_CLK_MUX_SPI5_HSE          , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI5SEL     , .ClkSrcVal = LL_RCC_SPI5_CLKSOURCE_HSE         , .DefaultClkMuxId = RCC_CLK_MUX_SPI5_PCLK3        },
@@ -148,7 +170,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(SPI6)
   { .ClkMuxId = RCC_CLK_MUX_SPI6_PCLK2        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI6SEL     , .ClkSrcVal = LL_RCC_SPI6_CLKSOURCE_PCLK2       , .DefaultClkMuxId = RCC_CLK_MUX_SPI6_PCLK2        },
   { .ClkMuxId = RCC_CLK_MUX_SPI6_PLL2Q        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI6SEL     , .ClkSrcVal = LL_RCC_SPI6_CLKSOURCE_PLL2Q       , .DefaultClkMuxId = RCC_CLK_MUX_SPI6_PCLK2        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_SPI6_PLL3Q        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI6SEL     , .ClkSrcVal = LL_RCC_SPI6_CLKSOURCE_PLL3Q       , .DefaultClkMuxId = RCC_CLK_MUX_SPI6_PCLK2        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_SPI6_HSI64        , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI6SEL     , .ClkSrcVal = LL_RCC_SPI6_CLKSOURCE_HSI         , .DefaultClkMuxId = RCC_CLK_MUX_SPI6_PCLK2        },
   { .ClkMuxId = RCC_CLK_MUX_SPI6_CSI          , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI6SEL     , .ClkSrcVal = LL_RCC_SPI6_CLKSOURCE_CSI         , .DefaultClkMuxId = RCC_CLK_MUX_SPI6_PCLK2        },
   { .ClkMuxId = RCC_CLK_MUX_SPI6_HSE          , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_SPI6SEL     , .ClkSrcVal = LL_RCC_SPI6_CLKSOURCE_HSE         , .DefaultClkMuxId = RCC_CLK_MUX_SPI6_PCLK2        },
@@ -157,25 +181,37 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 
 #if defined(I2C1)
   { .ClkMuxId = RCC_CLK_MUX_I2C1_PCLK1        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C1SEL     , .ClkSrcVal = LL_RCC_I2C1_CLKSOURCE_PCLK1       , .DefaultClkMuxId = RCC_CLK_MUX_I2C1_PCLK1        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_I2C1_PLL3R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C1SEL     , .ClkSrcVal = LL_RCC_I2C1_CLKSOURCE_PLL3R       , .DefaultClkMuxId = RCC_CLK_MUX_I2C1_PCLK1        },
+#else
+  { .ClkMuxId = RCC_CLK_MUX_I2C1_PLL2R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C1SEL     , .ClkSrcVal = LL_RCC_I2C1_CLKSOURCE_PLL2R       , .DefaultClkMuxId = RCC_CLK_MUX_I2C1_PCLK1        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_I2C1_HSI64        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C1SEL     , .ClkSrcVal = LL_RCC_I2C1_CLKSOURCE_HSI         , .DefaultClkMuxId = RCC_CLK_MUX_I2C1_PCLK1        },
   { .ClkMuxId = RCC_CLK_MUX_I2C1_CSI          , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C1SEL     , .ClkSrcVal = LL_RCC_I2C1_CLKSOURCE_CSI         , .DefaultClkMuxId = RCC_CLK_MUX_I2C1_PCLK1        },
 #endif /* I2C1 */
 #if defined(I2C2)
   { .ClkMuxId = RCC_CLK_MUX_I2C2_PCLK1        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C2SEL     , .ClkSrcVal = LL_RCC_I2C2_CLKSOURCE_PCLK1       , .DefaultClkMuxId = RCC_CLK_MUX_I2C2_PCLK1        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_I2C2_PLL3R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C2SEL     , .ClkSrcVal = LL_RCC_I2C2_CLKSOURCE_PLL3R       , .DefaultClkMuxId = RCC_CLK_MUX_I2C2_PCLK1        },
+#else
+  { .ClkMuxId = RCC_CLK_MUX_I2C2_PLL2R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C2SEL     , .ClkSrcVal = LL_RCC_I2C2_CLKSOURCE_PLL2R       , .DefaultClkMuxId = RCC_CLK_MUX_I2C2_PCLK1        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_I2C2_HSI64        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C2SEL     , .ClkSrcVal = LL_RCC_I2C2_CLKSOURCE_HSI         , .DefaultClkMuxId = RCC_CLK_MUX_I2C2_PCLK1        },
   { .ClkMuxId = RCC_CLK_MUX_I2C2_CSI          , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C2SEL     , .ClkSrcVal = LL_RCC_I2C2_CLKSOURCE_CSI         , .DefaultClkMuxId = RCC_CLK_MUX_I2C2_PCLK1        },
 #endif /* I2C2 */
 #if defined(I2C3)
   { .ClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C3SEL     , .ClkSrcVal = LL_RCC_I2C3_CLKSOURCE_PCLK3       , .DefaultClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_I2C3_PLL3R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C3SEL     , .ClkSrcVal = LL_RCC_I2C3_CLKSOURCE_PLL3R       , .DefaultClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_I2C3_HSI64        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C3SEL     , .ClkSrcVal = LL_RCC_I2C3_CLKSOURCE_HSI         , .DefaultClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        },
   { .ClkMuxId = RCC_CLK_MUX_I2C3_CSI          , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C3SEL     , .ClkSrcVal = LL_RCC_I2C3_CLKSOURCE_CSI         , .DefaultClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        },
 #endif /* I2C3 */
 #if defined(I2C4)
   { .ClkMuxId = RCC_CLK_MUX_I2C4_PCLK3        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C4SEL     , .ClkSrcVal = LL_RCC_I2C4_CLKSOURCE_PCLK3       , .DefaultClkMuxId = RCC_CLK_MUX_I2C4_PCLK3        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_I2C4_PLL3R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C4SEL     , .ClkSrcVal = LL_RCC_I2C4_CLKSOURCE_PLL3R       , .DefaultClkMuxId = RCC_CLK_MUX_I2C4_PCLK3        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_I2C4_HSI64        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C4SEL     , .ClkSrcVal = LL_RCC_I2C4_CLKSOURCE_HSI         , .DefaultClkMuxId = RCC_CLK_MUX_I2C4_PCLK3        },
   { .ClkMuxId = RCC_CLK_MUX_I2C4_CSI          , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C4SEL     , .ClkSrcVal = LL_RCC_I2C4_CLKSOURCE_CSI         , .DefaultClkMuxId = RCC_CLK_MUX_I2C4_PCLK3        },
 #endif /* I2C4 */
@@ -183,21 +219,31 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 
 #if defined(I3C1)
   { .ClkMuxId = RCC_CLK_MUX_I3C1_PCLK1        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I3C1SEL     , .ClkSrcVal = LL_RCC_I3C1_CLKSOURCE_PCLK1       , .DefaultClkMuxId = RCC_CLK_MUX_I3C1_PCLK1        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_I3C1_PLL3R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I3C1SEL     , .ClkSrcVal = LL_RCC_I3C1_CLKSOURCE_PLL3R       , .DefaultClkMuxId = RCC_CLK_MUX_I3C1_PCLK1        },
+#else
+  { .ClkMuxId = RCC_CLK_MUX_I3C1_PLL2R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I3C1SEL     , .ClkSrcVal = LL_RCC_I3C1_CLKSOURCE_PLL2R       , .DefaultClkMuxId = RCC_CLK_MUX_I3C1_PCLK1        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_I3C1_HSI64        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I3C1SEL     , .ClkSrcVal = LL_RCC_I3C1_CLKSOURCE_HSI         , .DefaultClkMuxId = RCC_CLK_MUX_I3C1_PCLK1        },
 #endif /* I3C1 */
 
 #if defined(I3C2)
-  { .ClkMuxId = RCC_CLK_MUX_I3C2_PCLK1        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I3C2SEL     , .ClkSrcVal = LL_RCC_I3C2_CLKSOURCE_PCLK1       , .DefaultClkMuxId = RCC_CLK_MUX_I3C2_PCLK1        },
-  { .ClkMuxId = RCC_CLK_MUX_I3C2_PLL3R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I3C2SEL     , .ClkSrcVal = LL_RCC_I3C2_CLKSOURCE_PLL3R       , .DefaultClkMuxId = RCC_CLK_MUX_I3C2_PCLK1        },
-  { .ClkMuxId = RCC_CLK_MUX_I3C2_HSI64        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I3C2SEL     , .ClkSrcVal = LL_RCC_I3C2_CLKSOURCE_HSI         , .DefaultClkMuxId = RCC_CLK_MUX_I3C2_PCLK1        },
+  { .ClkMuxId = RCC_CLK_MUX_I3C2_PCLK3        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I3C2SEL     , .ClkSrcVal = LL_RCC_I3C2_CLKSOURCE_PCLK3       , .DefaultClkMuxId = RCC_CLK_MUX_I3C2_PCLK3        },
+#if defined(RCC_CR_PLL3ON)
+  { .ClkMuxId = RCC_CLK_MUX_I3C2_PLL3R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I3C2SEL     , .ClkSrcVal = LL_RCC_I3C2_CLKSOURCE_PLL3R       , .DefaultClkMuxId = RCC_CLK_MUX_I3C2_PCLK3        },
+#else
+  { .ClkMuxId = RCC_CLK_MUX_I3C2_PLL2R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I3C2SEL     , .ClkSrcVal = LL_RCC_I3C2_CLKSOURCE_PLL2R       , .DefaultClkMuxId = RCC_CLK_MUX_I3C2_PCLK3        },
+#endif
+  { .ClkMuxId = RCC_CLK_MUX_I3C2_HSI64        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I3C2SEL     , .ClkSrcVal = LL_RCC_I3C2_CLKSOURCE_HSI         , .DefaultClkMuxId = RCC_CLK_MUX_I3C2_PCLK3        },
 #endif /* I3C2 */
 
 
 #if defined(USART1)
   { .ClkMuxId = RCC_CLK_MUX_USART1_PCLK2      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART1SEL   , .ClkSrcVal = LL_RCC_USART1_CLKSOURCE_PCLK2     , .DefaultClkMuxId = RCC_CLK_MUX_USART1_PCLK2      },
   { .ClkMuxId = RCC_CLK_MUX_USART1_PLL2Q      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART1SEL   , .ClkSrcVal = LL_RCC_USART1_CLKSOURCE_PLL2Q     , .DefaultClkMuxId = RCC_CLK_MUX_USART1_PCLK2      },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_USART1_PLL3Q      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART1SEL   , .ClkSrcVal = LL_RCC_USART1_CLKSOURCE_PLL3Q     , .DefaultClkMuxId = RCC_CLK_MUX_USART1_PCLK2      },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_USART1_HSI        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART1SEL   , .ClkSrcVal = LL_RCC_USART1_CLKSOURCE_HSI       , .DefaultClkMuxId = RCC_CLK_MUX_USART1_PCLK2      },
   { .ClkMuxId = RCC_CLK_MUX_USART1_LSE        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART1SEL   , .ClkSrcVal = LL_RCC_USART1_CLKSOURCE_LSE       , .DefaultClkMuxId = RCC_CLK_MUX_USART1_PCLK2      },
   { .ClkMuxId = RCC_CLK_MUX_USART1_CSI        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART1SEL   , .ClkSrcVal = LL_RCC_USART1_CLKSOURCE_CSI       , .DefaultClkMuxId = RCC_CLK_MUX_USART1_PCLK2      },
@@ -205,7 +251,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(USART2)
   { .ClkMuxId = RCC_CLK_MUX_USART2_PCLK1      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART2SEL   , .ClkSrcVal = LL_RCC_USART2_CLKSOURCE_PCLK1     , .DefaultClkMuxId = RCC_CLK_MUX_USART2_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_USART2_PLL2Q      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART2SEL   , .ClkSrcVal = LL_RCC_USART2_CLKSOURCE_PLL2Q     , .DefaultClkMuxId = RCC_CLK_MUX_USART2_PCLK1      },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_USART2_PLL3Q      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART2SEL   , .ClkSrcVal = LL_RCC_USART2_CLKSOURCE_PLL3Q     , .DefaultClkMuxId = RCC_CLK_MUX_USART2_PCLK1      },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_USART2_HSI        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART2SEL   , .ClkSrcVal = LL_RCC_USART2_CLKSOURCE_HSI       , .DefaultClkMuxId = RCC_CLK_MUX_USART2_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_USART2_LSE        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART2SEL   , .ClkSrcVal = LL_RCC_USART2_CLKSOURCE_LSE       , .DefaultClkMuxId = RCC_CLK_MUX_USART2_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_USART2_CSI        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART2SEL   , .ClkSrcVal = LL_RCC_USART2_CLKSOURCE_CSI       , .DefaultClkMuxId = RCC_CLK_MUX_USART2_PCLK1      },
@@ -213,7 +261,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(USART3)
   { .ClkMuxId = RCC_CLK_MUX_USART3_PCLK1      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART3SEL   , .ClkSrcVal = LL_RCC_USART3_CLKSOURCE_PCLK1     , .DefaultClkMuxId = RCC_CLK_MUX_USART3_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_USART3_PLL2Q      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART3SEL   , .ClkSrcVal = LL_RCC_USART3_CLKSOURCE_PLL2Q     , .DefaultClkMuxId = RCC_CLK_MUX_USART3_PCLK1      },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_USART3_PLL3Q      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART3SEL   , .ClkSrcVal = LL_RCC_USART3_CLKSOURCE_PLL3Q     , .DefaultClkMuxId = RCC_CLK_MUX_USART3_PCLK1      },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_USART3_HSI        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART3SEL   , .ClkSrcVal = LL_RCC_USART3_CLKSOURCE_HSI       , .DefaultClkMuxId = RCC_CLK_MUX_USART3_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_USART3_LSE        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART3SEL   , .ClkSrcVal = LL_RCC_USART3_CLKSOURCE_LSE       , .DefaultClkMuxId = RCC_CLK_MUX_USART3_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_USART3_CSI        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART3SEL   , .ClkSrcVal = LL_RCC_USART3_CLKSOURCE_CSI       , .DefaultClkMuxId = RCC_CLK_MUX_USART3_PCLK1      },
@@ -221,7 +271,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(USART6)
   { .ClkMuxId = RCC_CLK_MUX_USART6_PCLK1      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART6SEL   , .ClkSrcVal = LL_RCC_USART6_CLKSOURCE_PCLK1     , .DefaultClkMuxId = RCC_CLK_MUX_USART6_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_USART6_PLL2Q      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART6SEL   , .ClkSrcVal = LL_RCC_USART6_CLKSOURCE_PLL2Q     , .DefaultClkMuxId = RCC_CLK_MUX_USART6_PCLK1      },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_USART6_PLL3Q      , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART6SEL   , .ClkSrcVal = LL_RCC_USART6_CLKSOURCE_PLL3Q     , .DefaultClkMuxId = RCC_CLK_MUX_USART6_PCLK1      },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_USART6_HSI        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART6SEL   , .ClkSrcVal = LL_RCC_USART6_CLKSOURCE_HSI       , .DefaultClkMuxId = RCC_CLK_MUX_USART6_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_USART6_LSE        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART6SEL   , .ClkSrcVal = LL_RCC_USART6_CLKSOURCE_LSE       , .DefaultClkMuxId = RCC_CLK_MUX_USART6_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_USART6_CSI        , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART6SEL   , .ClkSrcVal = LL_RCC_USART6_CLKSOURCE_CSI       , .DefaultClkMuxId = RCC_CLK_MUX_USART6_PCLK1      },
@@ -229,7 +281,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(USART10)
   { .ClkMuxId = RCC_CLK_MUX_USART10_PCLK1     , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART10SEL  , .ClkSrcVal = LL_RCC_USART10_CLKSOURCE_PCLK1    , .DefaultClkMuxId = RCC_CLK_MUX_USART10_PCLK1     },
   { .ClkMuxId = RCC_CLK_MUX_USART10_PLL2Q     , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART10SEL  , .ClkSrcVal = LL_RCC_USART10_CLKSOURCE_PLL2Q    , .DefaultClkMuxId = RCC_CLK_MUX_USART10_PCLK1     },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_USART10_PLL3Q     , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART10SEL  , .ClkSrcVal = LL_RCC_USART10_CLKSOURCE_PLL3Q    , .DefaultClkMuxId = RCC_CLK_MUX_USART10_PCLK1     },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_USART10_HSI       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART10SEL  , .ClkSrcVal = LL_RCC_USART10_CLKSOURCE_HSI      , .DefaultClkMuxId = RCC_CLK_MUX_USART10_PCLK1     },
   { .ClkMuxId = RCC_CLK_MUX_USART10_LSE       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART10SEL  , .ClkSrcVal = LL_RCC_USART10_CLKSOURCE_LSE      , .DefaultClkMuxId = RCC_CLK_MUX_USART10_PCLK1     },
   { .ClkMuxId = RCC_CLK_MUX_USART10_CSI       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_USART10SEL  , .ClkSrcVal = LL_RCC_USART10_CLKSOURCE_CSI      , .DefaultClkMuxId = RCC_CLK_MUX_USART10_PCLK1     },
@@ -237,7 +291,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(USART11)
   { .ClkMuxId = RCC_CLK_MUX_USART11_PCLK1     , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_USART11SEL  , .ClkSrcVal = LL_RCC_USART11_CLKSOURCE_PCLK1    , .DefaultClkMuxId = RCC_CLK_MUX_USART11_PCLK1     },
   { .ClkMuxId = RCC_CLK_MUX_USART11_PLL2Q     , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_USART11SEL  , .ClkSrcVal = LL_RCC_USART11_CLKSOURCE_PLL2Q    , .DefaultClkMuxId = RCC_CLK_MUX_USART11_PCLK1     },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_USART11_PLL3Q     , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_USART11SEL  , .ClkSrcVal = LL_RCC_USART11_CLKSOURCE_PLL3Q    , .DefaultClkMuxId = RCC_CLK_MUX_USART11_PCLK1     },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_USART11_HSI       , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_USART11SEL  , .ClkSrcVal = LL_RCC_USART11_CLKSOURCE_HSI      , .DefaultClkMuxId = RCC_CLK_MUX_USART11_PCLK1     },
   { .ClkMuxId = RCC_CLK_MUX_USART11_LSE       , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_USART11SEL  , .ClkSrcVal = LL_RCC_USART11_CLKSOURCE_LSE      , .DefaultClkMuxId = RCC_CLK_MUX_USART11_PCLK1     },
   { .ClkMuxId = RCC_CLK_MUX_USART11_CSI       , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_USART11SEL  , .ClkSrcVal = LL_RCC_USART11_CLKSOURCE_CSI      , .DefaultClkMuxId = RCC_CLK_MUX_USART11_PCLK1     },
@@ -247,7 +303,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(UART4)
   { .ClkMuxId = RCC_CLK_MUX_UART4_PCLK1       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART4SEL    , .ClkSrcVal = LL_RCC_UART4_CLKSOURCE_PCLK1      , .DefaultClkMuxId = RCC_CLK_MUX_UART4_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART4_PLL2Q       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART4SEL    , .ClkSrcVal = LL_RCC_UART4_CLKSOURCE_PLL2Q      , .DefaultClkMuxId = RCC_CLK_MUX_UART4_PCLK1       },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_UART4_PLL3Q       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART4SEL    , .ClkSrcVal = LL_RCC_UART4_CLKSOURCE_PLL3Q      , .DefaultClkMuxId = RCC_CLK_MUX_UART4_PCLK1       },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_UART4_HSI         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART4SEL    , .ClkSrcVal = LL_RCC_UART4_CLKSOURCE_HSI        , .DefaultClkMuxId = RCC_CLK_MUX_UART4_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART4_LSE         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART4SEL    , .ClkSrcVal = LL_RCC_UART4_CLKSOURCE_LSE        , .DefaultClkMuxId = RCC_CLK_MUX_UART4_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART4_CSI         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART4SEL    , .ClkSrcVal = LL_RCC_UART4_CLKSOURCE_CSI        , .DefaultClkMuxId = RCC_CLK_MUX_UART4_PCLK1       },
@@ -255,7 +313,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(UART5)
   { .ClkMuxId = RCC_CLK_MUX_UART5_PCLK1       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART5SEL    , .ClkSrcVal = LL_RCC_UART5_CLKSOURCE_PCLK1      , .DefaultClkMuxId = RCC_CLK_MUX_UART5_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART5_PLL2Q       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART5SEL    , .ClkSrcVal = LL_RCC_UART5_CLKSOURCE_PLL2Q      , .DefaultClkMuxId = RCC_CLK_MUX_UART5_PCLK1       },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_UART5_PLL3Q       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART5SEL    , .ClkSrcVal = LL_RCC_UART5_CLKSOURCE_PLL3Q      , .DefaultClkMuxId = RCC_CLK_MUX_UART5_PCLK1       },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_UART5_HSI         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART5SEL    , .ClkSrcVal = LL_RCC_UART5_CLKSOURCE_HSI        , .DefaultClkMuxId = RCC_CLK_MUX_UART5_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART5_LSE         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART5SEL    , .ClkSrcVal = LL_RCC_UART5_CLKSOURCE_LSE        , .DefaultClkMuxId = RCC_CLK_MUX_UART5_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART5_CSI         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART5SEL    , .ClkSrcVal = LL_RCC_UART5_CLKSOURCE_CSI        , .DefaultClkMuxId = RCC_CLK_MUX_UART5_PCLK1       },
@@ -263,7 +323,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(UART7)
   { .ClkMuxId = RCC_CLK_MUX_UART7_PCLK1       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART7SEL    , .ClkSrcVal = LL_RCC_UART7_CLKSOURCE_PCLK1      , .DefaultClkMuxId = RCC_CLK_MUX_UART7_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART7_PLL2Q       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART7SEL    , .ClkSrcVal = LL_RCC_UART7_CLKSOURCE_PLL2Q      , .DefaultClkMuxId = RCC_CLK_MUX_UART7_PCLK1       },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_UART7_PLL3Q       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART7SEL    , .ClkSrcVal = LL_RCC_UART7_CLKSOURCE_PLL3Q      , .DefaultClkMuxId = RCC_CLK_MUX_UART7_PCLK1       },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_UART7_HSI         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART7SEL    , .ClkSrcVal = LL_RCC_UART7_CLKSOURCE_HSI        , .DefaultClkMuxId = RCC_CLK_MUX_UART7_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART7_LSE         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART7SEL    , .ClkSrcVal = LL_RCC_UART7_CLKSOURCE_LSE        , .DefaultClkMuxId = RCC_CLK_MUX_UART7_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART7_CSI         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART7SEL    , .ClkSrcVal = LL_RCC_UART7_CLKSOURCE_CSI        , .DefaultClkMuxId = RCC_CLK_MUX_UART7_PCLK1       },
@@ -271,7 +333,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(UART8)
   { .ClkMuxId = RCC_CLK_MUX_UART8_PCLK1       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART8SEL    , .ClkSrcVal = LL_RCC_UART8_CLKSOURCE_PCLK1      , .DefaultClkMuxId = RCC_CLK_MUX_UART8_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART8_PLL2Q       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART8SEL    , .ClkSrcVal = LL_RCC_UART8_CLKSOURCE_PLL2Q      , .DefaultClkMuxId = RCC_CLK_MUX_UART8_PCLK1       },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_UART8_PLL3Q       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART8SEL    , .ClkSrcVal = LL_RCC_UART8_CLKSOURCE_PLL3Q      , .DefaultClkMuxId = RCC_CLK_MUX_UART8_PCLK1       },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_UART8_HSI         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART8SEL    , .ClkSrcVal = LL_RCC_UART8_CLKSOURCE_HSI        , .DefaultClkMuxId = RCC_CLK_MUX_UART8_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART8_LSE         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART8SEL    , .ClkSrcVal = LL_RCC_UART8_CLKSOURCE_LSE        , .DefaultClkMuxId = RCC_CLK_MUX_UART8_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART8_CSI         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART8SEL    , .ClkSrcVal = LL_RCC_UART8_CLKSOURCE_CSI        , .DefaultClkMuxId = RCC_CLK_MUX_UART8_PCLK1       },
@@ -279,7 +343,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(UART9)
   { .ClkMuxId = RCC_CLK_MUX_UART9_PCLK1       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART9SEL    , .ClkSrcVal = LL_RCC_UART9_CLKSOURCE_PCLK1      , .DefaultClkMuxId = RCC_CLK_MUX_UART9_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART9_PLL2Q       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART9SEL    , .ClkSrcVal = LL_RCC_UART9_CLKSOURCE_PLL2Q      , .DefaultClkMuxId = RCC_CLK_MUX_UART9_PCLK1       },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_UART9_PLL3Q       , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART9SEL    , .ClkSrcVal = LL_RCC_UART9_CLKSOURCE_PLL3Q      , .DefaultClkMuxId = RCC_CLK_MUX_UART9_PCLK1       },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_UART9_HSI         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART9SEL    , .ClkSrcVal = LL_RCC_UART9_CLKSOURCE_HSI        , .DefaultClkMuxId = RCC_CLK_MUX_UART9_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART9_LSE         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART9SEL    , .ClkSrcVal = LL_RCC_UART9_CLKSOURCE_LSE        , .DefaultClkMuxId = RCC_CLK_MUX_UART9_PCLK1       },
   { .ClkMuxId = RCC_CLK_MUX_UART9_CSI         , .ClkMuxRegId = RCC_REG_CCIPR1   , .ClkSrcMask = RCC_CCIPR1_UART9SEL    , .ClkSrcVal = LL_RCC_UART9_CLKSOURCE_CSI        , .DefaultClkMuxId = RCC_CLK_MUX_UART9_PCLK1       },
@@ -287,7 +353,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(UART12)
   { .ClkMuxId = RCC_CLK_MUX_UART12_PCLK1      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_UART12SEL   , .ClkSrcVal = LL_RCC_UART12_CLKSOURCE_PCLK1     , .DefaultClkMuxId = RCC_CLK_MUX_UART12_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_UART12_PLL2Q      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_UART12SEL   , .ClkSrcVal = LL_RCC_UART12_CLKSOURCE_PLL2Q     , .DefaultClkMuxId = RCC_CLK_MUX_UART12_PCLK1      },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_UART12_PLL3Q      , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_UART12SEL   , .ClkSrcVal = LL_RCC_UART12_CLKSOURCE_PLL3Q     , .DefaultClkMuxId = RCC_CLK_MUX_UART12_PCLK1      },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_UART12_HSI        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_UART12SEL   , .ClkSrcVal = LL_RCC_UART12_CLKSOURCE_HSI       , .DefaultClkMuxId = RCC_CLK_MUX_UART12_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_UART12_LSE        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_UART12SEL   , .ClkSrcVal = LL_RCC_UART12_CLKSOURCE_LSE       , .DefaultClkMuxId = RCC_CLK_MUX_UART12_PCLK1      },
   { .ClkMuxId = RCC_CLK_MUX_UART12_CSI        , .ClkMuxRegId = RCC_REG_CCIPR2   , .ClkSrcMask = RCC_CCIPR2_UART12SEL   , .ClkSrcVal = LL_RCC_UART12_CLKSOURCE_CSI       , .DefaultClkMuxId = RCC_CLK_MUX_UART12_PCLK1      },
@@ -297,7 +365,9 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(LPUART1)
   { .ClkMuxId = RCC_CLK_MUX_LPUART1_PCLK3     , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_LPUART1SEL  , .ClkSrcVal = LL_RCC_LPUART1_CLKSOURCE_PCLK3    , .DefaultClkMuxId = RCC_CLK_MUX_LPUART1_PCLK3     },
   { .ClkMuxId = RCC_CLK_MUX_LPUART1_PLL2Q     , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_LPUART1SEL  , .ClkSrcVal = LL_RCC_LPUART1_CLKSOURCE_PLL2Q    , .DefaultClkMuxId = RCC_CLK_MUX_LPUART1_PCLK3     },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_LPUART1_PLL3Q     , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_LPUART1SEL  , .ClkSrcVal = LL_RCC_LPUART1_CLKSOURCE_PLL2Q    , .DefaultClkMuxId = RCC_CLK_MUX_LPUART1_PCLK3     },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_LPUART1_HSI       , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_LPUART1SEL  , .ClkSrcVal = LL_RCC_LPUART1_CLKSOURCE_HSI      , .DefaultClkMuxId = RCC_CLK_MUX_LPUART1_PCLK3     },
   { .ClkMuxId = RCC_CLK_MUX_LPUART1_LSE       , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_LPUART1SEL  , .ClkSrcVal = LL_RCC_LPUART1_CLKSOURCE_LSE      , .DefaultClkMuxId = RCC_CLK_MUX_LPUART1_PCLK3     },
   { .ClkMuxId = RCC_CLK_MUX_LPUART1_CSI       , .ClkMuxRegId = RCC_REG_CCIPR3   , .ClkSrcMask = RCC_CCIPR3_LPUART1SEL  , .ClkSrcVal = LL_RCC_LPUART1_CLKSOURCE_CSI      , .DefaultClkMuxId = RCC_CLK_MUX_LPUART1_PCLK3     },
@@ -331,7 +401,11 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 #if defined(USB_DRD_FS)
   { .ClkMuxId = RCC_CLK_MUX_USB_NONE          , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_USBSEL      , .ClkSrcVal = LL_RCC_USB_CLKSOURCE_NONE         , .DefaultClkMuxId = RCC_CLK_MUX_USB_NONE          },
   { .ClkMuxId = RCC_CLK_MUX_USB_PLL1Q         , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_USBSEL      , .ClkSrcVal = LL_RCC_USB_CLKSOURCE_PLL1Q        , .DefaultClkMuxId = RCC_CLK_MUX_USB_NONE          },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_USB_PLL3Q         , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_USBSEL      , .ClkSrcVal = LL_RCC_USB_CLKSOURCE_PLL3Q        , .DefaultClkMuxId = RCC_CLK_MUX_USB_NONE          },
+#else
+  { .ClkMuxId = RCC_CLK_MUX_USB_PLL2Q         , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_USBSEL      , .ClkSrcVal = LL_RCC_USB_CLKSOURCE_PLL2Q        , .DefaultClkMuxId = RCC_CLK_MUX_USB_NONE          },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_USB_HSI48         , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_USBSEL      , .ClkSrcVal = LL_RCC_USB_CLKSOURCE_HSI48        , .DefaultClkMuxId = RCC_CLK_MUX_USB_NONE          },
 #endif /* USB_OTG_HS */
 
@@ -339,14 +413,18 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
 
 #if defined(SAI1)
   { .ClkMuxId = RCC_CLK_MUX_SAI1_PLL2P        , .ClkMuxRegId = RCC_REG_CCIPR5   , .ClkSrcMask = RCC_CCIPR5_SAI1SEL     , .ClkSrcVal = LL_RCC_SAI1_CLKSOURCE_PLL2P       , .DefaultClkMuxId = RCC_CLK_MUX_SAI1_PLL1Q        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_SAI1_PLL3P        , .ClkMuxRegId = RCC_REG_CCIPR5   , .ClkSrcMask = RCC_CCIPR5_SAI1SEL     , .ClkSrcVal = LL_RCC_SAI1_CLKSOURCE_PLL3P       , .DefaultClkMuxId = RCC_CLK_MUX_SAI1_PLL1Q        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_SAI1_PLL1Q        , .ClkMuxRegId = RCC_REG_CCIPR5   , .ClkSrcMask = RCC_CCIPR5_SAI1SEL     , .ClkSrcVal = LL_RCC_SAI1_CLKSOURCE_PLL1Q       , .DefaultClkMuxId = RCC_CLK_MUX_SAI1_PLL1Q        },
   { .ClkMuxId = RCC_CLK_MUX_SAI1_CKIN         , .ClkMuxRegId = RCC_REG_CCIPR5   , .ClkSrcMask = RCC_CCIPR5_SAI1SEL     , .ClkSrcVal = LL_RCC_SAI1_CLKSOURCE_PIN         , .DefaultClkMuxId = RCC_CLK_MUX_SAI1_PLL1Q        },
   { .ClkMuxId = RCC_CLK_MUX_SAI1_LPCLK        , .ClkMuxRegId = RCC_REG_CCIPR5   , .ClkSrcMask = RCC_CCIPR5_SAI1SEL     , .ClkSrcVal = LL_RCC_SAI1_CLKSOURCE_CLKP        , .DefaultClkMuxId = RCC_CLK_MUX_SAI1_PLL1Q        },
 #endif /* SAI1 */
 #if defined(SAI2)
   { .ClkMuxId = RCC_CLK_MUX_SAI2_PLL2P        , .ClkMuxRegId = RCC_REG_CCIPR5   , .ClkSrcMask = RCC_CCIPR5_SAI2SEL     , .ClkSrcVal = LL_RCC_SAI2_CLKSOURCE_PLL2P       , .DefaultClkMuxId = RCC_CLK_MUX_SAI2_PLL1Q        },
+#if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_SAI2_PLL3P        , .ClkMuxRegId = RCC_REG_CCIPR5   , .ClkSrcMask = RCC_CCIPR5_SAI2SEL     , .ClkSrcVal = LL_RCC_SAI2_CLKSOURCE_PLL3P       , .DefaultClkMuxId = RCC_CLK_MUX_SAI2_PLL1Q        },
+#endif
   { .ClkMuxId = RCC_CLK_MUX_SAI2_PLL1Q        , .ClkMuxRegId = RCC_REG_CCIPR5   , .ClkSrcMask = RCC_CCIPR5_SAI2SEL     , .ClkSrcVal = LL_RCC_SAI2_CLKSOURCE_PLL1Q       , .DefaultClkMuxId = RCC_CLK_MUX_SAI2_PLL1Q        },
   { .ClkMuxId = RCC_CLK_MUX_SAI2_CKIN         , .ClkMuxRegId = RCC_REG_CCIPR5   , .ClkSrcMask = RCC_CCIPR5_SAI2SEL     , .ClkSrcVal = LL_RCC_SAI2_CLKSOURCE_PIN         , .DefaultClkMuxId = RCC_CLK_MUX_SAI2_PLL1Q        },
   { .ClkMuxId = RCC_CLK_MUX_SAI2_LPCLK        , .ClkMuxRegId = RCC_REG_CCIPR5   , .ClkSrcMask = RCC_CCIPR5_SAI2SEL     , .ClkSrcVal = LL_RCC_SAI2_CLKSOURCE_CLKP        , .DefaultClkMuxId = RCC_CLK_MUX_SAI2_PLL1Q        },
