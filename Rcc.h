@@ -197,6 +197,10 @@ typedef enum rcc_BlockList_t
     RCC_BLOCK_I3C1         , /**< I3C 1 */
 #endif /* I3C1 */
 
+#if defined(I3C2)
+    RCC_BLOCK_I3C2         , /**< I3C 2 */
+#endif /* I3C2 */
+
 
 #if defined(USART1)
     RCC_BLOCK_USART1       , /**< USART 1 */

@@ -323,13 +323,21 @@ typedef enum rcc_PeriphId_t
 
 #if defined(I2C1)
     RCC_PERIPH_I2C1_PCLK1         , /**< I2C 1 clock enable with APB1 (PCLK1) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_I2C1_PLL3R         , /**< I2C 1 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#else
+    RCC_PERIPH_I2C1_PLL2R         , /**< I2C 1 clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source */
+#endif
     RCC_PERIPH_I2C1_HSI           , /**< I2C 1 clock enable with 64MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_PERIPH_I2C1_CSI           , /**< I2C 1 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
 #endif /* I2C1 */
 #if defined(I2C2)
     RCC_PERIPH_I2C2_PCLK1         , /**< I2C 2 clock enable with APB1 (PCLK1) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_I2C2_PLL3R         , /**< I2C 2 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#else
+    RCC_PERIPH_I2C2_PLL2R         , /**< I2C 2 clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source */
+#endif
     RCC_PERIPH_I2C2_HSI           , /**< I2C 2 clock enable with 64MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_PERIPH_I2C2_CSI           , /**< I2C 2 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
 #endif /* I2C2 */
@@ -348,9 +356,22 @@ typedef enum rcc_PeriphId_t
 
 #if defined(I3C1)
     RCC_PERIPH_I3C1_PCLK1          , /**< I3C 1 Clock enable with APB1 (PCLK1) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_I3C1_PLL3R         , /**< I3C 1 Clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#else
+    RCC_PERIPH_I3C1_PLL2R         , /**< I3C 1 Clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source */
+#endif
     RCC_PERIPH_I3C1_HSI           , /**< I3C 1 Clock enable with 64MHz High Speed Internal (HSI) oscillator output as clock source */
 #endif /* I3C1 */
+#if defined(I3C2)
+    RCC_PERIPH_I3C2_PCLK1          , /**< I3C 1 Clock enable with APB1 (PCLK1) as clock source */
+#if defined(RCC_CR_PLL3ON)
+    RCC_PERIPH_I3C2_PLL3R         , /**< I3C 1 Clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#else
+    RCC_PERIPH_I3C2_PLL2R         , /**< I3C 1 Clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source */
+#endif
+    RCC_PERIPH_I3C2_HSI           , /**< I3C 1 Clock enable with 64MHz High Speed Internal (HSI) oscillator output as clock source */
+#endif /* I3C2 */
 
 #if defined(USART1)
     RCC_PERIPH_USART1_PCLK2       , /**< USART 1 clock enable with APB2 (PCLK2) as clock source */
@@ -491,7 +512,11 @@ typedef enum rcc_PeriphId_t
 
 #if defined(USB_DRD_FS)
     RCC_PERIPH_USB_PLL1Q          , /**< USB Full Speed (12Mbps) clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_USB_PLL3Q          , /**< USB Full Speed (12Mbps) clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#else
+    RCC_PERIPH_USB_PLL2Q          , /**< USB Full Speed (12Mbps) clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#endif
     RCC_PERIPH_USB_HSI48          , /**< USB Full Speed (12Mbps) clock enable with 48MHz High Speed Internal (HSE48) as clock source */
 #endif /* USB_OTG_HS */
 
@@ -783,7 +808,9 @@ typedef enum
 {
     RCC_CLK_BUS_AHB1 = 0u, /**< Advanced High-performance Bus 1   */
     RCC_CLK_BUS_AHB2,      /**< Advanced High-performance Bus 2   */
+#if defined(AHB4ENR)
     RCC_CLK_BUS_AHB4,      /**< Advanced High-performance Bus 4   */
+#endif
     RCC_CLK_BUS_APB1_1,    /**< Advanced Peripheral Bus 1 group 1 */
     RCC_CLK_BUS_APB1_2,    /**< Advanced Peripheral Bus 1 group 2 */
     RCC_CLK_BUS_APB2,      /**< Advanced Peripheral Bus 2         */

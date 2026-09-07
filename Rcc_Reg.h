@@ -30,33 +30,45 @@ typedef enum
     RCC_REG_CFGR2      , /**< RCC clock configuration register 2                   */
     RCC_REG_PLL1CFGR   , /**< RCC PLL1 Configuration Register                      */
     RCC_REG_PLL2CFGR   , /**< RCC PLL2 Configuration Register                      */
+#if defined(RCC_CR_PLL3ON)
     RCC_REG_PLL3CFGR   , /**< RCC PLL3 Configuration Register                      */
+#endif
     RCC_REG_PLL1DIVR   , /**< RCC PLL1 Dividers Configuration Register             */
     RCC_REG_PLL1FRACR  , /**< RCC PLL1 Fractional Divider Configuration Register   */
     RCC_REG_PLL2DIVR   , /**< RCC PLL2 Dividers Configuration Register             */
     RCC_REG_PLL2FRACR  , /**< RCC PLL2 Fractional Divider Configuration Register   */
+#if defined(PLL3DIVR)
     RCC_REG_PLL3DIVR   , /**< RCC PLL3 Dividers Configuration Register             */
+#endif
+#if defined(PLL3FRACR)
     RCC_REG_PLL3FRACR  , /**< RCC PLL3 Fractional Divider Configuration Register   */
+#endif
     RCC_REG_CIER       , /**< RCC Clock Interrupt Enable Register                  */
     RCC_REG_CIFR       , /**< RCC Clock Interrupt Flag Register                    */
     RCC_REG_CICR       , /**< RCC Clock Interrupt Clear Register                   */
     RCC_REG_AHB1RSTR   , /**< RCC AHB1 Peripherals Reset Register                  */
     RCC_REG_AHB2RSTR   , /**< RCC AHB2 Peripherals Reset Register                  */
+#if defined(AHB4RSTR)
     RCC_REG_AHB4RSTR   , /**< RCC AHB4 Peripherals Reset Register                  */
+#endif
     RCC_REG_APB1LRSTR  , /**< RCC APB1 Peripherals reset Low Word register         */
     RCC_REG_APB1HRSTR  , /**< RCC APB1 Peripherals reset High Word register        */
     RCC_REG_APB2RSTR   , /**< RCC APB2 Peripherals Reset Register                  */
     RCC_REG_APB3RSTR   , /**< RCC APB3 Peripherals Reset Register                  */
     RCC_REG_AHB1ENR    , /**< RCC AHB1 Peripherals Clock Enable Register           */
     RCC_REG_AHB2ENR    , /**< RCC AHB2 Peripherals Clock Enable Register           */
+#if defined(AHB4ENR)
     RCC_REG_AHB4ENR    , /**< RCC AHB4 Peripherals Clock Enable Register           */
+#endif
     RCC_REG_APB1LENR   , /**< RCC APB1 Peripherals clock Enable Low Word register  */
     RCC_REG_APB1HENR   , /**< RCC APB1 Peripherals clock Enable High Word register */
     RCC_REG_APB2ENR    , /**< RCC APB2 Peripherals Clock Enable Register           */
     RCC_REG_APB3ENR    , /**< RCC APB3 Peripherals Clock Enable Register           */
     RCC_REG_AHB1LPENR  , /**< RCC AHB1 Peripheral sleep clock Register             */
     RCC_REG_AHB2LPENR  , /**< RCC AHB2 Peripheral sleep clock Register             */
+#if defined(AHB4LPENR)
     RCC_REG_AHB4LPENR  , /**< RCC AHB4 Peripherals sleep clock Register            */
+#endif
     RCC_REG_APB1LLPENR , /**< RCC APB1 Peripherals sleep clock Low Word Register   */
     RCC_REG_APB1HLPENR , /**< RCC APB1 Peripherals sleep clock High Word Register  */
     RCC_REG_APB2LPENR  , /**< RCC APB2 Peripherals sleep clock Register            */
@@ -68,7 +80,9 @@ typedef enum
     RCC_REG_CCIPR5     , /**< RCC IPs Clocks Configuration Register 5              */
     RCC_REG_BDCR       , /**< RCC VSW Backup Domain & V33 Domain Control Register  */
     RCC_REG_RSR        , /**< RCC Reset status Register                            */
+#if defined(SECCFGR)
     RCC_REG_SECCFGR    , /**< RCC Secure mode configuration register               */
+#endif
     RCC_REG_PRIVCFGR   , /**< RCC Privilege configuration register                 */
     RCC_REG_FLASH_ACR  , /**< Flash configuration register                         */
     RCC_REG_CNT          /**< Count of available RCC registers                     */
