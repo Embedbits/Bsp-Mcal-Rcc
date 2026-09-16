@@ -148,8 +148,8 @@ const rcc_ClkBusConfigStruct_t         rcc_ClkBusConfigStruct[ RCC_CLK_BUS_CNT ]
 {
   { .ClkBusId = RCC_CLK_BUS_AHB1  , .EnableRegId = RCC_REG_AHB1ENR , .SleepRegId = RCC_REG_AHB1LPENR , .ResetRegId = RCC_REG_AHB1RSTR  },
   { .ClkBusId = RCC_CLK_BUS_AHB2  , .EnableRegId = RCC_REG_AHB2ENR , .SleepRegId = RCC_REG_AHB2LPENR , .ResetRegId = RCC_REG_AHB2RSTR  },
-#if defined(AHB4ENR)
-  { .ClkBusId = RCC_CLK_BUS_AHB4  , .EnableRegId = RCC_REG_AHB4ENR , .SleepRegId = RCC_REG_AHB4LPENR , .ResetRegId = RCC_REG_AHB2RSTR  },
+#if defined(AHB4PERIPH_BASE)
+  { .ClkBusId = RCC_CLK_BUS_AHB4  , .EnableRegId = RCC_REG_AHB4ENR , .SleepRegId = RCC_REG_AHB4LPENR , .ResetRegId = RCC_REG_AHB4RSTR  },
 #endif
   { .ClkBusId = RCC_CLK_BUS_APB1_1, .EnableRegId = RCC_REG_APB1LENR, .SleepRegId = RCC_REG_APB1LLPENR, .ResetRegId = RCC_REG_APB1LRSTR },
   { .ClkBusId = RCC_CLK_BUS_APB1_2, .EnableRegId = RCC_REG_APB1HENR, .SleepRegId = RCC_REG_APB1HLPENR, .ResetRegId = RCC_REG_APB1HRSTR },
@@ -181,6 +181,8 @@ const rcc_ClkSrcConfigStruct_t rcc_PeriphClkSrcConfig[RCC_CLK_SRC_CNT] =
   { .PeriphClkSrcId = RCC_CLK_SRC_LSICLK   , .ClkSrcCallback = Rcc_ClkSrc_Get_LsiClk    },
   { .PeriphClkSrcId = RCC_CLK_SRC_LSECLK   , .ClkSrcCallback = Rcc_ClkSrc_Get_LseClk    },
 };
+
+
 
 
 /** \brief Configuration array of MCU peripherals. */
@@ -393,7 +395,9 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[ RCC_PERIPH_ID_CNT ] =
 #if defined(SPI4)
   { .PeriphId = RCC_PERIPH_SPI4_PCLK2        , .ClkSrcId = RCC_CLK_SRC_APB2CLK , .BlockId = RCC_BLOCK_SPI4     , .ClkMuxId = RCC_CLK_MUX_SPI4_PCLK2        },
   { .PeriphId = RCC_PERIPH_SPI4_PLL2Q        , .ClkSrcId = RCC_CLK_SRC_PLL2QCLK, .BlockId = RCC_BLOCK_SPI4     , .ClkMuxId = RCC_CLK_MUX_SPI4_PLL2Q        },
+#if defined(RCC_CR_PLL3ON)
   { .PeriphId = RCC_PERIPH_SPI4_PLL3Q        , .ClkSrcId = RCC_CLK_SRC_PLL3QCLK, .BlockId = RCC_BLOCK_SPI4     , .ClkMuxId = RCC_CLK_MUX_SPI4_PLL3Q        },
+#endif
   { .PeriphId = RCC_PERIPH_SPI4_HSI64        , .ClkSrcId = RCC_CLK_SRC_HSI64CLK, .BlockId = RCC_BLOCK_SPI4     , .ClkMuxId = RCC_CLK_MUX_SPI4_HSI64        },
   { .PeriphId = RCC_PERIPH_SPI4_CSI          , .ClkSrcId = RCC_CLK_SRC_CSI4CLK , .BlockId = RCC_BLOCK_SPI4     , .ClkMuxId = RCC_CLK_MUX_SPI4_CSI          },
   { .PeriphId = RCC_PERIPH_SPI4_HSE          , .ClkSrcId = RCC_CLK_SRC_HSECLK  , .BlockId = RCC_BLOCK_SPI4     , .ClkMuxId = RCC_CLK_MUX_SPI4_HSE          },
@@ -438,7 +442,9 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[ RCC_PERIPH_ID_CNT ] =
 #endif /* I2C2 */
 #if defined(I2C3)
   { .PeriphId = RCC_PERIPH_I2C3_PCLK3        , .ClkSrcId = RCC_CLK_SRC_APB3CLK , .BlockId = RCC_BLOCK_I2C3     , .ClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        },
+#if defined(RCC_CR_PLL3ON)
   { .PeriphId = RCC_PERIPH_I2C3_PLL3R        , .ClkSrcId = RCC_CLK_SRC_PLL3RCLK, .BlockId = RCC_BLOCK_I2C3     , .ClkMuxId = RCC_CLK_MUX_I2C3_PLL3R        },
+#endif
   { .PeriphId = RCC_PERIPH_I2C3_HSI          , .ClkSrcId = RCC_CLK_SRC_HSI64CLK, .BlockId = RCC_BLOCK_I2C3     , .ClkMuxId = RCC_CLK_MUX_I2C3_HSI64        },
   { .PeriphId = RCC_PERIPH_I2C3_CSI          , .ClkSrcId = RCC_CLK_SRC_CSI4CLK , .BlockId = RCC_BLOCK_I2C3     , .ClkMuxId = RCC_CLK_MUX_I2C3_CSI          },
 #endif /* I2C3 */
@@ -456,7 +462,7 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[ RCC_PERIPH_ID_CNT ] =
 #else
   { .PeriphId = RCC_PERIPH_I3C1_PLL2R        , .ClkSrcId = RCC_CLK_SRC_PLL3RCLK, .BlockId = RCC_BLOCK_I3C1     , .ClkMuxId = RCC_CLK_MUX_I3C1_PLL2R        },
 #endif
-  { .PeriphId = RCC_PERIPH_I3C2_HSI          , .ClkSrcId = RCC_CLK_SRC_HSI64CLK, .BlockId = RCC_BLOCK_I3C2     , .ClkMuxId = RCC_CLK_MUX_I3C1_HSI64        },
+  { .PeriphId = RCC_PERIPH_I3C1_HSI          , .ClkSrcId = RCC_CLK_SRC_HSI64CLK, .BlockId = RCC_BLOCK_I3C1     , .ClkMuxId = RCC_CLK_MUX_I3C1_HSI64        },
 #endif /* I3C1 */
 #if defined(I3C2)
   { .PeriphId = RCC_PERIPH_I3C2_PCLK1        , .ClkSrcId = RCC_CLK_SRC_APB1CLK , .BlockId = RCC_BLOCK_I3C2     , .ClkMuxId = RCC_CLK_MUX_I3C2_PCLK3        },
@@ -1854,7 +1860,7 @@ rcc_RequestState_t Rcc_Set_ClkBusDivider( rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv
     {
         retState = Rcc_ClkBus_Set_AHBDivider( clkBusDivider );
     }
-#if defined(AHB4ENR)
+#if defined(AHB4PERIPH_BASE)
     else if( RCC_CLK_BUS_AHB4 == clkBusId )
     {
         retState = Rcc_ClkBus_Set_AHBDivider( clkBusDivider );
@@ -1903,7 +1909,7 @@ rcc_RequestState_t Rcc_Get_ClkBusDivider( rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv
     {
         retState = Rcc_ClkBus_Get_AHBDivider( (rcc_AHB_Div_t*) clkBusDivider );
     }
-#if defined(AHB4ENR)
+#if defined(AHB4PERIPH_BASE)
     else if( RCC_CLK_BUS_AHB4 == clkBusId )
     {
         retState = Rcc_ClkBus_Get_AHBDivider( (rcc_AHB_Div_t*) clkBusDivider );
@@ -1952,7 +1958,7 @@ rcc_RequestState_t Rcc_Get_ClkBusFreq( rcc_ClkBusId_t clkBusId, rcc_FreqHz_t * c
     {
         retState = Rcc_ClkBus_Get_AHBClk( clkBusFreq );
     }
-#if defined(AHB4ENR)
+#if defined(AHB4PERIPH_BASE)
     else if( RCC_CLK_BUS_AHB4 == clkBusId )
     {
         retState = Rcc_ClkBus_Get_AHBClk( clkBusFreq );

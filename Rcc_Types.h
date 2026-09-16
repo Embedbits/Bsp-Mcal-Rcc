@@ -172,10 +172,16 @@ typedef enum rcc_PeriphId_t
 #endif /* GPIOG */
 #if defined(GPIOH)
     RCC_PERIPH_GPIOH              , /**< IO port H Clock Enable */
-#endif /* GPIOG */
+#endif /* GPIOH */
 #if defined(GPIOI)
     RCC_PERIPH_GPIOI              , /**< IO port I Clock Enable */
-#endif /* GPIOG */
+#endif /* GPIOI */
+#if defined(GPIOJ)
+    RCC_PERIPH_GPIOJ              , /**< IO port J Clock Enable */
+#endif /* GPIOJ */
+#if defined(GPIOK)
+    RCC_PERIPH_GPIOK              , /**< IO port K Clock Enable */
+#endif /* GPIOK */
 
     /*-------------------------------- Timers --------------------------------*/
 
@@ -808,7 +814,7 @@ typedef enum
 {
     RCC_CLK_BUS_AHB1 = 0u, /**< Advanced High-performance Bus 1   */
     RCC_CLK_BUS_AHB2,      /**< Advanced High-performance Bus 2   */
-#if defined(AHB4ENR)
+#if defined(AHB4PERIPH_BASE)
     RCC_CLK_BUS_AHB4,      /**< Advanced High-performance Bus 4   */
 #endif
     RCC_CLK_BUS_APB1_1,    /**< Advanced Peripheral Bus 1 group 1 */

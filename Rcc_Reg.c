@@ -54,10 +54,10 @@ const rcc_RegList_t                     rcc_RegList[ RCC_REG_CNT ] =
     { .RegId = RCC_REG_PLL1FRACR  , .RegAddr = &(RCC->PLL1FRACR ) }, /**< RCC PLL1 Fractional Divider Configuration Register   */
     { .RegId = RCC_REG_PLL2DIVR   , .RegAddr = &(RCC->PLL2DIVR  ) }, /**< RCC PLL2 Dividers Configuration Register             */
     { .RegId = RCC_REG_PLL2FRACR  , .RegAddr = &(RCC->PLL2FRACR ) }, /**< RCC PLL2 Fractional Divider Configuration Register   */
-#if defined(PLL3DIVR)
+#if defined(RCC_CR_PLL3ON)
     { .RegId = RCC_REG_PLL3DIVR   , .RegAddr = &(RCC->PLL3DIVR  ) }, /**< RCC PLL3 Dividers Configuration Register             */
 #endif
-#if defined(PLL3FRACR)
+#if defined(RCC_CR_PLL3ON)
     { .RegId = RCC_REG_PLL3FRACR  , .RegAddr = &(RCC->PLL3FRACR ) }, /**< RCC PLL3 Fractional Divider Configuration Register   */
 #endif
     { .RegId = RCC_REG_CIER       , .RegAddr = &(RCC->CIER      ) }, /**< RCC Clock Interrupt Enable Register                  */
@@ -65,7 +65,7 @@ const rcc_RegList_t                     rcc_RegList[ RCC_REG_CNT ] =
     { .RegId = RCC_REG_CICR       , .RegAddr = &(RCC->CICR      ) }, /**< RCC Clock Interrupt Clear Register                   */
     { .RegId = RCC_REG_AHB1RSTR   , .RegAddr = &(RCC->AHB1RSTR  ) }, /**< RCC AHB1 Peripherals Reset Register                  */
     { .RegId = RCC_REG_AHB2RSTR   , .RegAddr = &(RCC->AHB2RSTR  ) }, /**< RCC AHB2 Peripherals Reset Register                  */
-#if defined(AHB4RSTR)
+#if defined(AHB4PERIPH_BASE)
     { .RegId = RCC_REG_AHB4RSTR   , .RegAddr = &(RCC->AHB4RSTR  ) }, /**< RCC AHB4 Peripherals Reset Register                  */
 #endif
     { .RegId = RCC_REG_APB1LRSTR  , .RegAddr = &(RCC->APB1LRSTR ) }, /**< RCC APB1 Peripherals reset Low Word register         */
@@ -74,7 +74,7 @@ const rcc_RegList_t                     rcc_RegList[ RCC_REG_CNT ] =
     { .RegId = RCC_REG_APB3RSTR   , .RegAddr = &(RCC->APB3RSTR  ) }, /**< RCC APB3 Peripherals Reset Register                  */
     { .RegId = RCC_REG_AHB1ENR    , .RegAddr = &(RCC->AHB1ENR   ) }, /**< RCC AHB1 Peripherals Clock Enable Register           */
     { .RegId = RCC_REG_AHB2ENR    , .RegAddr = &(RCC->AHB2ENR   ) }, /**< RCC AHB2 Peripherals Clock Enable Register           */
-#if defined(AHB4ENR)
+#if defined(AHB4PERIPH_BASE)
     { .RegId = RCC_REG_AHB4ENR    , .RegAddr = &(RCC->AHB4ENR   ) }, /**< RCC AHB4 Peripherals Clock Enable Register           */
 #endif
     { .RegId = RCC_REG_APB1LENR   , .RegAddr = &(RCC->APB1LENR  ) }, /**< RCC APB1 Peripherals clock Enable Low Word register  */
@@ -83,7 +83,7 @@ const rcc_RegList_t                     rcc_RegList[ RCC_REG_CNT ] =
     { .RegId = RCC_REG_APB3ENR    , .RegAddr = &(RCC->APB3ENR   ) }, /**< RCC APB3 Peripherals Clock Enable Register           */
     { .RegId = RCC_REG_AHB1LPENR  , .RegAddr = &(RCC->AHB1LPENR ) }, /**< RCC AHB1 Peripheral sleep clock Register             */
     { .RegId = RCC_REG_AHB2LPENR  , .RegAddr = &(RCC->AHB2LPENR ) }, /**< RCC AHB2 Peripheral sleep clock Register             */
-#if defined(AHB4LPENR)
+#if defined(AHB4PERIPH_BASE)
     { .RegId = RCC_REG_AHB4LPENR  , .RegAddr = &(RCC->AHB4LPENR ) }, /**< RCC AHB4 Peripherals sleep clock Register            */
 #endif
     { .RegId = RCC_REG_APB1LLPENR , .RegAddr = &(RCC->APB1LLPENR) }, /**< RCC APB1 Peripherals sleep clock Low Word Register   */
@@ -97,7 +97,7 @@ const rcc_RegList_t                     rcc_RegList[ RCC_REG_CNT ] =
     { .RegId = RCC_REG_CCIPR5     , .RegAddr = &(RCC->CCIPR5    ) }, /**< RCC IPs Clocks Configuration Register 5              */
     { .RegId = RCC_REG_BDCR       , .RegAddr = &(RCC->BDCR      ) }, /**< RCC VSW Backup Domain & V33 Domain Control Register  */
     { .RegId = RCC_REG_RSR        , .RegAddr = &(RCC->RSR       ) }, /**< RCC Reset status Register                            */
-#if defined(SECCFGR)
+#if defined(RCC_SECCFGR_HSISEC)
     { .RegId = RCC_REG_SECCFGR    , .RegAddr = &(RCC->SECCFGR   ) }, /**< RCC Secure mode configuration register               */
 #endif
     { .RegId = RCC_REG_PRIVCFGR   , .RegAddr = &(RCC->PRIVCFGR  ) }, /**< RCC Privilege configuration register                 */
