@@ -773,8 +773,10 @@ rcc_RequestState_t Rcc_Init( rcc_ConfigStruct_t * const clockConfig )
             retState = Rcc_Set_FlashPrefetchActive();
         }
 
+#if defined(PWR_CR3_UCPD_DBDIS)
         /* Disable the internal Pull-Up in Dead Battery pins of UCPD peripheral */
         LL_PWR_DisableUCPDDeadBattery();
+#endif
 
         if( RCC_REQUEST_OK == retState )
         {
