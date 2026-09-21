@@ -37,7 +37,7 @@ typedef struct
  * This structure is used to store addresses of RCC registers.
  * It is used to reduce code size while referring to RCC registers.
  */
-const rcc_RegList_t                     rcc_RegList[ RCC_REG_CNT ] =
+const rcc_RegList_t                     rcc_RegList[] =
 {
     { .RegId = RCC_REG_CR         , .RegAddr = &(RCC->CR        ) }, /**< RCC clock control register                           */
     { .RegId = RCC_REG_HSICFGR    , .RegAddr = &(RCC->HSICFGR   ) }, /**< RCC HSI Clock Calibration Register,                  */
@@ -103,6 +103,8 @@ const rcc_RegList_t                     rcc_RegList[ RCC_REG_CNT ] =
     { .RegId = RCC_REG_PRIVCFGR   , .RegAddr = &(RCC->PRIVCFGR  ) }, /**< RCC Privilege configuration register                 */
     { .RegId = RCC_REG_FLASH_ACR  , .RegAddr = &(FLASH->ACR     ) }, /**< Flash configuration register                         */
 };
+
+_Static_assert( (sizeof(rcc_RegList) / sizeof(rcc_RegList_t)) == RCC_REG_CNT, "Rcc_Reg: rcc_RegList has incorrect size." );
 
 /* ========================= EXPORTED FUNCTIONS ============================= */
 

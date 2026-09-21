@@ -232,7 +232,9 @@ typedef enum rcc_PeriphId_t
 #if defined(LPTIM1)
     RCC_PERIPH_LPTIM1_PCLK3       , /**< Low Power Timer 1 clock enable with APB3 (PCLK3) as clock source. */
     RCC_PERIPH_LPTIM1_PLL2P       , /**< Low Power Timer 1 clock enable with PLL2 P output as clock source. */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_LPTIM1_PLL3R       , /**< Low Power Timer 1 clock enable with PLL3 R output as clock source. */
+#endif
     RCC_PERIPH_LPTIM1_LSE         , /**< Low Power Timer 1 clock enable with Low Speed External (LSE) oscillator as clock source. */
     RCC_PERIPH_LPTIM1_LSI         , /**< Low Power Timer 1 clock enable with Low Speed Internal (LSI) as clock source. */
     RCC_PERIPH_LPTIM1_LPCLK       , /**< Low Power Timer 1 clock enable with Low-Power Clock Domain (PER) as clock source. */
@@ -240,7 +242,9 @@ typedef enum rcc_PeriphId_t
 #if defined(LPTIM2)
     RCC_PERIPH_LPTIM2_PCLK1       , /**< Low Power Timer 2 clock enable with APB1 (PCLK1) as clock source. */
     RCC_PERIPH_LPTIM2_PLL2P       , /**< Low Power Timer 2 clock enable with PLL2 P output as clock source. */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_LPTIM2_PLL3R       , /**< Low Power Timer 2 clock enable with PLL3 R output as clock source. */
+#endif
     RCC_PERIPH_LPTIM2_LSE         , /**< Low Power Timer 2 clock enable with Low Speed External (LSE) oscillator as clock source. */
     RCC_PERIPH_LPTIM2_LSI         , /**< Low Power Timer 2 clock enable with Low Speed Internal (LSI) as clock source. */
     RCC_PERIPH_LPTIM2_LPCLK       , /**< Low Power Timer 2 clock enable with Low-Power Clock Domain (PER) as clock source. */
@@ -283,21 +287,27 @@ typedef enum rcc_PeriphId_t
 #if defined(SPI1)
     RCC_PERIPH_SPI1_PLL1Q         , /**< SPI/I2S 1 clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
     RCC_PERIPH_SPI1_PLL2P         , /**< SPI/I2S 1 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_SPI1_PLL3P         , /**< SPI/I2S 1 clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+#endif
     RCC_PERIPH_SPI1_PIN           , /**< SPI/I2S 1 clock enable with 16MHz High Speed Internal (HSI) oscillator as clock source */
     RCC_PERIPH_SPI1_LPCLK         , /**< SPI/I2S 1 clock enable with Low-Power Clock Domain (PER) as clock source */
 #endif /* SPI1 */
 #if defined(SPI2)
     RCC_PERIPH_SPI2_PLL1Q         , /**< SPI/I2S 2 clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
     RCC_PERIPH_SPI2_PLL2P         , /**< SPI/I2S 2 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_SPI2_PLL3P         , /**< SPI/I2S 2 clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+#endif
     RCC_PERIPH_SPI2_PIN           , /**< SPI/I2S 2 clock enable with 16MHz High Speed Internal (HSI) oscillator as clock source */
     RCC_PERIPH_SPI2_LPCLK         , /**< SPI/I2S 2 clock enable with Low-Power Clock Domain (PER) as clock source */
 #endif /* SPI2 */
 #if defined(SPI3)
     RCC_PERIPH_SPI3_PLL1Q         , /**< SPI/I2S 3 clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
     RCC_PERIPH_SPI3_PLL2P         , /**< SPI/I2S 3 clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_SPI3_PLL3P         , /**< SPI/I2S 3 clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+#endif
     RCC_PERIPH_SPI3_PIN           , /**< SPI/I2S 3 clock enable with 16MHz High Speed Internal (HSI) oscillator as clock source */
     RCC_PERIPH_SPI3_LPCLK         , /**< SPI/I2S 3 clock enable with Low-Power Clock Domain (PER) as clock source */
 #endif /* SPI3 */
@@ -382,7 +392,9 @@ typedef enum rcc_PeriphId_t
 #if defined(USART1)
     RCC_PERIPH_USART1_PCLK2       , /**< USART 1 clock enable with APB2 (PCLK2) as clock source */
     RCC_PERIPH_USART1_PLL2Q       , /**< USART 1 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_USART1_PLL3Q       , /**< USART 1 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_PERIPH_USART1_HSI         , /**< USART 1 clock enable with High Speed Internal (HSI) oscillator output as clock source */
     RCC_PERIPH_USART1_LSE         , /**< USART 1 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_PERIPH_USART1_CSI         , /**< USART 1 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -390,7 +402,9 @@ typedef enum rcc_PeriphId_t
 #if defined(USART2)
     RCC_PERIPH_USART2_PCLK1       , /**< USART 2 clock enable with APB1 (PCLK1) as clock source */
     RCC_PERIPH_USART2_PLL2Q       , /**< USART 2 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_USART2_PLL3Q       , /**< USART 2 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_PERIPH_USART2_HSI         , /**< USART 2 clock enable with High Speed Internal (HSI) oscillator output as clock source */
     RCC_PERIPH_USART2_LSE         , /**< USART 2 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_PERIPH_USART2_CSI         , /**< USART 2 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -398,7 +412,9 @@ typedef enum rcc_PeriphId_t
 #if defined(USART3)
     RCC_PERIPH_USART3_PCLK1       , /**< USART 3 clock enable with APB1 (PCLK1) as clock source */
     RCC_PERIPH_USART3_PLL2Q       , /**< USART 3 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_USART3_PLL3Q       , /**< USART 3 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_PERIPH_USART3_HSI         , /**< USART 3 clock enable with High Speed Internal (HSI) oscillator output as clock source */
     RCC_PERIPH_USART3_LSE         , /**< USART 3 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_PERIPH_USART3_CSI         , /**< USART 3 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */
@@ -482,7 +498,9 @@ typedef enum rcc_PeriphId_t
 #if defined(LPUART1)
     RCC_PERIPH_LPUART1_PCLK3      , /**< Low-Power UART 1 clock enable with APB3 (PCLK3) as clock source */
     RCC_PERIPH_LPUART1_PLL2Q      , /**< Low-Power UART 1 clock enable with Phase Locked Loop 2 output Q (PLL2Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_LPUART1_PLL3Q      , /**< Low-Power UART 1 clock enable with Phase Locked Loop 3 output Q (PLL3Q) as clock source */
+#endif
     RCC_PERIPH_LPUART1_HSI        , /**< Low-Power UART 1 clock enable with High Speed Internal (HSI) oscillator output as clock source */
     RCC_PERIPH_LPUART1_LSE        , /**< Low-Power UART 1 clock enable with Low Speed External (LSE) oscillator output as clock source */
     RCC_PERIPH_LPUART1_CSI        , /**< Low-Power UART 1 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */

@@ -144,7 +144,7 @@ const uint8_t APBPrescTable[8u]  = {0U, 0U, 0U, 0U, 1U, 2U, 3U, 4U};
 /* ------------------------- Peripherals arrays ----------------------------- */
 
 /** \brief Configuration array of registers used by peripheral buses */
-const rcc_ClkBusConfigStruct_t         rcc_ClkBusConfigStruct[ RCC_CLK_BUS_CNT ] =
+const rcc_ClkBusConfigStruct_t         rcc_ClkBusConfigStruct[] =
 {
   { .ClkBusId = RCC_CLK_BUS_AHB1  , .EnableRegId = RCC_REG_AHB1ENR , .SleepRegId = RCC_REG_AHB1LPENR , .ResetRegId = RCC_REG_AHB1RSTR  },
   { .ClkBusId = RCC_CLK_BUS_AHB2  , .EnableRegId = RCC_REG_AHB2ENR , .SleepRegId = RCC_REG_AHB2LPENR , .ResetRegId = RCC_REG_AHB2RSTR  },
@@ -157,8 +157,10 @@ const rcc_ClkBusConfigStruct_t         rcc_ClkBusConfigStruct[ RCC_CLK_BUS_CNT ]
   { .ClkBusId = RCC_CLK_BUS_APB3  , .EnableRegId = RCC_REG_APB3ENR , .SleepRegId = RCC_REG_APB3LPENR , .ResetRegId = RCC_REG_APB3RSTR  }
 };
 
+_Static_assert( (sizeof(rcc_ClkBusConfigStruct) / sizeof(rcc_ClkBusConfigStruct_t)) == RCC_CLK_BUS_CNT, "Rcc: rcc_ClkBusConfigStruct has incorrect size." );
 
-const rcc_ClkSrcConfigStruct_t rcc_PeriphClkSrcConfig[RCC_CLK_SRC_CNT] =
+
+const rcc_ClkSrcConfigStruct_t rcc_PeriphClkSrcConfig[] =
 {
   { .PeriphClkSrcId = RCC_CLK_SRC_SYSCLK   , .ClkSrcCallback = Rcc_ClkBus_Get_SysClk    },
   { .PeriphClkSrcId = RCC_CLK_SRC_PLL1RCLK , .ClkSrcCallback = Rcc_Pll_Get_1_RClk       },
@@ -182,11 +184,11 @@ const rcc_ClkSrcConfigStruct_t rcc_PeriphClkSrcConfig[RCC_CLK_SRC_CNT] =
   { .PeriphClkSrcId = RCC_CLK_SRC_LSECLK   , .ClkSrcCallback = Rcc_ClkSrc_Get_LseClk    },
 };
 
-
+_Static_assert( (sizeof(rcc_PeriphClkSrcConfig) / sizeof(rcc_ClkSrcConfigStruct_t)) == RCC_CLK_SRC_CNT, "Rcc: rcc_PeriphClkSrcConfig has incorrect size." );
 
 
 /** \brief Configuration array of MCU peripherals. */
-const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[ RCC_PERIPH_ID_CNT ] =
+const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
 {
   { .PeriphId = RCC_PERIPH_FLASH             , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_FLASH    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
   { .PeriphId = RCC_PERIPH_SBS               , .ClkSrcId = RCC_CLK_SRC_APB3CLK , .BlockId = RCC_BLOCK_SBS      , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
@@ -204,6 +206,10 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[ RCC_PERIPH_ID_CNT ] =
   { .PeriphId = RCC_PERIPH_LPCLK_HSI         , .ClkSrcId = RCC_CLK_SRC_HSI64CLK, .BlockId = RCC_BLOCK_RTC      , .ClkMuxId = RCC_CLK_MUX_LPCLK_HSI         },
   { .PeriphId = RCC_PERIPH_LPCLK_HSE         , .ClkSrcId = RCC_CLK_SRC_HSECLK  , .BlockId = RCC_BLOCK_RTC      , .ClkMuxId = RCC_CLK_MUX_LPCLK_HSE         },
   { .PeriphId = RCC_PERIPH_LPCLK_CSI         , .ClkSrcId = RCC_CLK_SRC_CSI4CLK , .BlockId = RCC_BLOCK_RTC      , .ClkMuxId = RCC_CLK_MUX_LPCLK_CSI         },
+
+#if defined(DTS)
+  { .PeriphId = RCC_PERIPH_DTS               , .ClkSrcId = RCC_CLK_SRC_APB1CLK , .BlockId = RCC_BLOCK_DTS      , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* DTS */
 
 #if defined(DCACHE1)
   { .PeriphId = RCC_PERIPH_DCACHE1           , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_DCACHE1  , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
@@ -262,6 +268,12 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[ RCC_PERIPH_ID_CNT ] =
 #endif /* GPIOG */
 #if defined(GPIOI)
   { .PeriphId = RCC_PERIPH_GPIOI             , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_GPIOI    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* GPIOG */
+#if defined(GPIOJ)
+  { .PeriphId = RCC_PERIPH_GPIOJ             , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_GPIOJ    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* GPIOG */
+#if defined(GPIOK)
+  { .PeriphId = RCC_PERIPH_GPIOK             , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_GPIOK    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* GPIOG */
 
   /*--------------------------------- Timers ---------------------------------*/
@@ -756,12 +768,14 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[ RCC_PERIPH_ID_CNT ] =
 #endif /* FMAC */
 };
 
+_Static_assert( (sizeof(rcc_ConfigStruct) / sizeof(rcc_PeriphConfigStruct_t)) == RCC_PERIPH_ID_CNT, "Rcc: rcc_ConfigStruct has incorrect size." );
+
 
 /** \brief Configuration registers of RCC peripheral blocks.
  *
  * This array is created to reduce size of configuration.
  */
-const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[ RCC_BLOCK_LIST_CNT ] =
+const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
 {
   { .BlockId = RCC_BLOCK_FLASH      , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_FLITFEN      , .LpCtrlMask = RCC_AHB1LPENR_FLITFLPEN      , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
   { .BlockId = RCC_BLOCK_SBS        , .ClkBusId = RCC_CLK_BUS_APB3      , .StateMask = RCC_APB3ENR_SBSEN        , .LpCtrlMask = RCC_APB3LPENR_SBSLPEN        , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
@@ -834,6 +848,12 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[ RCC_BLOCK_LIST_CN
 #if defined(GPIOI)
   { .BlockId = RCC_BLOCK_GPIOI      , .ClkBusId = RCC_CLK_BUS_AHB2      , .StateMask = RCC_AHB2ENR_GPIOIEN      , .LpCtrlMask = RCC_AHB2LPENR_GPIOILPEN      , .RstCtrlMask = RCC_AHB2RSTR_GPIOIRST      },
 #endif /* GPIOG */
+#if defined(GPIOJ)
+  { .BlockId = RCC_BLOCK_GPIOJ      , .ClkBusId = RCC_CLK_BUS_AHB2      , .StateMask = RCC_AHB2ENR_GPIOJEN      , .LpCtrlMask = RCC_AHB2LPENR_GPIOJLPEN      , .RstCtrlMask = RCC_AHB2RSTR_GPIOJRST      },
+#endif /* GPIOJ */
+#if defined(GPIOK)
+  { .BlockId = RCC_BLOCK_GPIOK      , .ClkBusId = RCC_CLK_BUS_AHB2      , .StateMask = RCC_AHB2ENR_GPIOKEN      , .LpCtrlMask = RCC_AHB2LPENR_GPIOKLPEN      , .RstCtrlMask = RCC_AHB2RSTR_GPIOKRST      },
+#endif /* GPIOK */
 
   /*--------------------------------- Timers ---------------------------------*/
 
@@ -925,6 +945,14 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[ RCC_BLOCK_LIST_CN
 #if defined(I2C4)
   { .BlockId = RCC_BLOCK_I2C4       , .ClkBusId = RCC_CLK_BUS_APB3      , .StateMask = RCC_APB3ENR_I2C4EN       , .LpCtrlMask = RCC_APB3LPENR_I2C4LPEN       , .RstCtrlMask = RCC_APB3RSTR_I2C4RST       },
 #endif /* I2C4 */
+
+
+#if defined(I3C1)
+  { .BlockId = RCC_BLOCK_I3C1       , .ClkBusId = RCC_CLK_BUS_APB1_1    , .StateMask = RCC_APB1LENR_I3C1EN      , .LpCtrlMask = RCC_APB1LLPENR_I3C1LPEN      , .RstCtrlMask = RCC_APB1LRSTR_I3C1RST      },
+#endif /* I3C1 */
+#if defined(I3C2)
+  { .BlockId = RCC_BLOCK_I3C2       , .ClkBusId = RCC_CLK_BUS_APB3      , .StateMask = RCC_APB3ENR_I3C2EN       , .LpCtrlMask = RCC_APB3LPENR_I3C2LPEN       , .RstCtrlMask = RCC_APB3RSTR_I3C2RST       },
+#endif /* I3C2 */
 
 
 #if defined(USART1)
@@ -1067,6 +1095,8 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[ RCC_BLOCK_LIST_CN
   { .BlockId = RCC_BLOCK_FMAC       , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_FMACEN       , .LpCtrlMask = RCC_AHB1LPENR_FMACLPEN       , .RstCtrlMask = RCC_AHB1RSTR_FMACRST       },
 #endif /* FMAC */
 };
+
+_Static_assert( (sizeof(rcc_PeriphBlockConfig) / sizeof(rcc_BlockConfigStruct_t)) == RCC_BLOCK_LIST_CNT, "Rcc: rcc_PeriphBlockConfig has incorrect size." );
 
 /* ========================= EXPORTED FUNCTIONS ============================= */
 

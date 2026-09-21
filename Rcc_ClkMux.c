@@ -38,7 +38,7 @@ typedef struct __attribute__((packed))
 /* =========================== LOCAL VARIABLES ============================== */
 
 /** \brief Configuration array of MCU peripherals with available clock MUX. */
-static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ] =
+static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[] =
 {
   { .ClkMuxId = RCC_CLK_MUX_SYSTICK_HCLK_DIV8 , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_SYSTICKSEL  , .ClkSrcVal = LL_RCC_SYSTICK_CLKSOURCE_HCLKDIV8 , .DefaultClkMuxId = RCC_CLK_MUX_SYSTICK_HCLK_DIV8 },
   { .ClkMuxId = RCC_CLK_MUX_SYSTICK_LSI       , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_SYSTICKSEL  , .ClkSrcVal = LL_RCC_SYSTICK_CLKSOURCE_LSI      , .DefaultClkMuxId = RCC_CLK_MUX_SYSTICK_HCLK_DIV8 },
@@ -462,6 +462,8 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[ RCC_CLK_MUX_LIST_CNT ]
   { .ClkMuxId = RCC_CLK_MUX_RNG_LSI           , .ClkMuxRegId = RCC_REG_CCIPR5   , .ClkSrcMask = RCC_CCIPR5_RNGSEL      , .ClkSrcVal = LL_RCC_RNG_CLKSOURCE_LSI          , .DefaultClkMuxId = RCC_CLK_MUX_RNG_HSI48         },
 #endif /* RNG */
 };
+
+_Static_assert( (sizeof(rcc_ClkMuxConfig) / sizeof(rcc_ClkMuxConfigStruct_t)) == RCC_CLK_MUX_LIST_CNT, "Rcc_ClkMux: rcc_ClkMuxConfig has incorrect size." );
 
 /* ========================= EXPORTED FUNCTIONS ============================= */
 

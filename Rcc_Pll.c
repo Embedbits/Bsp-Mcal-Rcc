@@ -110,7 +110,7 @@ typedef struct
 /* ------------------------- Peripherals arrays ----------------------------- */
 
 /** \brief Phase Locked Loop's (PLL) configuration registry structure */
-static const rcc_PllConfig_t            rcc_Pll_Config[ RCC_PLL_CNT ] =
+static const rcc_PllConfig_t            rcc_Pll_Config[] =
 {
   {
     .PllId             = RCC_PLL_1,
@@ -331,6 +331,8 @@ static const rcc_PllConfig_t            rcc_Pll_Config[ RCC_PLL_CNT ] =
   },
 #endif
 };
+
+_Static_assert( (sizeof(rcc_Pll_Config) / sizeof(rcc_PllConfig_t)) == RCC_PLL_CNT, "Rcc_Pll: rcc_Pll_Config has incorrect size." );
 
 /* ========================= EXPORTED FUNCTIONS ============================= */
 

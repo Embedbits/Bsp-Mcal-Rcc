@@ -87,10 +87,16 @@ typedef enum rcc_BlockList_t
 #endif /* GPIOG */
 #if defined(GPIOH)
     RCC_BLOCK_GPIOH        , /**< IO port H Clock Enable */
-#endif /* GPIOG */
+#endif /* GPIOH */
 #if defined(GPIOI)
     RCC_BLOCK_GPIOI        , /**< IO port I Clock Enable */
-#endif /* GPIOG */
+#endif /* GPIOI */
+#if defined(GPIOJ)
+    RCC_BLOCK_GPIOJ        , /**< IO port J Clock Enable */
+#endif /* GPIOJ */
+#if defined(GPIOK)
+    RCC_BLOCK_GPIOK        , /**< IO port K Clock Enable */
+#endif /* GPIOK */
 
     /*-------------------------------- Timers --------------------------------*/
 
