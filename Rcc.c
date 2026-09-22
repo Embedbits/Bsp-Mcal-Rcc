@@ -437,7 +437,7 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
 #if defined(RCC_CR_PLL3ON)
   { .PeriphId = RCC_PERIPH_I2C1_PLL3R        , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_I2C1     , .ClkMuxId = RCC_CLK_MUX_I2C1_PLL3R        },
 #else
-  { .PeriphId = RCC_PERIPH_I2C1_PLL2R        , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_I2C1     , .ClkMuxId = RCC_CLK_MUX_I2C1_PLL2R        },
+  { .PeriphId = RCC_PERIPH_I2C1_PLL2R        , .ClkSrcId = RCC_CLK_SRC_PLL2RCLK, .BlockId = RCC_BLOCK_I2C1     , .ClkMuxId = RCC_CLK_MUX_I2C1_PLL2R        },
 #endif
   { .PeriphId = RCC_PERIPH_I2C1_HSI          , .ClkSrcId = RCC_CLK_SRC_HSI64CLK, .BlockId = RCC_BLOCK_I2C1     , .ClkMuxId = RCC_CLK_MUX_I2C1_HSI64        },
   { .PeriphId = RCC_PERIPH_I2C1_CSI          , .ClkSrcId = RCC_CLK_SRC_CSI4CLK , .BlockId = RCC_BLOCK_I2C1     , .ClkMuxId = RCC_CLK_MUX_I2C1_CSI          },
@@ -447,7 +447,7 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
 #if defined(RCC_CR_PLL3ON)
   { .PeriphId = RCC_PERIPH_I2C2_PLL3R        , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_I2C2     , .ClkMuxId = RCC_CLK_MUX_I2C2_PLL3R        },
 #else
-  { .PeriphId = RCC_PERIPH_I2C2_PLL2R        , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_I2C2     , .ClkMuxId = RCC_CLK_MUX_I2C2_PLL2R        },
+  { .PeriphId = RCC_PERIPH_I2C2_PLL2R        , .ClkSrcId = RCC_CLK_SRC_PLL2RCLK, .BlockId = RCC_BLOCK_I2C2     , .ClkMuxId = RCC_CLK_MUX_I2C2_PLL2R        },
 #endif
   { .PeriphId = RCC_PERIPH_I2C2_HSI          , .ClkSrcId = RCC_CLK_SRC_HSI64CLK, .BlockId = RCC_BLOCK_I2C2     , .ClkMuxId = RCC_CLK_MUX_I2C2_HSI64        },
   { .PeriphId = RCC_PERIPH_I2C2_CSI          , .ClkSrcId = RCC_CLK_SRC_CSI4CLK , .BlockId = RCC_BLOCK_I2C2     , .ClkMuxId = RCC_CLK_MUX_I2C2_CSI          },
@@ -456,6 +456,8 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
   { .PeriphId = RCC_PERIPH_I2C3_PCLK3        , .ClkSrcId = RCC_CLK_SRC_APB3CLK , .BlockId = RCC_BLOCK_I2C3     , .ClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        },
 #if defined(RCC_CR_PLL3ON)
   { .PeriphId = RCC_PERIPH_I2C3_PLL3R        , .ClkSrcId = RCC_CLK_SRC_PLL3RCLK, .BlockId = RCC_BLOCK_I2C3     , .ClkMuxId = RCC_CLK_MUX_I2C3_PLL3R        },
+#else
+  { .PeriphId = RCC_PERIPH_I2C3_PLL2R        , .ClkSrcId = RCC_CLK_SRC_PLL2RCLK, .BlockId = RCC_BLOCK_I2C3     , .ClkMuxId = RCC_CLK_MUX_I2C3_PLL2R        },
 #endif
   { .PeriphId = RCC_PERIPH_I2C3_HSI          , .ClkSrcId = RCC_CLK_SRC_HSI64CLK, .BlockId = RCC_BLOCK_I2C3     , .ClkMuxId = RCC_CLK_MUX_I2C3_HSI64        },
   { .PeriphId = RCC_PERIPH_I2C3_CSI          , .ClkSrcId = RCC_CLK_SRC_CSI4CLK , .BlockId = RCC_BLOCK_I2C3     , .ClkMuxId = RCC_CLK_MUX_I2C3_CSI          },
@@ -881,6 +883,24 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
 #if defined(TIM8)
   { .BlockId = RCC_BLOCK_TIM8       , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB2ENR_TIM8EN       , .LpCtrlMask = RCC_APB2LPENR_TIM8LPEN       , .RstCtrlMask = RCC_APB2RSTR_TIM8RST       },
 #endif /* TIM8 */
+#if defined(TIM9)
+  { .BlockId = RCC_BLOCK_TIM9       , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB2ENR_TIM9EN       , .LpCtrlMask = RCC_APB2LPENR_TIM9LPEN       , .RstCtrlMask = RCC_APB2RSTR_TIM9RST       },
+#endif /* TIM9 */
+#if defined(TIM10)
+  { .BlockId = RCC_BLOCK_TIM10      , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB2ENR_TIM10EN      , .LpCtrlMask = RCC_APB2LPENR_TIM10LPEN      , .RstCtrlMask = RCC_APB2RSTR_TIM10RST      },
+#endif /* TIM10 */
+#if defined(TIM11)
+  { .BlockId = RCC_BLOCK_TIM11      , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB2ENR_TIM11EN      , .LpCtrlMask = RCC_APB2LPENR_TIM11LPEN      , .RstCtrlMask = RCC_APB2RSTR_TIM11RST      },
+#endif /* TIM11 */
+#if defined(TIM12)
+  { .BlockId = RCC_BLOCK_TIM12      , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB1LENR_TIM12EN     , .LpCtrlMask = RCC_APB1LLPENR_TIM12LPEN     , .RstCtrlMask = RCC_APB1LRSTR_TIM12RST     },
+#endif /* TIM12 */
+#if defined(TIM13)
+  { .BlockId = RCC_BLOCK_TIM13      , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB1LENR_TIM13EN     , .LpCtrlMask = RCC_APB1LLPENR_TIM13LPEN     , .RstCtrlMask = RCC_APB1LRSTR_TIM13RST     },
+#endif /* TIM13 */
+#if defined(TIM14)
+  { .BlockId = RCC_BLOCK_TIM14      , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB1LENR_TIM14EN     , .LpCtrlMask = RCC_APB1LLPENR_TIM14LPEN     , .RstCtrlMask = RCC_APB1LRSTR_TIM14RST     },
+#endif /* TIM14 */
 #if defined(TIM15)
   { .BlockId = RCC_BLOCK_TIM15      , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB2ENR_TIM15EN      , .LpCtrlMask = RCC_APB2LPENR_TIM15LPEN      , .RstCtrlMask = RCC_APB2RSTR_TIM15RST      },
 #endif /* TIM15 */
@@ -1024,6 +1044,12 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
   { .BlockId = RCC_BLOCK_UCPD1      , .ClkBusId = RCC_CLK_BUS_APB1_2    , .StateMask = RCC_APB1HENR_UCPD1EN     , .LpCtrlMask = RCC_APB1HLPENR_UCPD1LPEN     , .RstCtrlMask = RCC_APB1HRSTR_UCPD1RST     },
 #endif /* UCPD1 */
 
+#if defined(ETH)
+  { .BlockId = RCC_BLOCK_ETH        , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_ETHEN        , .LpCtrlMask = RCC_AHB1LPENR_ETHLPEN        , .RstCtrlMask = RCC_AHB1RSTR_ETHRST        },
+  { .BlockId = RCC_BLOCK_ETH_TX     , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_ETHTXEN      , .LpCtrlMask = RCC_AHB1LPENR_ETHTXLPEN      , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
+  { .BlockId = RCC_BLOCK_ETH_RX     , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_ETHRXEN      , .LpCtrlMask = RCC_AHB1LPENR_ETHRXLPEN      , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
+#endif /* ETH */
+
   /*------------------------------- Multimedia -------------------------------*/
 
 #if defined(PSSI) || defined(DCMI)
@@ -1036,6 +1062,10 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
 #if defined(SAI2)
   { .BlockId = RCC_BLOCK_SAI2       , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB2ENR_SAI2EN       , .LpCtrlMask = RCC_APB2LPENR_SAI2LPEN       , .RstCtrlMask = RCC_APB2RSTR_SAI2RST       },
 #endif /* SAI2 */
+
+#if defined(CEC)
+  { .BlockId = RCC_BLOCK_CEC        , .ClkBusId = RCC_CLK_BUS_APB1_1     , .StateMask = RCC_APB1LENR_CECEN      , .LpCtrlMask = RCC_APB1LLPENR_CECLPEN       , .RstCtrlMask = RCC_APB1LRSTR_CECRST       },
+#endif /* CEC */
 
   /*--------------------------------- Analog ---------------------------------*/
 

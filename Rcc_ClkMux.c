@@ -203,6 +203,8 @@ static const rcc_ClkMuxConfigStruct_t   rcc_ClkMuxConfig[] =
   { .ClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C3SEL     , .ClkSrcVal = LL_RCC_I2C3_CLKSOURCE_PCLK3       , .DefaultClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        },
 #if defined(RCC_CR_PLL3ON)
   { .ClkMuxId = RCC_CLK_MUX_I2C3_PLL3R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C3SEL     , .ClkSrcVal = LL_RCC_I2C3_CLKSOURCE_PLL3R       , .DefaultClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        },
+#else
+  { .ClkMuxId = RCC_CLK_MUX_I2C3_PLL2R        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C3SEL     , .ClkSrcVal = LL_RCC_I2C3_CLKSOURCE_PLL2R       , .DefaultClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        },
 #endif
   { .ClkMuxId = RCC_CLK_MUX_I2C3_HSI64        , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C3SEL     , .ClkSrcVal = LL_RCC_I2C3_CLKSOURCE_HSI         , .DefaultClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        },
   { .ClkMuxId = RCC_CLK_MUX_I2C3_CSI          , .ClkMuxRegId = RCC_REG_CCIPR4   , .ClkSrcMask = RCC_CCIPR4_I2C3SEL     , .ClkSrcVal = LL_RCC_I2C3_CLKSOURCE_CSI         , .DefaultClkMuxId = RCC_CLK_MUX_I2C3_PCLK3        },

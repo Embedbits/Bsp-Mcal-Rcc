@@ -208,6 +208,8 @@ typedef enum
     RCC_CLK_MUX_I2C3_PCLK3            , /**< I2C 3 clock enable with APB3 (PCLK3) as clock source */
 #if defined(RCC_CR_PLL3ON)
     RCC_CLK_MUX_I2C3_PLL3R            , /**< I2C 3 clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#else
+    RCC_CLK_MUX_I2C3_PLL2R            , /**< I2C 3 clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source */
 #endif
     RCC_CLK_MUX_I2C3_HSI64            , /**< I2C 3 clock enable with 16MHz High Speed Internal (HSI) oscillator output as clock source */
     RCC_CLK_MUX_I2C3_CSI              , /**< I2C 3 clock enable with 4MHz Low Power Internal oscillator (CSI) as clock source */

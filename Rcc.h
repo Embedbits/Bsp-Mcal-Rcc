@@ -124,6 +124,15 @@ typedef enum rcc_BlockList_t
 #if defined(TIM8)
     RCC_BLOCK_TIM8         , /**< TIM8 Clock Enable */
 #endif /* TIM8 */
+#if defined(TIM9)
+    RCC_BLOCK_TIM9         , /**< TIM9 Clock Enable */
+#endif /* TIM9 */
+#if defined(TIM10)
+    RCC_BLOCK_TIM10        , /**< TIM10 Clock Enable */
+#endif /* TIM10 */
+#if defined(TIM11)
+    RCC_BLOCK_TIM11        , /**< TIM11 Clock Enable */
+#endif /* TIM11 */
 #if defined(TIM12)
     RCC_BLOCK_TIM12        , /**< TIM12 Clock Enable */
 #endif /* TIM12 */
