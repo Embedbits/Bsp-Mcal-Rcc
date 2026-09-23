@@ -89,41 +89,48 @@ rcc_RequestState_t Rcc_ClkSrc_Set_HseActive( rcc_HseType_t hseType)
 
     if( RCC_REQUEST_OK == returnState )
     {
-        if( RCC_HSE_TYPE_SIG_ANALOG_IN == hseType )
+        if( RCC_HSE_TYPE_NONE !=  hseType )
         {
-            regValue = LL_RCC_HSE_ANALOG_TYPE;
-
-            LL_RCC_HSE_EnableBypass();
-            LL_RCC_HSE_SetExternalClockType( regValue );
-        }
-        else if( RCC_HSE_TYPE_SIG_DIGITAL_IN == hseType )
-        {
-            regValue = LL_RCC_HSE_DIGITAL_TYPE;
-
-            LL_RCC_HSE_EnableBypass();
-            LL_RCC_HSE_SetExternalClockType( regValue );
-        }
-        else
-        {
-            /* Other clock types do not need extra functionality activation */
-        }
-
-        LL_RCC_HSE_Enable();
-
-        for( uint32_t iterationCnt = 0u; RCC_OSC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
-        {
-            regValue = LL_RCC_HSE_IsReady();
-
-            if( 0u != regValue )
+            if( RCC_HSE_TYPE_SIG_ANALOG_IN == hseType )
             {
-                returnState = RCC_REQUEST_OK;
-                break;
+                regValue = LL_RCC_HSE_ANALOG_TYPE;
+
+                LL_RCC_HSE_EnableBypass();
+                LL_RCC_HSE_SetExternalClockType( regValue );
+            }
+            else if( RCC_HSE_TYPE_SIG_DIGITAL_IN == hseType )
+            {
+                regValue = LL_RCC_HSE_DIGITAL_TYPE;
+
+                LL_RCC_HSE_EnableBypass();
+                LL_RCC_HSE_SetExternalClockType( regValue );
             }
             else
             {
-                /* Clock source has not yet been changed, keep return state as error */
-                returnState = RCC_REQUEST_ERROR;
+                /* Other clock types do not need extra functionality activation */
             }
+
+            LL_RCC_HSE_Enable();
+
+            for( uint32_t iterationCnt = 0u; RCC_OSC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+            {
+                regValue = LL_RCC_HSE_IsReady();
+
+                if( 0u != regValue )
+                {
+                    returnState = RCC_REQUEST_OK;
+                    break;
+                }
+                else
+                {
+                    /* Clock source has not yet been changed, keep return state as error */
+                    returnState = RCC_REQUEST_ERROR;
+                }
+            }
+        }
+        else
+        {
+            returnState = RCC_REQUEST_OK;
         }
     }
     else

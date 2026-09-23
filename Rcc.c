@@ -32,22 +32,31 @@
 
 
 /* Defines used for FLASH latency according to HCLK Frequency */
-#define UTILS_SCALE1_LATENCY0_FREQ    (32000000U)      /**< HCLK frequency to set FLASH latency 0 in power scale 1 */
-#define UTILS_SCALE1_LATENCY1_FREQ    (64000000U)      /**< HCLK frequency to set FLASH latency 1 in power scale 1 */
-#define UTILS_SCALE1_LATENCY2_FREQ    (96000000U)      /**< HCLK frequency to set FLASH latency 2 in power scale 1 */
-#define UTILS_SCALE1_LATENCY3_FREQ    (128000000U)     /**< HCLK frequency to set FLASH latency 3 in power scale 1 */
-#define UTILS_SCALE1_LATENCY4_FREQ    (160000000U)     /**< HCLK frequency to set FLASH latency 4 in power scale 1 */
-#define UTILS_SCALE2_LATENCY0_FREQ    (25000000U)      /**< HCLK frequency to set FLASH latency 0 in power scale 2 */
-#define UTILS_SCALE2_LATENCY1_FREQ    (50000000U)      /**< HCLK frequency to set FLASH latency 1 in power scale 2 */
-#define UTILS_SCALE2_LATENCY2_FREQ    (75000000U)      /**< HCLK frequency to set FLASH latency 2 in power scale 2 */
-#define UTILS_SCALE2_LATENCY3_FREQ    (100000000U)     /**< HCLK frequency to set FLASH latency 3 in power scale 2 */
-#define UTILS_SCALE3_LATENCY0_FREQ    (12500000U)      /**< HCLK frequency to set FLASH latency 0 in power scale 3 */
-#define UTILS_SCALE3_LATENCY1_FREQ    (25000000U)      /**< HCLK frequency to set FLASH latency 1 in power scale 3 */
-#define UTILS_SCALE3_LATENCY2_FREQ    (37500000U)      /**< HCLK frequency to set FLASH latency 2 in power scale 3 */
-#define UTILS_SCALE3_LATENCY3_FREQ    (50000000U)      /**< HCLK frequency to set FLASH latency 3 in power scale 3 */
-#define UTILS_SCALE4_LATENCY0_FREQ    (8000000U)       /**< HCLK frequency to set FLASH latency 0 in power scale 4 */
-#define UTILS_SCALE4_LATENCY1_FREQ    (16000000U)      /**< HCLK frequency to set FLASH latency 1 in power scale 4 */
-#define UTILS_SCALE4_LATENCY2_FREQ    (24000000U)      /**< HCLK frequency to set FLASH latency 2 in power scale 4 */
+#define UTILS_SCALE0_LATENCY0_FREQ     42000000U       /*!< HCLK frequency to set FLASH latency 0 in power scale 0 */
+#define UTILS_SCALE0_LATENCY1_FREQ     84000000U       /*!< HCLK frequency to set FLASH latency 1 in power scale 0 */
+#define UTILS_SCALE0_LATENCY2_FREQ    126000000U       /*!< HCLK frequency to set FLASH latency 2 in power scale 0 */
+#define UTILS_SCALE0_LATENCY3_FREQ    168000000U       /*!< HCLK frequency to set FLASH latency 3 in power scale 0 */
+#define UTILS_SCALE0_LATENCY4_FREQ    210000000U       /*!< HCLK frequency to set FLASH latency 4 in power scale 0 */
+#define UTILS_SCALE0_LATENCY5_FREQ    250000000U       /*!< HCLK frequency to set FLASH latency 5 in power scale 0 */
+
+#define UTILS_SCALE1_LATENCY0_FREQ     34000000U       /*!< HCLK frequency to set FLASH latency 0 in power scale 1 */
+#define UTILS_SCALE1_LATENCY1_FREQ     68000000U       /*!< HCLK frequency to set FLASH latency 1 in power scale 1 */
+#define UTILS_SCALE1_LATENCY2_FREQ    102000000U       /*!< HCLK frequency to set FLASH latency 2 in power scale 1 */
+#define UTILS_SCALE1_LATENCY3_FREQ    136000000U       /*!< HCLK frequency to set FLASH latency 3 in power scale 1 */
+#define UTILS_SCALE1_LATENCY4_FREQ    170000000U       /*!< HCLK frequency to set FLASH latency 4 in power scale 1 */
+#define UTILS_SCALE1_LATENCY5_FREQ    200000000U       /*!< HCLK frequency to set FLASH latency 5 in power scale 1 */
+
+#define UTILS_SCALE2_LATENCY0_FREQ     30000000U       /*!< HCLK frequency to set FLASH latency 0 in power scale 2 */
+#define UTILS_SCALE2_LATENCY1_FREQ     60000000U       /*!< HCLK frequency to set FLASH latency 1 in power scale 2 */
+#define UTILS_SCALE2_LATENCY2_FREQ     90000000U       /*!< HCLK frequency to set FLASH latency 2 in power scale 2 */
+#define UTILS_SCALE2_LATENCY3_FREQ    120000000U       /*!< HCLK frequency to set FLASH latency 3 in power scale 2 */
+#define UTILS_SCALE2_LATENCY4_FREQ    150000000U       /*!< HCLK frequency to set FLASH latency 4 in power scale 2 */
+
+#define UTILS_SCALE3_LATENCY0_FREQ     20000000U       /*!< HCLK frequency to set FLASH latency 0 in power scale 3 */
+#define UTILS_SCALE3_LATENCY1_FREQ     40000000U       /*!< HCLK frequency to set FLASH latency 1 in power scale 3 */
+#define UTILS_SCALE3_LATENCY2_FREQ     60000000U       /*!< HCLK frequency to set FLASH latency 2 in power scale 3 */
+#define UTILS_SCALE3_LATENCY3_FREQ     80000000U       /*!< HCLK frequency to set FLASH latency 3 in power scale 3 */
+#define UTILS_SCALE3_LATENCY4_FREQ    100000000U       /*!< HCLK frequency to set FLASH latency 4 in power scale 3 */
 
 /** Maximal wait time for configuration request confirmation */
 #define RCC_TIMEOUT_RAW                         ( 0x84FCB )
@@ -1203,6 +1212,11 @@ rcc_RequestState_t Rcc_Init( rcc_ConfigStruct_t * const clockConfig )
 
         if( RCC_REQUEST_OK == retState )
         {
+            retState = Rcc_ClkSrc_Set_HseActive( clockConfig->HSE_ClockType );
+        }
+
+        if( RCC_REQUEST_OK == retState )
+        {
             retState = Rcc_ClkSrc_Set_HseClk( clockConfig->HSE_Frequency_Hz );
         }
 
@@ -2156,8 +2170,6 @@ rcc_RequestState_t Rcc_Set_FlashLatency( rcc_ConfigStruct_t * const clockConfig 
 
     retState = Rcc_Get_ExpectedSysClkFrequency( clockConfig, &expectedSysClk );
 
-    uint32_t timeout;
-    uint32_t getlatency;
     uint32_t latency = LL_FLASH_LATENCY_0;  /* default value 0WS */
 
     /* Frequency cannot be equal to 0 */
@@ -2168,166 +2180,166 @@ rcc_RequestState_t Rcc_Set_FlashLatency( rcc_ConfigStruct_t * const clockConfig 
     }
     else
     {
-        if (LL_PWR_GetRegulVoltageScaling() == LL_PWR_REGU_VOLTAGE_SCALE1)
+        if (LL_PWR_GetRegulVoltageScaling() == LL_PWR_REGU_VOLTAGE_SCALE0)
+        {
+            if (expectedSysClk <= UTILS_SCALE0_LATENCY0_FREQ)
+            {
+                /* 0 < HCLK <= 42 => 0WS (1 CPU cycles) : Do nothing, keep latency to default  LL_FLASH_LATENCY_0 */
+            }
+            else if ((expectedSysClk <= UTILS_SCALE0_LATENCY1_FREQ))
+            {
+                /* 42 < HCLK <=84  => 1WS (2 CPU cycles) */
+                latency = LL_FLASH_LATENCY_1;
+            }
+            else if (expectedSysClk <= UTILS_SCALE0_LATENCY2_FREQ)
+            {
+                /* 84 < HCLK <= 126 => 2WS (3 CPU cycles) */
+                latency = LL_FLASH_LATENCY_2;
+            }
+            else if (expectedSysClk <= UTILS_SCALE0_LATENCY3_FREQ)
+            {
+                /* 126 < HCLK <= 168 => 3WS (4 CPU cycles) */
+                latency = LL_FLASH_LATENCY_3;
+            }
+            else if (expectedSysClk <= UTILS_SCALE0_LATENCY4_FREQ)
+            {
+                /* 168 < HCLK <= 210 => 4WS (5 CPU cycles) */
+                latency = LL_FLASH_LATENCY_4;
+            }
+            else if (expectedSysClk <= UTILS_SCALE0_LATENCY5_FREQ)
+            {
+                /* 210 < HCLK <= 250 => 5WS (6 CPU cycles) */
+                latency = LL_FLASH_LATENCY_5;
+            }
+            else
+            {
+                retState = RCC_REQUEST_ERROR;
+            }
+        }
+        else if (LL_PWR_GetRegulVoltageScaling() == LL_PWR_REGU_VOLTAGE_SCALE1)
         {
             if (expectedSysClk <= UTILS_SCALE1_LATENCY0_FREQ)
             {
-                /* 0 < HCLK <= 32 => 0WS (1 CPU cycles) : Do nothing, keep latency to default  LL_FLASH_LATENCY_0 */
+                /* 0 < HCLK <= 34 => 0WS (1 CPU cycles) : Do nothing, keep latency to default  LL_FLASH_LATENCY_0 */
             }
-            else if ((expectedSysClk <= UTILS_SCALE1_LATENCY1_FREQ))
+            else if (expectedSysClk <= UTILS_SCALE1_LATENCY1_FREQ)
             {
-                /* 32 < HCLK <=64  => 1WS (2 CPU cycles) */
+                /* 34 < HCLK <=68  => 1WS (2 CPU cycles) */
                 latency = LL_FLASH_LATENCY_1;
             }
             else if (expectedSysClk <= UTILS_SCALE1_LATENCY2_FREQ)
             {
-                /* 64 < HCLK <= 96 => 2WS (3 CPU cycles) */
+                /* 68 < HCLK <= 102 => 2WS (3 CPU cycles) */
                 latency = LL_FLASH_LATENCY_2;
             }
             else if (expectedSysClk <= UTILS_SCALE1_LATENCY3_FREQ)
             {
-                /* 96 < HCLK <= 128 => 3WS (4 CPU cycles) */
+                /* 102 < HCLK <= 136 => 3WS (4 CPU cycles) */
                 latency = LL_FLASH_LATENCY_3;
             }
             else if (expectedSysClk <= UTILS_SCALE1_LATENCY4_FREQ)
             {
-                /* 128 < HCLK <= 160 => 4WS (5 CPU cycles) */
+                /* 136 < HCLK <= 170 => 4WS (5 CPU cycles) */
+                latency = LL_FLASH_LATENCY_4;
+            }
+            else if (expectedSysClk <= UTILS_SCALE1_LATENCY5_FREQ)
+            {
+                /* 170 < HCLK <= 200 => 5WS (6 CPU cycles) */
+                latency = LL_FLASH_LATENCY_5;
+            }
+            else
+            {
+                retState = RCC_REQUEST_ERROR;
+            }
+        }
+        else if (LL_PWR_GetRegulVoltageScaling() == LL_PWR_REGU_VOLTAGE_SCALE2)
+        {
+            if (expectedSysClk <= UTILS_SCALE2_LATENCY0_FREQ)
+            {
+                /* 0 < HCLK <= 30 => 0WS (1 CPU cycles) : Do nothing, keep latency to default  LL_FLASH_LATENCY_0 */
+            }
+            else if (expectedSysClk <= UTILS_SCALE2_LATENCY1_FREQ)
+            {
+                /* 30 < HCLK <= 60 => 1WS (2 CPU cycles) */
+                latency = LL_FLASH_LATENCY_1;
+            }
+            else if (expectedSysClk <= UTILS_SCALE2_LATENCY2_FREQ)
+            {
+                /* 60 < HCLK <= 90 => 2WS (3 CPU cycles) */
+                latency = LL_FLASH_LATENCY_2;
+            }
+            else if (expectedSysClk <= UTILS_SCALE2_LATENCY3_FREQ)
+            {
+                /* 90 < HCLK <= 120 => 3WS (4 CPU cycles) */
+                latency = LL_FLASH_LATENCY_3;
+            }
+            else if (expectedSysClk <= UTILS_SCALE2_LATENCY4_FREQ)
+            {
+                /* 120 < HCLK <= 150 => 4WS (5 CPU cycles) */
                 latency = LL_FLASH_LATENCY_4;
             }
             else
             {
                 retState = RCC_REQUEST_ERROR;
             }
-        /* else expectedSysClk <= 10MHz default LL_FLASH_LATENCY_0 0WS */
         }
-        else if (LL_PWR_GetRegulVoltageScaling() == LL_PWR_REGU_VOLTAGE_SCALE2)
-        {
-            if (expectedSysClk <= UTILS_SCALE2_LATENCY0_FREQ)
-            {
-                /* 0 < HCLK <= 25 => 0WS (1 CPU cycles) : Do nothing, keep latency to default  LL_FLASH_LATENCY_0 */
-            }
-            else if (expectedSysClk <= UTILS_SCALE2_LATENCY1_FREQ)
-            {
-                /* 25 < HCLK <= 50 => 1WS (2 CPU cycles) */
-                latency = LL_FLASH_LATENCY_1;
-            }
-            else if (expectedSysClk <= UTILS_SCALE2_LATENCY2_FREQ)
-            {
-                /* 50 < HCLK <= 75 => 2WS (3 CPU cycles) */
-                latency = LL_FLASH_LATENCY_2;
-            }
-            else if (expectedSysClk <= UTILS_SCALE2_LATENCY3_FREQ)
-            {
-                /* 75 < HCLK <= 100 => 3WS (4 CPU cycles) */
-                latency = LL_FLASH_LATENCY_3;
-            }
-            else
-            {
-                retState = RCC_REQUEST_ERROR;
-            }
-        /* else expectedSysClk <= 10MHz default LL_FLASH_LATENCY_0 0WS */
-        }
-        else if (LL_PWR_GetRegulVoltageScaling() == LL_PWR_REGU_VOLTAGE_SCALE3)
+        else /* Voltage Scale 3 */
         {
             if (expectedSysClk  <= UTILS_SCALE3_LATENCY0_FREQ)
             {
-                /* 0 < HCLK <= 12.5 => 0WS (1 CPU cycles) : Do nothing, keep latency to default  LL_FLASH_LATENCY_0 */
+                /* 0 < HCLK <= 20 => 0WS (1 CPU cycles) : Do nothing, keep latency to default  LL_FLASH_LATENCY_0 */
             }
             else if (expectedSysClk <= UTILS_SCALE3_LATENCY1_FREQ)
             {
-                /* 12.5 < HCLK <= 25 => 1WS (2 CPU cycles) */
+                /* 20 < HCLK <= 40 => 1WS (2 CPU cycles) */
                 latency = LL_FLASH_LATENCY_1;
             }
             else if (expectedSysClk <= UTILS_SCALE3_LATENCY2_FREQ)
             {
-                /* 25 < HCLK <= 37.5 => 2WS (3 CPU cycles) */
+                /* 40 < HCLK <= 60 => 2WS (3 CPU cycles) */
                 latency = LL_FLASH_LATENCY_2;
             }
             else if (expectedSysClk <= UTILS_SCALE3_LATENCY3_FREQ)
             {
-                /* 37.5 < HCLK <= 50 => 3WS (4 CPU cycles) */
+                /* 60 < HCLK <= 80 => 3WS (4 CPU cycles) */
                 latency = LL_FLASH_LATENCY_3;
             }
-            else
+            else if (expectedSysClk <= UTILS_SCALE3_LATENCY4_FREQ)
             {
-                retState = RCC_REQUEST_ERROR;
-            }
-        /* else expectedSysClk <= 10MHz default LL_FLASH_LATENCY_0 0WS */
-        }
-        else
-        {
-            if (expectedSysClk <= UTILS_SCALE4_LATENCY0_FREQ)
-            {
-                /* 0 < HCLK <= 8 => 0WS (1 CPU cycles) : Do nothing, keep latency to default  LL_FLASH_LATENCY_0 */
-            }
-            else if (expectedSysClk <= UTILS_SCALE4_LATENCY1_FREQ)
-            {
-                /* 8 < HCLK <= 16 => 1WS (2 CPU cycles) */
-                latency = LL_FLASH_LATENCY_1;
-            }
-            else if (expectedSysClk <= UTILS_SCALE4_LATENCY2_FREQ)
-            {
-                /* 16 < HCLK <= 24 => 2WS (3 CPU cycles) */
-                latency = LL_FLASH_LATENCY_2;
+                /* 80 < HCLK <= 100 => 4WS (5 CPU cycles) */
+                latency = LL_FLASH_LATENCY_4;
             }
             else
             {
                 retState = RCC_REQUEST_ERROR;
-            }
-        /* else expectedSysClk <= 10MHz default LL_FLASH_LATENCY_0 0WS */
-        }
-
-        if ( RCC_REQUEST_OK == retState )
-        {
-            LL_FLASH_SetLatency(latency);
-
-            /* Check that the new number of wait states is taken into account to access the Flash
-            memory by reading the FLASH_ACR register */
-            timeout = 2;
-            do
-            {
-            /* Wait for Flash latency to be updated */
-            getlatency = LL_FLASH_GetLatency();
-            timeout--;
-            } while ((getlatency != latency) && (timeout > 0U));
-
-            if (getlatency != latency)
-            {
-                retState = RCC_REQUEST_ERROR;
-            }
-            else
-            {
-                retState = RCC_REQUEST_OK;
             }
         }
     }
-//    /* Division by zero protection */
-//    if( 0u != RCC_FLASH_WAIT_STATE_THRESHOLD_HZ )
-//    {
-//        uint32_t waitCycles = ( ( expectedSysClk - 1u ) / RCC_FLASH_WAIT_STATE_THRESHOLD_HZ );
-//
-//        LL_FLASH_SetLatency( waitCycles );
-//
-//        for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
-//        {
-//            regValue = LL_FLASH_GetLatency();
-//
-//            if( waitCycles == regValue )
-//            {
-//                retState = RCC_REQUEST_OK;
-//                break;
-//            }
-//            else
-//            {
-//                /* Clock source has not yet been changed, keep return state as error */
-//                retState = RCC_REQUEST_ERROR;
-//            }
-//        }
-//    }
-//    else
-//    {
-//        retState = RCC_REQUEST_ERROR;
-//    }
+
+    if( RCC_REQUEST_ERROR != retState )
+    {
+        LL_FLASH_SetLatency( latency );
+
+        for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+        {
+            uint32_t regValue = LL_FLASH_GetLatency();
+
+            if( latency == regValue )
+            {
+                retState = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                /* Clock source has not yet been changed, keep return state as error */
+                retState = RCC_REQUEST_ERROR;
+            }
+        }
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
 
     return ( retState );
 }

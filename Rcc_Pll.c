@@ -136,8 +136,8 @@ static const rcc_PllConfig_t            rcc_Pll_Config[] =
     .M_DivMask         = RCC_PLL1CFGR_PLL1M,
 
     .M_DivStepsize     = 1u,  /**< PLL 1 input divider value step size. */
-    .M_DivMaxValue     = 1u,  /**< PLL 1 input divider minimum value.   */
-    .M_DivMinValue     = 63u, /**< PLL 1 input divider maximum value.   */
+    .M_DivMinValue     = 1u,  /**< PLL 1 input divider minimum value.   */
+    .M_DivMaxValue     = 63u, /**< PLL 1 input divider maximum value.   */
 
     /* ----------------- Internal multiplier N configuration ---------------- */
 
@@ -208,8 +208,8 @@ static const rcc_PllConfig_t            rcc_Pll_Config[] =
     .M_DivMask         = RCC_PLL2CFGR_PLL2M,
 
     .M_DivStepsize     = 1u,  /**< PLL 2 input divider value step size. */
-    .M_DivMaxValue     = 1u,  /**< PLL 2 input divider minimum value.   */
-    .M_DivMinValue     = 63u, /**< PLL 2 input divider maximum value.   */
+    .M_DivMinValue     = 1u,  /**< PLL 2 input divider minimum value.   */
+    .M_DivMaxValue     = 63u, /**< PLL 2 input divider maximum value.   */
 
     /* ----------------- Internal multiplier N configuration ---------------- */
 
@@ -281,8 +281,8 @@ static const rcc_PllConfig_t            rcc_Pll_Config[] =
     .M_DivMask         = RCC_PLL3CFGR_PLL3M,
 
     .M_DivStepsize     = 1u,  /**< PLL 3 input divider value step size. */
-    .M_DivMaxValue     = 1u,  /**< PLL 3 input divider minimum value.   */
-    .M_DivMinValue     = 63u, /**< PLL 3 input divider maximum value.   */
+    .M_DivMinValue     = 1u,  /**< PLL 3 input divider minimum value.   */
+    .M_DivMaxValue     = 63u, /**< PLL 3 input divider maximum value.   */
 
     /* ----------------- Internal multiplier N configuration ---------------- */
 
@@ -444,11 +444,11 @@ rcc_RequestState_t Rcc_Pll_Set_Config( rcc_PllId_t pllId, rcc_PllConfigStruct_t 
                 {
                     Rcc_Set_RegVal( rcc_Pll_Config[ pllId ].M_DivRegId,
                                     rcc_Pll_Config[ pllId ].M_DivMask,
-                                    ( configStruct->M_Divider - 1u ) << RCC_PLL1CFGR_PLL1M_Pos );
+                                    configStruct->M_Divider << RCC_PLL1CFGR_PLL1M_Pos );
 
                     Rcc_Set_RegVal( rcc_Pll_Config[ pllId ].N_MultRegId,
                                     rcc_Pll_Config[ pllId ].N_MultMask,
-                                    configStruct->N_Multiplier << RCC_PLL1DIVR_PLL1N_Pos );
+                                    ( configStruct->N_Multiplier - 1u ) << RCC_PLL1DIVR_PLL1N_Pos );
                 }
 
                 /* ---------- Configure PLL input frequency range ----------- */
@@ -649,7 +649,7 @@ rcc_RequestState_t Rcc_Pll_Get_InternalClk( rcc_PllId_t pllId, rcc_FreqHz_t * co
         {
             retState = Rcc_ClkSrc_Get_HseClk( &inputClkFreq );
         }
-        if( RCC_PLL_SRC_CSI == pllClkSource )
+        else if( RCC_PLL_SRC_CSI == pllClkSource )
         {
             retState = Rcc_ClkSrc_Get_CsiClk( &inputClkFreq );
         }

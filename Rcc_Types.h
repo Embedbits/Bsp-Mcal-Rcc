@@ -1029,7 +1029,7 @@ typedef struct rcc_PllConfigStruct_t
     rcc_PllMDivider_t       M_Divider;
 
     /** Main PLLN prescaler - multiplier. Must be in range from 8 to 86 */
-    rcc_PllNMult_t    N_Multiplier;
+    rcc_PllNMult_t          N_Multiplier;
 
     /** Output P prescaler - divider. Configuration function sets the prescaler
     *  during startup, but the output must be enabled later by user.
