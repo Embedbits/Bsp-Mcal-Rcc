@@ -110,6 +110,11 @@ rcc_RequestState_t          Rcc_Get_ClkOutSource      ( rcc_ClkOut_Id_t outId, r
 rcc_RequestState_t          Rcc_Set_ClkOutDivider     ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t clkDivider );
 rcc_RequestState_t          Rcc_Get_ClkOutDivider     ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t * const clkDivider );
 
+/*--------------------------- Reset source flags -----------------------------*/
+
+rcc_RequestState_t          Rcc_Get_ResetSource       ( rcc_ResetSrc_t resetSrc, rcc_FlagState_t * const flagState );
+rcc_RequestState_t          Rcc_Set_ResetSourceClear  ( void );
+
 
 #ifdef __cplusplus
 }

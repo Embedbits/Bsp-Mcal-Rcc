@@ -81,6 +81,13 @@
 
 #define RCC_UNSUPPORTED_FUNCTION                ( 0xFF )
 
+/** Mask of all reset source flags in RCC reset status register (RSR) */
+#define RCC_RSR_RESET_SRC_MASK                  ( RCC_RSR_PINRSTF  | RCC_RSR_BORRSTF  | RCC_RSR_SFTRSTF | \
+                                                  RCC_RSR_IWDGRSTF | RCC_RSR_WWDGRSTF | RCC_RSR_LPWRRSTF )
+
+/** Value of RSR register bits in cleared state */
+#define RCC_RSR_BITS_CLEARED                    ( 0u )
+
 /** Default HSE frequency used by \ref Rcc_Get_DefaultConfig */
 #define RCC_DEFAULT_HSE_FREQ_HZ                 ( 8000000u )
 
@@ -245,6 +252,8 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
   { .PeriphId = RCC_PERIPH_SYSTICK_HCLK_DIV8 , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_SYSTICK  , .ClkMuxId = RCC_CLK_MUX_SYSTICK_HCLK_DIV8 },
   { .PeriphId = RCC_PERIPH_SYSTICK_LSI       , .ClkSrcId = RCC_CLK_SRC_LSICLK  , .BlockId = RCC_BLOCK_SYSTICK  , .ClkMuxId = RCC_CLK_MUX_SYSTICK_LSI       },
   { .PeriphId = RCC_PERIPH_SYSTICK_LSE       , .ClkSrcId = RCC_CLK_SRC_LSECLK  , .BlockId = RCC_BLOCK_SYSTICK  , .ClkMuxId = RCC_CLK_MUX_SYSTICK_LSE       },
+
+  { .PeriphId = RCC_PERIPH_IWDG              , .ClkSrcId = RCC_CLK_SRC_LSICLK  , .BlockId = RCC_BLOCK_IWDG     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 
   { .PeriphId = RCC_PERIPH_RTC_HSE_DIV32     , .ClkSrcId = RCC_CLK_SRC_APB3CLK , .BlockId = RCC_BLOCK_RTC      , .ClkMuxId = RCC_CLK_MUX_RTC_HSE_DIV32     },
   { .PeriphId = RCC_PERIPH_RTC_LSE           , .ClkSrcId = RCC_CLK_SRC_LSECLK  , .BlockId = RCC_BLOCK_RTC      , .ClkMuxId = RCC_CLK_MUX_RTC_LSE           },
@@ -831,6 +840,7 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
   { .BlockId = RCC_BLOCK_FLASH      , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_FLITFEN      , .LpCtrlMask = RCC_AHB1LPENR_FLITFLPEN      , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
   { .BlockId = RCC_BLOCK_SBS        , .ClkBusId = RCC_CLK_BUS_APB3      , .StateMask = RCC_APB3ENR_SBSEN        , .LpCtrlMask = RCC_APB3LPENR_SBSLPEN        , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
   { .BlockId = RCC_BLOCK_SYSTICK    , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_UNSUPPORTED_FUNCTION , .LpCtrlMask = RCC_UNSUPPORTED_FUNCTION     , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
+  { .BlockId = RCC_BLOCK_IWDG       , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_UNSUPPORTED_FUNCTION , .LpCtrlMask = RCC_UNSUPPORTED_FUNCTION     , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
   { .BlockId = RCC_BLOCK_RTC        , .ClkBusId = RCC_CLK_BUS_APB3      , .StateMask = RCC_APB3ENR_RTCAPBEN     , .LpCtrlMask = RCC_APB3LPENR_RTCAPBLPEN     , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
 #if defined(RCC_APB1LRSTR_CECRST)
   { .BlockId = RCC_BLOCK_CRS        , .ClkBusId = RCC_CLK_BUS_APB1_1    , .StateMask = RCC_APB1LENR_CRSEN       , .LpCtrlMask = RCC_APB1LLPENR_CRSLPEN       , .RstCtrlMask = RCC_APB1LRSTR_CECRST       },
@@ -1177,6 +1187,21 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
 };
 
 _Static_assert( (sizeof(rcc_PeriphBlockConfig) / sizeof(rcc_BlockConfigStruct_t)) == RCC_BLOCK_LIST_CNT, "Rcc: rcc_PeriphBlockConfig has incorrect size." );
+
+/* --------------------------- Reset source flags --------------------------- */
+
+/** \brief RSR register flag masks, indexed by \ref rcc_ResetSrc_t */
+static const uint32_t rcc_ResetSrcLut[] =
+{
+    RCC_RSR_PINRSTF , /**< \ref RCC_RESET_SRC_PIN  */
+    RCC_RSR_BORRSTF , /**< \ref RCC_RESET_SRC_BOR  */
+    RCC_RSR_SFTRSTF , /**< \ref RCC_RESET_SRC_SW   */
+    RCC_RSR_IWDGRSTF, /**< \ref RCC_RESET_SRC_IWDG */
+    RCC_RSR_WWDGRSTF, /**< \ref RCC_RESET_SRC_WWDG */
+    RCC_RSR_LPWRRSTF, /**< \ref RCC_RESET_SRC_LPWR */
+};
+
+_Static_assert( (sizeof(rcc_ResetSrcLut) / sizeof(uint32_t)) == RCC_RESET_SRC_CNT, "Rcc: rcc_ResetSrcLut has incorrect size." );
 
 /* ========================= EXPORTED FUNCTIONS ============================= */
 
@@ -2774,6 +2799,116 @@ rcc_RequestState_t Rcc_Set_ClkOutDivider( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_
 rcc_RequestState_t Rcc_Get_ClkOutDivider( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t * const clkDivider )
 {
     return Rcc_ClkOut_Get_ClockDivider( outId, clkDivider );
+}
+
+/*--------------------------- Reset source flags -----------------------------*/
+
+/**
+ * \brief Returns state of required reset source flag.
+ *
+ * \note  Several flags can be active at once (e.g. NRST pin flag is set
+ *        together with any internal reset source). Flags are kept until
+ *        \ref Rcc_Set_ResetSourceClear is called or power-on reset occurs.
+ *
+ * \param resetSrc   [in]: Reset source identification, value from \ref rcc_ResetSrc_t
+ * \param flagState [out]: Pointer to store reset source flag state. Must not be NULL.
+ *
+ * \return Function processing state. Returns \ref RCC_REQUEST_OK if request
+ *         was processed without problems. Otherwise returns \ref RCC_REQUEST_ERROR.
+ */
+rcc_RequestState_t Rcc_Get_ResetSource( rcc_ResetSrc_t resetSrc, rcc_FlagState_t * const flagState )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+    uint32_t           regValue = RCC_RSR_BITS_CLEARED;
+
+    if( ( RCC_RESET_SRC_CNT > resetSrc  ) &&
+        ( RCC_NULL_PTR     != flagState )    )
+    {
+        regValue = Rcc_Get_RegBit( RCC_REG_RSR, rcc_ResetSrcLut[ resetSrc ] );
+
+        if( RCC_RSR_BITS_CLEARED != regValue )
+        {
+            *flagState = RCC_FLAG_ACTIVE;
+        }
+        else
+        {
+            *flagState = RCC_FLAG_INACTIVE;
+        }
+
+        retState = RCC_REQUEST_OK;
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Clears all reset source flags.
+ *
+ * \note  Remove flag (RMVF) is set to clear the flags and cleared back
+ *        afterwards so the following reset sources are latched again.
+ *        Both writes are verified by read-back.
+ *
+ * \return Function processing state. Returns \ref RCC_REQUEST_OK if request
+ *         was processed without problems. Otherwise returns \ref RCC_REQUEST_ERROR.
+ */
+rcc_RequestState_t Rcc_Set_ResetSourceClear( void )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+    uint32_t           regValue = RCC_RSR_BITS_CLEARED;
+
+    /* Request removal of all reset source flags */
+    Rcc_Set_RegVal( RCC_REG_RSR, RCC_RSR_RMVF, RCC_RSR_RMVF );
+
+    for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+    {
+        regValue = Rcc_Get_RegBit( RCC_REG_RSR, RCC_RSR_RESET_SRC_MASK );
+
+        if( RCC_RSR_BITS_CLEARED == regValue )
+        {
+            retState = RCC_REQUEST_OK;
+            break;
+        }
+        else
+        {
+            /* Flags have not been cleared yet */
+            retState = RCC_REQUEST_ERROR;
+        }
+    }
+
+    /* Release remove flag, so next reset sources are latched */
+    Rcc_Set_RegVal( RCC_REG_RSR, RCC_RSR_RMVF, RCC_RSR_BITS_CLEARED );
+
+    if( RCC_REQUEST_OK == retState )
+    {
+        retState = RCC_REQUEST_ERROR;
+
+        for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+        {
+            regValue = Rcc_Get_RegBit( RCC_REG_RSR, RCC_RSR_RMVF );
+
+            if( RCC_RSR_BITS_CLEARED == regValue )
+            {
+                retState = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                /* Remove flag has not been released yet */
+                retState = RCC_REQUEST_ERROR;
+            }
+        }
+    }
+    else
+    {
+        /* Flags were not cleared, error is returned */
+    }
+
+    return ( retState );
 }
 
 /* =========================== LOCAL FUNCTIONS ============================== */

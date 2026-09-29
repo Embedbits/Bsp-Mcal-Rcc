@@ -101,6 +101,8 @@ typedef enum rcc_PeriphId_t
     RCC_PERIPH_SYSTICK_LSI        , /**< System Tick timer active with Low Speed Internal (LSI) Oscillator as clock source */
     RCC_PERIPH_SYSTICK_LSE        , /**< System Tick timer active with Low Speed External (LSE) Oscillator as clock source */
 
+    RCC_PERIPH_IWDG               , /**< Independent watchdog clocked by Low Speed Internal (LSI) oscillator (no clock enable) */
+
     RCC_PERIPH_RTC_HSE_DIV32      , /**< Real Time Clock active with High Speed External oscillator (HSE) divided by 32 used as clock source  */
     RCC_PERIPH_RTC_LSE            , /**< Real Time Clock active with Low Speed External (LSE) used as clock source */
     RCC_PERIPH_RTC_LSI            , /**< Real Time Clock active with Low Speed Internal (LSI) used as clock source */
@@ -386,7 +388,7 @@ typedef enum rcc_PeriphId_t
     RCC_PERIPH_I3C1_HSI           , /**< I3C 1 Clock enable with 64MHz High Speed Internal (HSI) oscillator output as clock source */
 #endif /* I3C1 */
 #if defined(I3C2)
-    RCC_PERIPH_I3C2_PCLK1          , /**< I3C 1 Clock enable with APB1 (PCLK1) as clock source */
+    RCC_PERIPH_I3C2_PCLK3          , /**< I3C 2 Clock enable with APB3 (PCLK3) as clock source */
 #if defined(RCC_CR_PLL3ON)
     RCC_PERIPH_I3C2_PLL3R         , /**< I3C 1 Clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
 #else
@@ -673,6 +675,20 @@ typedef enum rcc_PeriphId_t
 
     RCC_PERIPH_ID_CNT
 }   rcc_PeriphId_t;
+
+/*---------------------------- Reset source flags ----------------------------*/
+
+/** \brief List of reset sources stored in RCC reset status register (RSR) */
+typedef enum
+{
+    RCC_RESET_SRC_PIN   = 0u, /**< Reset from NRST pin                                  */
+    RCC_RESET_SRC_BOR       , /**< Brown-out reset (BOR), also set after power-on reset */
+    RCC_RESET_SRC_SW        , /**< System reset requested by software                   */
+    RCC_RESET_SRC_IWDG      , /**< Independent watchdog reset                           */
+    RCC_RESET_SRC_WWDG      , /**< Window watchdog reset                                */
+    RCC_RESET_SRC_LPWR      , /**< Illegal Stop / Standby mode entry reset              */
+    RCC_RESET_SRC_CNT         /**< Number of reset sources                              */
+}   rcc_ResetSrc_t;
 
 /*------------------------ Clock sources configuration -----------------------*/
 

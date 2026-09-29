@@ -27,6 +27,7 @@ typedef enum rcc_BlockList_t
     RCC_BLOCK_FLASH    = 0u, /**< Flash interface clock enable */
     RCC_BLOCK_SBS          , /**< System Backup and Security module */
     RCC_BLOCK_SYSTICK      , /**< SysTick module */
+    RCC_BLOCK_IWDG         , /**< Independent watchdog (clocked by LSI, no clock enable) */
     RCC_BLOCK_RTC          , /**< Real Time Clock */
     RCC_BLOCK_CRS          , /**< CRS Clock Enable */
 
