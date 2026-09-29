@@ -278,13 +278,6 @@ rcc_RequestState_t Rcc_ClkSrc_Get_HseClk( rcc_FreqHz_t * const clkFreq )
  * User must select desired output frequency. RC itself generate 64MHz frequency
  * which can be divided by 1/2/4/8.
  *
- * \param hsiConfig [in]: Required frequency output from enumeration:
- *  - \ref RCC_HSI64_INACTIVE   : 64MHz HSI oscillator is inactive
- *  - \ref RCC_HSI64_FREQ_64MHZ : 64Mhz HSI oscillator not divided
- *  - \ref RCC_HSI64_FREQ_32MHZ : 64Mhz HSI oscillator divided by 2
- *  - \ref RCC_HSI64_FREQ_16MHZ : 64Mhz HSI oscillator divided by 4
- *  - \ref RCC_HSI64_FREQ_8MHZ  : 64Mhz HSI oscillator divided by 8
- *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error.
  */
@@ -753,7 +746,8 @@ rcc_RequestState_t Rcc_ClkSrc_Get_LseState( rcc_FunctionState_t *retState )
 /**
  * \brief Returns value of Low Speed External (LSE) frequency
  *
- * \param lseClk [out]: Frequency of LSE clock in Hz
+ * \param csiClk [out]: Pointer to store frequency of LSE clock in Hz. Must not be NULL.
+ *
  * \return State of request execution. Returns "OK" if request was success,
  *        otherwise return error.
  */

@@ -43,6 +43,7 @@ rcc_RequestState_t          Rcc_Set_PeriphInactive      ( rcc_PeriphId_t periphI
 rcc_RequestState_t          Rcc_Get_PeriphState         ( rcc_PeriphId_t periphId, rcc_FunctionState_t * const funcState );
 
 rcc_RequestState_t          Rcc_Get_PeriphClk           ( rcc_PeriphId_t periphId, rcc_FreqHz_t * const periphClk );
+rcc_RequestState_t          Rcc_Get_PeriphClkSrc        ( rcc_PeriphId_t periphId, rcc_PeriphId_t * const periphClkSrc );
 
 rcc_RequestState_t          Rcc_Set_ResetActive         ( rcc_PeriphId_t periphId );
 rcc_RequestState_t          Rcc_Set_ResetInactive       ( rcc_PeriphId_t periphId );

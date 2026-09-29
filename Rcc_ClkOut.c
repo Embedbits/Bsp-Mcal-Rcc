@@ -27,6 +27,9 @@
 
 /**
  * \brief Initializes clock output module
+ *
+ * \return State of request execution. Returns \ref RCC_REQUEST_OK if request was
+ *         success, otherwise returns \ref RCC_REQUEST_ERROR.
  */
 rcc_RequestState_t Rcc_ClkOut_Init( void )
 {

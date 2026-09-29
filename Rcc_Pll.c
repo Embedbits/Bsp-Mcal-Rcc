@@ -21,6 +21,35 @@
 /** Maximal value of internal PLL frequency in Hz (Actually 560 MHz) */
 #define RCC_PLL_INT_FREQUENCY_MAX       ( 560000000u )
 
+/** PLL reference frequency (after DIVM) - minimum of range 1 (1 - 2 MHz) */
+#define RCC_PLL_REF_FREQ_MIN_HZ         ( 1000000u )
+/** PLL reference frequency - maximum of range 1 (1 - 2 MHz) */
+#define RCC_PLL_REF_RANGE1_MAX_HZ       ( 2000000u )
+/** PLL reference frequency - maximum of range 2 (2 - 4 MHz) */
+#define RCC_PLL_REF_RANGE2_MAX_HZ       ( 4000000u )
+/** PLL reference frequency - maximum of range 3 (4 - 8 MHz) */
+#define RCC_PLL_REF_RANGE3_MAX_HZ       ( 8000000u )
+/** PLL reference frequency - maximum of range 4 (8 - 16 MHz) */
+#define RCC_PLL_REF_RANGE4_MAX_HZ       ( 16000000u )
+
+/** Medium VCO range (PLLxVCOSEL = 1) minimum frequency */
+#define RCC_PLL_VCO_MEDIUM_MIN_HZ       ( 150000000u )
+/** Medium VCO range (PLLxVCOSEL = 1) maximum frequency */
+#define RCC_PLL_VCO_MEDIUM_MAX_HZ       ( 420000000u )
+/** Wide VCO range (PLLxVCOSEL = 0) minimum frequency */
+#define RCC_PLL_VCO_WIDE_MIN_HZ         ( 192000000u )
+/** Wide VCO range (PLLxVCOSEL = 0) maximum frequency */
+#define RCC_PLL_VCO_WIDE_MAX_HZ         ( 836000000u )
+
+/** DIVM value 0 is handled as divider 1 */
+#define RCC_PLL_M_DIV_MIN               ( 1u )
+
+/** PLLxN register holds multiplication factor decremented by 1 */
+#define RCC_PLL_N_REG_OFFSET            ( 1u )
+
+/** PLLxP / PLLxQ / PLLxR registers hold output divider decremented by 1 */
+#define RCC_PLL_OUT_DIV_REG_OFFSET      ( 1u )
+
 /* ============================== TYPEDEFS ================================== */
 
 typedef struct
@@ -341,6 +370,9 @@ _Static_assert( (sizeof(rcc_Pll_Config) / sizeof(rcc_PllConfig_t)) == RCC_PLL_CN
  *
  * During initialization process, module checks correctness of Phase Locked
  * Loop (PLL) configuration structure.
+ *
+ * \return State of request execution. Returns \ref RCC_REQUEST_OK if request was
+ *         success, otherwise returns \ref RCC_REQUEST_ERROR.
  */
 rcc_RequestState_t Rcc_Pll_Init( void )
 {
@@ -363,6 +395,9 @@ rcc_RequestState_t Rcc_Pll_Init( void )
  * \brief De-initializes Phase Locked Loop (PLL) handler module.
  *
  * De-initialization process disables all Phase Locked Loop (PLL) blocks.
+ *
+ * \return State of request execution. Returns \ref RCC_REQUEST_OK if request was
+ *         success, otherwise returns \ref RCC_REQUEST_ERROR.
  */
 rcc_RequestState_t Rcc_Pll_Deinit( void )
 {
@@ -419,7 +454,8 @@ rcc_RequestState_t Rcc_Pll_Set_Config( rcc_PllId_t pllId, rcc_PllConfigStruct_t 
     {
         if( RCC_PLL_SRC_NONE == configStruct->Pll_Source )
         {
-            Rcc_Pll_Set_Inactive( pllId );
+            /* PLL is not used */
+            retState = Rcc_Pll_Set_Inactive( pllId );
         }
         else
         {
@@ -448,15 +484,27 @@ rcc_RequestState_t Rcc_Pll_Set_Config( rcc_PllId_t pllId, rcc_PllConfigStruct_t 
 
                     Rcc_Set_RegVal( rcc_Pll_Config[ pllId ].N_MultRegId,
                                     rcc_Pll_Config[ pllId ].N_MultMask,
-                                    ( configStruct->N_Multiplier - 1u ) << RCC_PLL1DIVR_PLL1N_Pos );
+                                    ( configStruct->N_Multiplier - RCC_PLL_N_REG_OFFSET ) << RCC_PLL1DIVR_PLL1N_Pos );
                 }
 
                 /* ---------- Configure PLL input frequency range ----------- */
 
-                rcc_FreqHz_t freqInHz = 0u;
-                uint32_t     regValue = 0u;
+                rcc_FreqHz_t      freqInHz  = 0u;
+                rcc_FreqHz_t      refFreqHz = 0u;
+                rcc_FreqHz_t      vcoFreqHz = 0u;
+                uint32_t          regValue  = 0u;
+                rcc_PllMDivider_t inputDiv  = configStruct->M_Divider;
 
-                if( RCC_REQUEST_OK != retState )
+                if( RCC_PLL_M_DIV_MIN > inputDiv )
+                {
+                    inputDiv = RCC_PLL_M_DIV_MIN;
+                }
+                else
+                {
+                    /* Input divider is used as configured */
+                }
+
+                if( RCC_REQUEST_OK == retState )
                 {
                     if( RCC_PLL_SRC_CSI == configStruct->Pll_Source )
                     {
@@ -475,81 +523,95 @@ rcc_RequestState_t Rcc_Pll_Set_Config( rcc_PllId_t pllId, rcc_PllConfigStruct_t 
                         /* Unsupported PLL source */
                         retState = RCC_REQUEST_ERROR;
                     }
+                }
+                else
+                {
+                    /* Error during configuration process */
+                }
 
-                    if( RCC_REQUEST_ERROR != retState )
-                    {
-                        if( ( 1000000u <= freqInHz ) &&
-                            ( 2000000u >= freqInHz )    )
-                        {
-                            /* Input frequency range 1: 1 MHz - 2 MHz */
-                            regValue = 0u;
-                        }
-                        else if( ( 2000000u <  freqInHz ) &&
-                                 ( 4000000u >= freqInHz )    )
-                        {
-                            /* Input frequency range 2: 2 MHz - 4 MHz */
-                            regValue = 1u;
-                        }
-                        else if( ( 4000000u <  freqInHz ) &&
-                                 ( 8000000u >= freqInHz )    )
-                        {
-                            /* Input frequency range 3: 4 MHz - 8 MHz */
-                            regValue = 2u;
-                        }
-                        else if( ( 8000000u  <  freqInHz ) &&
-                                 ( 16000000u >= freqInHz )    )
-                        {
-                            /* Input frequency range 4: 8 MHz - 16 MHz */
-                            regValue = 3u;
-                        }
-                        else
-                        {
-                            /* Incorrect input frequency */
-                            retState = RCC_REQUEST_ERROR;
-                        }
-                    }
+                /* Input range is defined for reference frequency after DIVM divider */
+                refFreqHz = freqInHz / inputDiv;
+                vcoFreqHz = refFreqHz * configStruct->N_Multiplier;
 
-                    if( RCC_REQUEST_ERROR != retState )
+                if( RCC_REQUEST_OK == retState )
+                {
+                    if( ( RCC_PLL_REF_FREQ_MIN_HZ   <= refFreqHz ) &&
+                        ( RCC_PLL_REF_RANGE1_MAX_HZ >= refFreqHz )    )
                     {
-                        Rcc_Set_RegVal( rcc_Pll_Config[ pllId ].FreqInRangeRegId,
-                                        rcc_Pll_Config[ pllId ].FreqInRangeMask,
-                                        regValue );
+                        regValue = LL_RCC_PLLINPUTRANGE_1_2;
                     }
+                    else if( ( RCC_PLL_REF_RANGE1_MAX_HZ <  refFreqHz ) &&
+                             ( RCC_PLL_REF_RANGE2_MAX_HZ >= refFreqHz )    )
+                    {
+                        regValue = LL_RCC_PLLINPUTRANGE_2_4;
+                    }
+                    else if( ( RCC_PLL_REF_RANGE2_MAX_HZ <  refFreqHz ) &&
+                             ( RCC_PLL_REF_RANGE3_MAX_HZ >= refFreqHz )    )
+                    {
+                        regValue = LL_RCC_PLLINPUTRANGE_4_8;
+                    }
+                    else if( ( RCC_PLL_REF_RANGE3_MAX_HZ <  refFreqHz ) &&
+                             ( RCC_PLL_REF_RANGE4_MAX_HZ >= refFreqHz )    )
+                    {
+                        regValue = LL_RCC_PLLINPUTRANGE_8_16;
+                    }
+                    else
+                    {
+                        /* Reference frequency out of PLL input range */
+                        retState = RCC_REQUEST_ERROR;
+                    }
+                }
+                else
+                {
+                    /* Error during configuration process */
+                }
+
+                if( RCC_REQUEST_OK == retState )
+                {
+                    /* Register helper masks the value only - shift to field position (same for all PLLs) */
+                    Rcc_Set_RegVal( rcc_Pll_Config[ pllId ].FreqInRangeRegId,
+                                    rcc_Pll_Config[ pllId ].FreqInRangeMask,
+                                    regValue << RCC_PLL1CFGR_PLL1RGE_Pos );
+                }
+                else
+                {
+                    /* Error during configuration process */
                 }
 
                 /* ------------- Configure VCO frequency range -------------- */
 
-                rcc_FreqHz_t      vcoFreqHz = 0u;
-                rcc_PllMDivider_t inputDiv  = configStruct->M_Divider;
-
-                if( 0u == inputDiv )
+                if( RCC_REQUEST_OK == retState )
                 {
-                    inputDiv = 1u;
-                }
-                else
-                {
-                    /* Input divider is not bypassed (value 0) */
-                }
-
-                vcoFreqHz = ( freqInHz / inputDiv ) * configStruct->N_Multiplier;
-
-                if( RCC_REQUEST_ERROR != retState )
-                {
-                    if( ( 150000000u <= vcoFreqHz ) &&
-                        ( 420000000u >= vcoFreqHz )    )
+                    if( ( RCC_PLL_VCO_MEDIUM_MIN_HZ <= vcoFreqHz ) &&
+                        ( RCC_PLL_VCO_MEDIUM_MAX_HZ >= vcoFreqHz )    )
                     {
-                        regValue = 1u;
+                        regValue = LL_RCC_PLLVCORANGE_MEDIUM;
+                    }
+                    else if( ( RCC_PLL_VCO_WIDE_MIN_HZ <= vcoFreqHz ) &&
+                             ( RCC_PLL_VCO_WIDE_MAX_HZ >= vcoFreqHz )    )
+                    {
+                        regValue = LL_RCC_PLLVCORANGE_WIDE;
                     }
                     else
                     {
-                        /* VCO frequency is out of medium VCO range, thus wide
-                         * range has to be activated. */
-                        regValue = 0u;
+                        /* VCO frequency out of both VCO ranges */
+                        retState = RCC_REQUEST_ERROR;
                     }
+                }
+                else
+                {
+                    /* Error during configuration process */
+                }
 
+                if( RCC_REQUEST_OK == retState )
+                {
                     Rcc_Set_RegVal( rcc_Pll_Config[ pllId ].VcoRangeRegId,
                                     rcc_Pll_Config[ pllId ].VcoRangeMask,
-                                    regValue );
+                                    regValue << RCC_PLL1CFGR_PLL1VCOSEL_Pos );
+                }
+                else
+                {
+                    /* Error during configuration process */
                 }
             }
             else
@@ -621,16 +683,16 @@ rcc_RequestState_t Rcc_Pll_Set_Config( rcc_PllId_t pllId, rcc_PllConfigStruct_t 
 /**
  * \brief Returns PLL internal frequency
  *
- * \param pllId [in]: Required Phase Locked Loop (PLL) identification.
+ * \param pllId   [in]: Required Phase Locked Loop (PLL) identification.
+ * \param pllClk [out]: Pointer to PLL internal frequency in Hz
  *
- * \param busClk [out]: Pointer to PLL internal frequency in Hz
  * \return State of request execution. Returns "OK" if request was success,
  *        otherwise return error.
  */
 rcc_RequestState_t Rcc_Pll_Get_InternalClk( rcc_PllId_t pllId, rcc_FreqHz_t * const pllClk )
 {
     rcc_RequestState_t retState     = RCC_REQUEST_ERROR;
-    rcc_PllClkSrc_t    pllClkSource = 0u;
+    rcc_PllClkSrc_t    pllClkSource = RCC_PLL_SRC_NONE;
     rcc_FreqHz_t       pllIntFreq   = 0u;
     uint32_t           pllNMult     = 0u;
     uint32_t           pllMDiv      = 0u;
@@ -641,10 +703,6 @@ rcc_RequestState_t Rcc_Pll_Get_InternalClk( rcc_PllId_t pllId, rcc_FreqHz_t * co
     if( ( RCC_REQUEST_ERROR != retState ) &&
         ( RCC_NULL_PTR      != pllClk   )    )
     {
-        rcc_PllClkSrc_t pllClkSource = RCC_PLL_SRC_NONE;
-
-        Rcc_Pll_Get_Source( pllId, &pllClkSource );
-
         if( RCC_PLL_SRC_HSE == pllClkSource )
         {
             retState = Rcc_ClkSrc_Get_HseClk( &inputClkFreq );
@@ -666,7 +724,8 @@ rcc_RequestState_t Rcc_Pll_Get_InternalClk( rcc_PllId_t pllId, rcc_FreqHz_t * co
         uint32_t mDivRegValue  = Rcc_Get_RegVal( rcc_Pll_Config[ pllId ].M_DivRegId , rcc_Pll_Config[ pllId ].M_DivMask  );
         uint32_t nMultRegValue = Rcc_Get_RegVal( rcc_Pll_Config[ pllId ].N_MultRegId, rcc_Pll_Config[ pllId ].N_MultMask );
 
-        pllNMult = ( nMultRegValue >> RCC_PLL1DIVR_PLL1N_Pos );
+        /* PLLxN register holds multiplier decremented by 1 */
+        pllNMult = ( nMultRegValue >> RCC_PLL1DIVR_PLL1N_Pos ) + RCC_PLL_N_REG_OFFSET;
         pllMDiv  = ( mDivRegValue  >> RCC_PLL1CFGR_PLL1M_Pos );
 
 
@@ -684,6 +743,10 @@ rcc_RequestState_t Rcc_Pll_Get_InternalClk( rcc_PllId_t pllId, rcc_FreqHz_t * co
             *pllClk = pllIntFreq;
 
             retState = RCC_REQUEST_OK;
+        }
+        else
+        {
+            /* PLL source frequency is not available */
         }
     }
     else
@@ -784,7 +847,8 @@ rcc_RequestState_t Rcc_Pll_Set_Inactive( rcc_PllId_t pllId )
 /**
  * \brief Reading status of Phase Locked Loop (PLL) block
  *
- * \param retState [out]: Pointer to actual status value
+ * \param pllId  [in]: PLL identification, value from \ref rcc_PllId_t.
+ * \param state [out]: Pointer to store actual PLL state. Must not be NULL.
  *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error.
@@ -826,6 +890,7 @@ rcc_RequestState_t Rcc_Pll_Get_State( rcc_PllId_t pllId, rcc_FunctionState_t * c
 /**
  * \brief Selection of clock source for Phase Locked Loop's multiplexer
  *
+ * \param pllId     [in]: PLL identification, value from \ref rcc_PllId_t.
  * \param clkSource [in]: Phase Locked Loop's clock source ID. Can be one of enumeration:
  *  - \ref RCC_PLL_SRC_NONE : PLL is inactive
  *  - \ref RCC_PLL_SRC_CSI  : PLL will be clocked by CSI oscillator
@@ -908,13 +973,10 @@ rcc_RequestState_t Rcc_Pll_Set_Source( rcc_PllId_t pllId, rcc_PllClkSrc_t clkSou
 
 
 /**
- * \brief Selection of clock source for Phase Locked Loop's multiplexer
+ * \brief Returns clock source selected by Phase Locked Loop (PLL) multiplexer
  *
- * \param clkSource [in]: Phase Locked Loop's clock source ID. Can be one of enumeration:
- *  - \ref RCC_PLL_SRC_NONE : PLL is inactive
- *  - \ref RCC_PLL_SRC_CSI  : PLL will be clocked by CSI oscillator
- *  - \ref RCC_PLL_SRC_HSE  : PLL will be clocked by HSE oscillator
- *  - \ref RCC_PLL_SRC_HSI  : PLL will be clocked by HSI oscillator
+ * \param pllId      [in]: PLL identification, value from \ref rcc_PllId_t.
+ * \param clkSource [out]: Pointer to store actual clock source of PLL, value from \ref rcc_PllClkSrc_t. Must not be NULL.
  *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error.
@@ -980,7 +1042,7 @@ rcc_RequestState_t Rcc_Pll_Set_OutP( rcc_PllId_t pllId, rcc_PllPDivider_t divide
             ( rcc_Pll_Config[ pllId ].Out_P_DivMaxValue >= divider ) &&
             ( 0u                                        == modulo  )    )
         {
-            uint32_t regValue = divider - 1u;
+            uint32_t regValue = divider - RCC_PLL_OUT_DIV_REG_OFFSET;
 
             /* Bit shift "RCC_PLL1DIVR_PLL1P_Pos" is used for all PLL's.
                                  * At least this ST did not screw up. */
@@ -1017,7 +1079,9 @@ rcc_RequestState_t Rcc_Pll_Set_OutP( rcc_PllId_t pllId, rcc_PllPDivider_t divide
  * \note This function reads real values from registers and calculate real
  *       frequency.
  *
+ * \param pllId   [in]: PLL identification, value from \ref rcc_PllId_t.
  * \param pllClk [out]: Pointer to PLL clock output frequency in Hz
+ *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error.
  */
@@ -1034,7 +1098,7 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t * const
         uint32_t regVal = Rcc_Get_RegVal( rcc_Pll_Config[ pllId ].Out_P_ConfRegId,
                                           rcc_Pll_Config[ pllId ].Out_P_ConfMask );
 
-        regVal = ( ( regVal & rcc_Pll_Config[ pllId ].Out_P_ConfMask ) >> RCC_PLL1DIVR_PLL1P_Pos ) + 1u;
+        regVal = ( ( regVal & rcc_Pll_Config[ pllId ].Out_P_ConfMask ) >> RCC_PLL1DIVR_PLL1P_Pos ) + RCC_PLL_OUT_DIV_REG_OFFSET;
 
         if( 0u != regVal )
         {
@@ -1077,7 +1141,7 @@ rcc_RequestState_t Rcc_Pll_Set_OutQ( rcc_PllId_t pllId, rcc_PllQDivider_t divide
             ( rcc_Pll_Config[ pllId ].Out_Q_DivMaxValue >= divider ) &&
             ( 0u                                        == modulo  )    )
         {
-            uint32_t regValue = divider - 1u;
+            uint32_t regValue = divider - RCC_PLL_OUT_DIV_REG_OFFSET;
 
             /* Bit shift "RCC_PLL1DIVR_PLL1Q_Pos" is used for all PLL's.
                                  * At least this ST did not screw up. */
@@ -1114,7 +1178,9 @@ rcc_RequestState_t Rcc_Pll_Set_OutQ( rcc_PllId_t pllId, rcc_PllQDivider_t divide
  * \note This function reads real values from registers and calculate real
  *       frequency.
  *
+ * \param pllId   [in]: PLL identification, value from \ref rcc_PllId_t.
  * \param pllClk [out]: Pointer to PLL clock output frequency in Hz
+ *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error.
  */
@@ -1130,7 +1196,7 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t * const
         uint32_t regVal = Rcc_Get_RegVal( rcc_Pll_Config[ pllId ].Out_Q_ConfRegId,
                                           rcc_Pll_Config[ pllId ].Out_Q_ConfMask );
 
-        regVal = ( ( regVal & rcc_Pll_Config[ pllId ].Out_Q_ConfMask ) >> RCC_PLL1DIVR_PLL1Q_Pos ) + 1u;
+        regVal = ( ( regVal & rcc_Pll_Config[ pllId ].Out_Q_ConfMask ) >> RCC_PLL1DIVR_PLL1Q_Pos ) + RCC_PLL_OUT_DIV_REG_OFFSET;
 
         pllIntFreq = ( pllIntFreq / regVal );
 
@@ -1166,7 +1232,7 @@ rcc_RequestState_t Rcc_Pll_Set_OutR( rcc_PllId_t pllId, rcc_PllRDivider_t divide
             ( rcc_Pll_Config[ pllId ].Out_R_DivMaxValue >= divider ) &&
             ( 0u                                        == modulo  )    )
         {
-            uint32_t regValue = divider - 1u;
+            uint32_t regValue = divider - RCC_PLL_OUT_DIV_REG_OFFSET;
 
             /* Bit shift "RCC_PLL1DIVR_PLL1P_Pos" is used for all PLL's.
                                  * At least this ST did not screw up. */
@@ -1203,7 +1269,9 @@ rcc_RequestState_t Rcc_Pll_Set_OutR( rcc_PllId_t pllId, rcc_PllRDivider_t divide
  * \note This function reads real values from registers and calculate real
  *       frequency.
  *
+ * \param pllId   [in]: PLL identification, value from \ref rcc_PllId_t.
  * \param pllClk [out]: Pointer to PLL clock output frequency in Hz
+ *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error.
  */
@@ -1220,7 +1288,7 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutR( rcc_PllId_t pllId, rcc_FreqHz_t * const
         uint32_t regVal = Rcc_Get_RegVal( rcc_Pll_Config[ pllId ].Out_R_ConfRegId,
                                           rcc_Pll_Config[ pllId ].Out_R_ConfMask );
 
-        regVal = ( ( regVal & rcc_Pll_Config[ pllId ].Out_R_ConfMask ) >> RCC_PLL1DIVR_PLL1R_Pos ) + 1u;
+        regVal = ( ( regVal & rcc_Pll_Config[ pllId ].Out_R_ConfMask ) >> RCC_PLL1DIVR_PLL1R_Pos ) + RCC_PLL_OUT_DIV_REG_OFFSET;
 
         pllIntFreq = ( pllIntFreq / regVal );
 

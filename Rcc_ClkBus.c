@@ -30,6 +30,9 @@
 
 /**
  * \brief Initializes clock buses module.
+ *
+ * \return State of request execution. Returns \ref RCC_REQUEST_OK if request was
+ *         success, otherwise returns \ref RCC_REQUEST_ERROR.
  */
 rcc_RequestState_t Rcc_ClkBus_Init( void )
 {
@@ -334,8 +337,8 @@ rcc_RequestState_t Rcc_ClkBus_Set_APB1Divider( rcc_APB1_Div_t dividerId )
  *
  * Clock bus APB1 is clocked through APB1 divider from HCLK (AHB bus).
  *
- * \param dividerId     [out] : Divider ID
- * \param dividerNumVal [out] : Divider numerical value
+ * \param dividerId [out]: Divider ID
+ *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error.
  */
