@@ -38,7 +38,7 @@ static rcc_FreqHz_t                 rcc_HseFreqHz = 0u;
  */
 void Rcc_ClkSrc_Init( void )
 {
-
+    return;
 }
 
 
@@ -52,7 +52,7 @@ void Rcc_ClkSrc_Init( void )
  */
 void Rcc_ClkSrc_Deinit( void )
 {
-
+    return;
 }
 
 
@@ -65,7 +65,7 @@ void Rcc_ClkSrc_Deinit( void )
  */
 void Rcc_ClkSrc_Task( void )
 {
-
+    return;
 }
 
 
@@ -390,6 +390,9 @@ rcc_RequestState_t Rcc_ClkSrc_Get_Hsi64State( rcc_FunctionState_t *retState )
 /**
  * \brief Reading High Speed Internal (HSI) frequency configured by user
  *
+ * The frequency is the HSI oscillator frequency (\c HSI_VALUE) divided by the actual
+ * HSI divider (HSIDIV, reset value /2).
+ *
  * \param clkFreq [out]: Frequency of HSI clock in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
@@ -401,8 +404,9 @@ rcc_RequestState_t Rcc_ClkSrc_Get_Hsi64Clk( rcc_FreqHz_t * const clkFreq )
 
     if( RCC_NULL_PTR != clkFreq )
     {
-//TODO: Implement HSI frequency division reading
-        *clkFreq = HSI_VALUE;
+        const uint32_t hsiDivShift = LL_RCC_HSI_GetDivider() >> RCC_CR_HSIDIV_Pos;
+
+        *clkFreq = (rcc_FreqHz_t)( HSI_VALUE >> hsiDivShift );
 
         returnState = RCC_REQUEST_OK;
     }
@@ -559,7 +563,25 @@ rcc_RequestState_t Rcc_ClkSrc_Get_Hsi48Clk( rcc_FreqHz_t * const clkFreq )
 rcc_RequestState_t Rcc_ClkSrc_Set_CsiActive( void )
 {
     rcc_RequestState_t returnState = RCC_REQUEST_ERROR;
+    uint32_t           regValue    = 0u;
 
+    LL_RCC_CSI_Enable();
+
+    for( uint32_t iterationCnt = 0u; RCC_OSC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+    {
+        regValue = LL_RCC_CSI_IsReady();
+
+        if( 0u != regValue )
+        {
+            returnState = RCC_REQUEST_OK;
+            break;
+        }
+        else
+        {
+            /* Oscillator is not ready yet, keep return state as error */
+            returnState = RCC_REQUEST_ERROR;
+        }
+    }
 
     return ( returnState );
 }
@@ -574,8 +596,25 @@ rcc_RequestState_t Rcc_ClkSrc_Set_CsiActive( void )
 rcc_RequestState_t Rcc_ClkSrc_Set_CsiInactive( void )
 {
     rcc_RequestState_t returnState = RCC_REQUEST_ERROR;
+    uint32_t           regValue    = 0u;
 
+    LL_RCC_CSI_Disable();
 
+    for( uint32_t iterationCnt = 0u; RCC_OSC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+    {
+        regValue = LL_RCC_CSI_IsReady();
+
+        if( 0u == regValue )
+        {
+            returnState = RCC_REQUEST_OK;
+            break;
+        }
+        else
+        {
+            /* Oscillator is still running, keep return state as error */
+            returnState = RCC_REQUEST_ERROR;
+        }
+    }
 
     return ( returnState );
 }
@@ -595,7 +634,18 @@ rcc_RequestState_t Rcc_ClkSrc_Get_CsiState( rcc_FunctionState_t * const retState
 
     if( RCC_NULL_PTR != retState )
     {
-        *retState = RCC_FUNCTION_INACTIVE;
+        const uint32_t readyState = LL_RCC_CSI_IsReady();
+        const uint32_t regValue   = READ_BIT( RCC->CR, RCC_CR_CSION );
+
+        if( ( 0u != readyState ) &&
+            ( 0u != regValue   )    )
+        {
+            *retState = RCC_FUNCTION_ACTIVE;
+        }
+        else
+        {
+            *retState = RCC_FUNCTION_INACTIVE;
+        }
 
         returnState = RCC_REQUEST_OK;
     }

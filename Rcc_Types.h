@@ -1,4 +1,9 @@
 /**
+ * \defgroup Rcc Rcc
+ * \brief Rcc module
+ */
+
+/**
  * \author Mr.Nobody
  * \file Rcc_Types.h
  * \ingroup Rcc
@@ -798,6 +803,7 @@ typedef enum
     RCC_RTC_CLK_SOURCE_HSE_DIV = 0u, /**< Divided High Speed External (HSE) clock will be used as RTC clock source. */
     RCC_RTC_CLK_SOURCE_LSE,          /**< Low Speed External (LSE) will be used as RTC clock source                 */
     RCC_RTC_CLK_SOURCE_LSI,          /**< Low Speed Internal (LSI) will be used as RTC clock source                 */
+    RCC_RTC_CLK_SOURCE_CNT           /**< Count of RTC clock sources                                                    */
 }   rcc_Rtc_ClkSource_t;
 
 

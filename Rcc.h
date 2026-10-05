@@ -396,6 +396,8 @@ typedef enum
     RCC_CLK_SRC_APB1CLK,     /**< Advanced Peripheral Bus 1 (APB1) clock source                       */
     RCC_CLK_SRC_APB2CLK,     /**< Advanced Peripheral Bus 2 (APB2) clock source                       */
     RCC_CLK_SRC_APB3CLK,     /**< Advanced Peripheral Bus 3 (APB3) clock source                       */
+    RCC_CLK_SRC_APB1TIMCLK,  /**< Timer kernel clock of APB1 timers (PCLK1 x1 / x2 / x4 by APB1 prescaler and TIMPRE) */
+    RCC_CLK_SRC_APB2TIMCLK,  /**< Timer kernel clock of APB2 timers (PCLK2 x1 / x2 / x4 by APB2 prescaler and TIMPRE) */
     RCC_CLK_SRC_HSI64CLK,    /**< 64MHz High Speed Internal (HSI) clock source                        */
     RCC_CLK_SRC_CSI4CLK,     /**< 4MHz Low Power internal RC oscillator (CSI) clock source            */
     RCC_CLK_SRC_HSI48CLK,    /**< 48MHz High Speed Internal (HSI) oscillator clock source             */

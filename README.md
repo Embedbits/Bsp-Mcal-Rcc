@@ -35,6 +35,10 @@ It is part of the **MCAL (Microcontroller Abstraction Layer)** and allows safe a
 - `rcc_RequestState_t Rcc_Get_PeriphState(rcc_PeriphId_t periphId, rcc_FunctionState_t * const funcState)`
 - `rcc_RequestState_t Rcc_Get_PeriphClk(rcc_PeriphId_t periphId, rcc_FreqHz_t * const periphClk)`
 
+`Rcc_Set_PeriphActive()` starts the internal oscillator (HSI, HSI48, CSI, LSI) of the selected kernel
+clock if it is not running yet (eg. `RCC_PERIPH_RNG_HSI48`). External sources (HSE, LSE) and PLL outputs
+are not started automatically.
+
 ### Peripheral Reset Management
 - `rcc_RequestState_t Rcc_Set_ResetActive(rcc_PeriphId_t periphId)`
 - `rcc_RequestState_t Rcc_Set_ResetInactive(rcc_PeriphId_t periphId)`

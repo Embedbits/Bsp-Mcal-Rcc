@@ -113,7 +113,7 @@ _Static_assert( (sizeof(rcc_RegList) / sizeof(rcc_RegList_t)) == RCC_REG_CNT, "R
  */
 void Rcc_Reg_Init( void )
 {
-
+    return;
 }
 
 
@@ -127,7 +127,7 @@ void Rcc_Reg_Init( void )
  */
 void Rcc_Reg_Deinit( void )
 {
-
+    return;
 }
 
 
@@ -140,7 +140,7 @@ void Rcc_Reg_Deinit( void )
  */
 void Rcc_Reg_Task( void )
 {
-
+    return;
 }
 
 

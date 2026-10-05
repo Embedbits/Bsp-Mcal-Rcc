@@ -363,6 +363,15 @@ static const rcc_PllConfig_t            rcc_Pll_Config[] =
 
 _Static_assert( (sizeof(rcc_Pll_Config) / sizeof(rcc_PllConfig_t)) == RCC_PLL_CNT, "Rcc_Pll: rcc_Pll_Config has incorrect size." );
 
+
+/** \brief RTCSEL values of RTC clock sources, indexed by \ref rcc_Rtc_ClkSource_t */
+static const uint32_t rcc_Pll_RtcClkSrcLut[ RCC_RTC_CLK_SOURCE_CNT ] =
+{
+    [RCC_RTC_CLK_SOURCE_HSE_DIV] = LL_RCC_RTC_CLKSOURCE_HSE_DIV,
+    [RCC_RTC_CLK_SOURCE_LSE]     = LL_RCC_RTC_CLKSOURCE_LSE,
+    [RCC_RTC_CLK_SOURCE_LSI]     = LL_RCC_RTC_CLKSOURCE_LSI,
+};
+
 /* ========================= EXPORTED FUNCTIONS ============================= */
 
 /**
@@ -661,8 +670,9 @@ rcc_RequestState_t Rcc_Pll_Set_Config( rcc_PllId_t pllId, rcc_PllConfigStruct_t 
 
             if( RCC_REQUEST_ERROR != retState )
             {
-                /* Activate PLL. This must be the last step! */
-                Rcc_Pll_Set_Active( pllId );
+                /* Activate PLL. This must be the last step! PLL which does not
+                 * lock is reported as error. */
+                retState = Rcc_Pll_Set_Active( pllId );
             }
             else
             {
@@ -1198,7 +1208,7 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t * const
 
         regVal = ( ( regVal & rcc_Pll_Config[ pllId ].Out_Q_ConfMask ) >> RCC_PLL1DIVR_PLL1Q_Pos ) + RCC_PLL_OUT_DIV_REG_OFFSET;
 
-        pllIntFreq = ( pllIntFreq / regVal );
+        *pllClk = ( pllIntFreq / regVal );
 
         retState = RCC_REQUEST_OK;
     }
@@ -1290,7 +1300,7 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutR( rcc_PllId_t pllId, rcc_FreqHz_t * const
 
         regVal = ( ( regVal & rcc_Pll_Config[ pllId ].Out_R_ConfMask ) >> RCC_PLL1DIVR_PLL1R_Pos ) + RCC_PLL_OUT_DIV_REG_OFFSET;
 
-        pllIntFreq = ( pllIntFreq / regVal );
+        *pllClk = ( pllIntFreq / regVal );
 
         retState = RCC_REQUEST_OK;
     }
@@ -1316,22 +1326,31 @@ rcc_RequestState_t Rcc_Pll_Set_RtcClkSource( rcc_Rtc_ClkSource_t clkSource )
 {
     rcc_RequestState_t retState = RCC_REQUEST_ERROR;
 
-    LL_RCC_SetRTCClockSource( clkSource );
-
-    for( uint32_t iterationCnt = 0u; RCC_PLL_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+    if( RCC_RTC_CLK_SOURCE_CNT > clkSource )
     {
-        uint32_t registerValue = LL_RCC_GetRTCClockSource();
+        const uint32_t llClkSource = rcc_Pll_RtcClkSrcLut[ clkSource ];
 
-        if( registerValue == clkSource )
+        LL_RCC_SetRTCClockSource( llClkSource );
+
+        for( uint32_t iterationCnt = 0u; RCC_PLL_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
         {
-            retState = RCC_REQUEST_OK;
-            break;
+            uint32_t registerValue = LL_RCC_GetRTCClockSource();
+
+            if( registerValue == llClkSource )
+            {
+                retState = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                /* Clock source has not yet been changed, keep return state as error */
+                retState = RCC_REQUEST_ERROR;
+            }
         }
-        else
-        {
-            /* Clock source has not yet been changed, keep return state as error */
-            retState = RCC_REQUEST_ERROR;
-        }
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
     }
 
     return ( retState );
@@ -1352,9 +1371,22 @@ rcc_RequestState_t Rcc_Pll_Get_RtcClkSource( rcc_Rtc_ClkSource_t * const clkSour
 
     if( RCC_NULL_PTR != clkSource )
     {
-        *clkSource = LL_RCC_GetRTCClockSource();
+        const uint32_t llClkSource = LL_RCC_GetRTCClockSource();
 
-        retState = RCC_REQUEST_OK;
+        /* RTCSEL = 0 (no clock) has no source identification - error is returned */
+        for( rcc_Rtc_ClkSource_t srcIdx = RCC_RTC_CLK_SOURCE_HSE_DIV; RCC_RTC_CLK_SOURCE_CNT > srcIdx; srcIdx++ )
+        {
+            if( rcc_Pll_RtcClkSrcLut[ srcIdx ] == llClkSource )
+            {
+                *clkSource = srcIdx;
+                retState   = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                /* Continue with next source */
+            }
+        }
     }
     else
     {

@@ -31,13 +31,13 @@ set( Rcc_SourceFiles
 # List of public header files provided by the current library
 set( Rcc_PublicHeaders 
     Rcc_Types.h
-    Rcc_Port.h 
+    Rcc_Port.h
 )
 
 
 # List of dependent libraries that are publicly used by the current library
 set( Rcc_PublicDependentLibs
-    Ral_Lib 
+    Ral_Lib
 )
 
 
@@ -86,10 +86,9 @@ target_include_directories( Rcc_Lib
     PUBLIC
         $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
         $<INSTALL_INTERFACE:include>
-        Rcc_PublicIncludeDirs
+        ${Rcc_PublicIncludeDirs}
     PRIVATE
-        ${Rcc_IncludeDirs}
-        Rcc_PrivateIncludeDirs
+        ${Rcc_PrivateIncludeDirs}
 )
 
 
@@ -104,4 +103,9 @@ endif()
 #========================= Unit tests configuration ===========================#
 if(UNIT_TESTING_AVAILABLE STREQUAL "ON")
     UnitTesting_AddPath("${CMAKE_CURRENT_SOURCE_DIR}/Tests/UnitTests")
+endif()
+
+#===================== Integration tests configuration ========================#
+if(INTEGRATION_TESTING_AVAILABLE STREQUAL "ON")
+    IntegrationTesting_AddPath("${CMAKE_CURRENT_SOURCE_DIR}/Tests/IntegrationTests")
 endif()

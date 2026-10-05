@@ -171,6 +171,9 @@ typedef struct
 /* ======================== FORWARD DECLARATIONS ============================ */
 
 static rcc_RequestState_t Rcc_Get_ExpectedSysClkFrequency( rcc_ConfigStruct_t * const clockConfig, rcc_FreqHz_t *sysClk );
+static rcc_RequestState_t Rcc_Set_ClkSrcOscActive( rcc_ClkSrcId_t clkSrcId );
+static rcc_FunctionState_t Rcc_Get_ClkMuxShared( rcc_PeriphId_t periphId );
+
 
 static rcc_RequestState_t Rcc_Pll_Get_1_RClk( rcc_FreqHz_t * const clkFreq );
 static rcc_RequestState_t Rcc_Pll_Get_1_QClk( rcc_FreqHz_t * const clkFreq );
@@ -232,6 +235,8 @@ const rcc_ClkSrcConfigStruct_t rcc_PeriphClkSrcConfig[] =
   { .PeriphClkSrcId = RCC_CLK_SRC_APB1CLK  , .ClkSrcCallback = Rcc_ClkBus_Get_APB1Clk   },
   { .PeriphClkSrcId = RCC_CLK_SRC_APB2CLK  , .ClkSrcCallback = Rcc_ClkBus_Get_APB2Clk   },
   { .PeriphClkSrcId = RCC_CLK_SRC_APB3CLK  , .ClkSrcCallback = Rcc_ClkBus_Get_APB3Clk   },
+  { .PeriphClkSrcId = RCC_CLK_SRC_APB1TIMCLK, .ClkSrcCallback = Rcc_ClkBus_Get_APB1TimClk },
+  { .PeriphClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .ClkSrcCallback = Rcc_ClkBus_Get_APB2TimClk },
   { .PeriphClkSrcId = RCC_CLK_SRC_HSI64CLK , .ClkSrcCallback = Rcc_ClkSrc_Get_Hsi64Clk  },
   { .PeriphClkSrcId = RCC_CLK_SRC_CSI4CLK  , .ClkSrcCallback = Rcc_ClkSrc_Get_CsiClk    },
   { .PeriphClkSrcId = RCC_CLK_SRC_HSI48CLK , .ClkSrcCallback = Rcc_ClkSrc_Get_Hsi48Clk  },
@@ -337,46 +342,46 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
   /*--------------------------------- Timers ---------------------------------*/
 
 #if defined(TIM1)
-  { .PeriphId = RCC_PERIPH_TIM1              , .ClkSrcId = RCC_CLK_SRC_APB2CLK , .BlockId = RCC_BLOCK_TIM1     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM1              , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM1     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM1 */
 #if defined(TIM2)
-  { .PeriphId = RCC_PERIPH_TIM2              , .ClkSrcId = RCC_CLK_SRC_APB1CLK , .BlockId = RCC_BLOCK_TIM2     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM2              , .ClkSrcId = RCC_CLK_SRC_APB1TIMCLK, .BlockId = RCC_BLOCK_TIM2     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM2 */
 #if defined(TIM3)
-  { .PeriphId = RCC_PERIPH_TIM3              , .ClkSrcId = RCC_CLK_SRC_APB1CLK , .BlockId = RCC_BLOCK_TIM3     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM3              , .ClkSrcId = RCC_CLK_SRC_APB1TIMCLK, .BlockId = RCC_BLOCK_TIM3     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM3 */
 #if defined(TIM4)
-  { .PeriphId = RCC_PERIPH_TIM4              , .ClkSrcId = RCC_CLK_SRC_APB1CLK , .BlockId = RCC_BLOCK_TIM4     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM4              , .ClkSrcId = RCC_CLK_SRC_APB1TIMCLK, .BlockId = RCC_BLOCK_TIM4     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM4 */
 #if defined(TIM5)
-  { .PeriphId = RCC_PERIPH_TIM5              , .ClkSrcId = RCC_CLK_SRC_APB1CLK , .BlockId = RCC_BLOCK_TIM5     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM5              , .ClkSrcId = RCC_CLK_SRC_APB1TIMCLK, .BlockId = RCC_BLOCK_TIM5     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM5 */
 #if defined(TIM6)
-  { .PeriphId = RCC_PERIPH_TIM6              , .ClkSrcId = RCC_CLK_SRC_APB1CLK , .BlockId = RCC_BLOCK_TIM6     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM6              , .ClkSrcId = RCC_CLK_SRC_APB1TIMCLK, .BlockId = RCC_BLOCK_TIM6     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM6 */
 #if defined(TIM7)
-  { .PeriphId = RCC_PERIPH_TIM7              , .ClkSrcId = RCC_CLK_SRC_APB1CLK , .BlockId = RCC_BLOCK_TIM7     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM7              , .ClkSrcId = RCC_CLK_SRC_APB1TIMCLK, .BlockId = RCC_BLOCK_TIM7     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM7 */
 #if defined(TIM8)
-  { .PeriphId = RCC_PERIPH_TIM8              , .ClkSrcId = RCC_CLK_SRC_APB2CLK , .BlockId = RCC_BLOCK_TIM8     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM8              , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM8     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM8 */
 #if defined(TIM12)
-  { .PeriphId = RCC_PERIPH_TIM12             , .ClkSrcId = RCC_CLK_SRC_APB2CLK , .BlockId = RCC_BLOCK_TIM12    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM12             , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM12    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM12 */
 #if defined(TIM13)
-  { .PeriphId = RCC_PERIPH_TIM13             , .ClkSrcId = RCC_CLK_SRC_APB2CLK , .BlockId = RCC_BLOCK_TIM13    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM13             , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM13    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM13 */
 #if defined(TIM14)
-  { .PeriphId = RCC_PERIPH_TIM14             , .ClkSrcId = RCC_CLK_SRC_APB2CLK , .BlockId = RCC_BLOCK_TIM14    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM14             , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM14    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM14 */
 #if defined(TIM15)
-  { .PeriphId = RCC_PERIPH_TIM15             , .ClkSrcId = RCC_CLK_SRC_APB2CLK , .BlockId = RCC_BLOCK_TIM15    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM15             , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM15    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM15 */
 #if defined(TIM16)
-  { .PeriphId = RCC_PERIPH_TIM16             , .ClkSrcId = RCC_CLK_SRC_APB2CLK , .BlockId = RCC_BLOCK_TIM16    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM16             , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM16    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM16 */
 #if defined(TIM17)
-  { .PeriphId = RCC_PERIPH_TIM17             , .ClkSrcId = RCC_CLK_SRC_APB2CLK , .BlockId = RCC_BLOCK_TIM17    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM17             , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM17    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM17 */
 
 
@@ -1532,13 +1537,20 @@ rcc_RequestState_t Rcc_Get_DefaultConfig( rcc_ConfigStruct_t * const clockConfig
  * The enumeration consist of all possible peripheral clock sources. User can
  * request activation of required peripheral clock source.
  *
+ * If the kernel clock source of the peripheral ID is an internal oscillator
+ * (HSI64, HSI48, CSI, LSI) which is not running, the oscillator is started
+ * before the clock MUX is switched. External sources (HSE, LSE) and PLL outputs
+ * are not started.
+ *
  * \warning Some peripherals have connected clock source. (e.g. USB and RNG, all
  *          I2S's ...)
  *
  * \param periphId (in): ID of required peripheral to activate clock source
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error (also when the oscillator can not be started
+ *         or the clock MUX is set to other source, peripheral clock is not
+ *         changed in that case).
  */
 rcc_RequestState_t Rcc_Set_PeriphActive( rcc_PeriphId_t periphId )
 {
@@ -1547,16 +1559,35 @@ rcc_RequestState_t Rcc_Set_PeriphActive( rcc_PeriphId_t periphId )
 
     if( RCC_PERIPH_ID_CNT > periphId )
     {
+        retState = Rcc_Set_ClkSrcOscActive( rcc_ConfigStruct[ periphId ].ClkSrcId );
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+
+    if( RCC_REQUEST_OK == retState )
+    {
         rcc_ClkMuxId_t clkMuxId = rcc_ConfigStruct[ periphId ].ClkMuxId;
 
         if( RCC_CLK_MUX_LIST_CNT > clkMuxId )
         {
-            Rcc_ClkMux_Set_ClkActive( clkMuxId );
+            /* Multiplexer set to other source is not changed - peripheral clock is not enabled */
+            retState = Rcc_ClkMux_Set_ClkActive( clkMuxId );
         }
         else
         {
             /* Peripheral does not support clock multiplexing. */
         }
+    }
+    else
+    {
+        /* Oscillator could not be started or incorrect peripheral ID */
+    }
+
+    if( RCC_REQUEST_OK == retState )
+    {
+        retState = RCC_REQUEST_ERROR;
 
         rcc_BlockList_t blockId  = rcc_ConfigStruct[ periphId ].BlockId;
         rcc_ClkBusId_t  clkBusId = rcc_PeriphBlockConfig[ blockId ].ClkBusId;
@@ -1607,7 +1638,11 @@ rcc_RequestState_t Rcc_Set_PeriphActive( rcc_PeriphId_t periphId )
  *
  * User can request de-activation of clock for required peripheral. If required
  * peripheral is correctly de-activated, and required peripheral ID is correct,
- * returned state is "OK". Otherwise returns error.
+ * returned state is "OK". Otherwise returns error. The kernel clock multiplexer of
+ * the peripheral is released (default source), so the peripheral can be activated
+ * with another kernel clock later. RTC / peripheral clock (CKPER) selection is kept
+ * (RTCSEL is write-once until backup domain reset, CKPER is shared) and a multiplexer
+ * shared with another enabled peripheral block (ADCDACSEL of ADC and DAC) is kept.
  *
  * \param periphId (in): ID of required peripheral to de-activate clock source
  * \return State of request execution. Returns "OK" if request was success,
@@ -1647,6 +1682,22 @@ rcc_RequestState_t Rcc_Set_PeriphInactive( rcc_PeriphId_t periphId )
         else
         {
             retState = RCC_REQUEST_OK;
+        }
+
+        /* Kernel clock multiplexer back to the default source */
+        const rcc_ClkMuxId_t clkMuxId = rcc_ConfigStruct[ periphId ].ClkMuxId;
+
+        if( ( RCC_REQUEST_OK        == retState                         ) &&
+            ( RCC_CLK_MUX_LIST_CNT   > clkMuxId                         ) &&
+            ( RCC_BLOCK_RTC         != blockId                          ) &&
+            ( RCC_FUNCTION_INACTIVE == Rcc_Get_ClkMuxShared( periphId ) )    )
+        {
+            retState = Rcc_ClkMux_Set_ClkInactive( clkMuxId );
+        }
+        else
+        {
+            /* Clock disable failed, no multiplexer, RTC / CKPER selection or multiplexer
+               shared with another enabled peripheral block */
         }
     }
     else
@@ -1757,8 +1808,8 @@ rcc_RequestState_t Rcc_Get_PeriphClk( rcc_PeriphId_t periphId, rcc_FreqHz_t * co
  *
  * For peripherals that can use different clock sources through clock
  * multiplexer, any of enumeration in its range can be used. For example for
- * USART1 can be used any of \ref RCC_PERIPH_USART1_PCLK2, \ref RCC_PERIPH_USART1_PLL2Q,
- * \ref RCC_PERIPH_USART1_HSI, \ref RCC_PERIPH_USART1_LSE or \ref RCC_PERIPH_USART1_CSI
+ * USART1 can be used any of \c RCC_PERIPH_USART1_PCLK2, \c RCC_PERIPH_USART1_PLL2Q,
+ * \c RCC_PERIPH_USART1_HSI, \c RCC_PERIPH_USART1_LSE or \c RCC_PERIPH_USART1_CSI
  * can be used and correct enumeration will be returned.
  *
  * \param periphId      [in]: ID of required peripheral
@@ -1830,14 +1881,16 @@ rcc_RequestState_t Rcc_Get_PeriphClkSrc( rcc_PeriphId_t periphId, rcc_PeriphId_t
  *
  * \param periphId (in): ID of required peripheral to activate reset
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error (also for peripheral without reset control,
+ *         no register is changed in that case).
  */
 rcc_RequestState_t Rcc_Set_ResetActive( rcc_PeriphId_t periphId )
 {
     rcc_RequestState_t retState = RCC_REQUEST_ERROR;
     volatile uint32_t  regValue = 0u;
 
-    if( RCC_PERIPH_ID_CNT > periphId )
+    if( ( RCC_PERIPH_ID_CNT        >  periphId                                                       ) &&
+        ( RCC_UNSUPPORTED_FUNCTION != rcc_PeriphBlockConfig[ rcc_ConfigStruct[ periphId ].BlockId ].RstCtrlMask ) )
     {
         rcc_BlockList_t blockId    = rcc_ConfigStruct[ periphId ].BlockId;
         rcc_ClkBusId_t  clkBusId   = rcc_PeriphBlockConfig[ blockId ].ClkBusId;
@@ -1879,14 +1932,21 @@ rcc_RequestState_t Rcc_Set_ResetActive( rcc_PeriphId_t periphId )
  *
  * \param periphId (in): ID of required peripheral to deactivate reset
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error. Peripheral without reset control is never
+ *         in reset - "OK" is returned without register access.
  */
 rcc_RequestState_t Rcc_Set_ResetInactive( rcc_PeriphId_t periphId )
 {
     rcc_RequestState_t retState = RCC_REQUEST_ERROR;
     volatile uint32_t  regValue = 0u;
 
-    if( RCC_PERIPH_ID_CNT > periphId )
+    if( ( RCC_PERIPH_ID_CNT        >  periphId                                                       ) &&
+        ( RCC_UNSUPPORTED_FUNCTION == rcc_PeriphBlockConfig[ rcc_ConfigStruct[ periphId ].BlockId ].RstCtrlMask ) )
+    {
+        /* Peripheral without reset control */
+        retState = RCC_REQUEST_OK;
+    }
+    else if( RCC_PERIPH_ID_CNT > periphId )
     {
         rcc_BlockList_t blockId    = rcc_ConfigStruct[ periphId ].BlockId;
         rcc_ClkBusId_t  clkBusId   = rcc_PeriphBlockConfig[ blockId ].ClkBusId;
@@ -1943,7 +2003,15 @@ rcc_RequestState_t Rcc_Get_ResetState( rcc_PeriphId_t periphId, rcc_FunctionStat
         uint32_t        stateMask  = rcc_PeriphBlockConfig[ blockId ].RstCtrlMask;
         rcc_RegId_t     stateRegId = rcc_ClkBusConfigStruct[ clkBusId ].ResetRegId;
 
-        regValue = Rcc_Get_RegBit( stateRegId, stateMask);
+        if( RCC_UNSUPPORTED_FUNCTION != stateMask )
+        {
+            regValue = Rcc_Get_RegBit( stateRegId, stateMask);
+        }
+        else
+        {
+            /* Peripheral without reset control is never in reset */
+            regValue = 0u;
+        }
 
         if( 0u == regValue )
         {
@@ -2740,6 +2808,386 @@ rcc_RequestState_t Rcc_Get_SysTickInterval( rcc_Time_ms_t * const sysTickInterva
     return ( retState );
 }
 
+/*------------------- Phase Locked Loop's (PLL) configuration ----------------*/
+
+/**
+ * \brief Configures Phase Locked Loop (source, dividers, multiplier, outputs) and activates it.
+ *
+ * \param pllId        [in]: Phase Locked Loop identification
+ * \param configStruct [in]: Phase Locked Loop configuration
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_PllConfig( rcc_PllId_t pllId, rcc_PllConfigStruct_t * const configStruct )
+{
+    return ( Rcc_Pll_Set_Config( pllId, configStruct ) );
+}
+
+
+/**
+ * \brief Reads Phase Locked Loop internal (VCO) clock frequency.
+ *
+ * \param pllId   [in]: Phase Locked Loop identification
+ * \param pllClk [out]: Internal clock frequency in Hz
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Get_PllInternalClk( rcc_PllId_t pllId, rcc_FreqHz_t * const pllClk )
+{
+    return ( Rcc_Pll_Get_InternalClk( pllId, pllClk ) );
+}
+
+
+/**
+ * \brief Activates Phase Locked Loop.
+ *
+ * \param pllId [in]: Phase Locked Loop identification
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_PllActive( rcc_PllId_t pllId )
+{
+    return ( Rcc_Pll_Set_Active( pllId ) );
+}
+
+
+/**
+ * \brief Deactivates Phase Locked Loop.
+ *
+ * \param pllId [in]: Phase Locked Loop identification
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_PllInactive( rcc_PllId_t pllId )
+{
+    return ( Rcc_Pll_Set_Inactive( pllId ) );
+}
+
+
+/**
+ * \brief Reads Phase Locked Loop activation state.
+ *
+ * \param pllId     [in]: Phase Locked Loop identification
+ * \param retState [out]: Activation state
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Get_PllState( rcc_PllId_t pllId, rcc_FunctionState_t * const retState )
+{
+    return ( Rcc_Pll_Get_State( pllId, retState ) );
+}
+
+
+/**
+ * \brief Selects Phase Locked Loop clock source.
+ *
+ * \param pllId     [in]: Phase Locked Loop identification
+ * \param clkSource [in]: Clock source
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_PllsSource( rcc_PllId_t pllId, rcc_PllClkSrc_t clkSource )
+{
+    return ( Rcc_Pll_Set_Source( pllId, clkSource ) );
+}
+
+
+/**
+ * \brief Reads Phase Locked Loop clock source.
+ *
+ * \param pllId      [in]: Phase Locked Loop identification
+ * \param clkSource [out]: Clock source
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Get_PllsSource( rcc_PllId_t pllId, rcc_PllClkSrc_t * const clkSource )
+{
+    return ( Rcc_Pll_Get_Source( pllId, clkSource ) );
+}
+
+
+/**
+ * \brief Reads Phase Locked Loop P output clock frequency.
+ *
+ * \param pllId   [in]: Phase Locked Loop identification
+ * \param pllClk [out]: P output frequency in Hz
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Get_PllClk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
+{
+    return ( Rcc_Pll_Get_Clk_OutP( pllId, pllClk ) );
+}
+
+
+/**
+ * \brief Reads Phase Locked Loop Q output clock frequency.
+ *
+ * \param pllId   [in]: Phase Locked Loop identification
+ * \param pllClk [out]: Q output frequency in Hz
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Get_PllClk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
+{
+    return ( Rcc_Pll_Get_Clk_OutQ( pllId, pllClk ) );
+}
+
+
+/**
+ * \brief Reads Phase Locked Loop R output clock frequency.
+ *
+ * \param pllId   [in]: Phase Locked Loop identification
+ * \param pllClk [out]: R output frequency in Hz
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Get_PllClk_OutR( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
+{
+    return ( Rcc_Pll_Get_Clk_OutR( pllId, pllClk ) );
+}
+
+/*----------------------- Internal oscillators configuration -----------------*/
+
+/**
+ * \brief Activates internal oscillator.
+ *
+ * \param oscId [in]: Internal oscillator identification
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_OscActive( rcc_OscId_t oscId )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+
+    switch( oscId )
+    {
+        case RCC_OSC_HSI64: retState = Rcc_ClkSrc_Set_Hsi64Active(); break;
+        case RCC_OSC_HSI48: retState = Rcc_ClkSrc_Set_Hsi48Active(); break;
+        case RCC_OSC_CSI:   retState = Rcc_ClkSrc_Set_CsiActive();   break;
+        case RCC_OSC_LSI:   retState = Rcc_ClkSrc_Set_LsiActive();   break;
+        default:            retState = RCC_REQUEST_ERROR;            break;
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Deactivates internal oscillator.
+ *
+ * \warning Oscillator used as system clock or PLL source must not be deactivated.
+ *
+ * \param oscId [in]: Internal oscillator identification
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_OscInactive( rcc_OscId_t oscId )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+
+    switch( oscId )
+    {
+        case RCC_OSC_HSI64: retState = Rcc_ClkSrc_Set_Hsi64Inactive(); break;
+        case RCC_OSC_HSI48: retState = Rcc_ClkSrc_Set_Hsi48Inactive(); break;
+        case RCC_OSC_CSI:   retState = Rcc_ClkSrc_Set_CsiInactive();   break;
+        case RCC_OSC_LSI:   retState = Rcc_ClkSrc_Set_LsiInactive();   break;
+        default:            retState = RCC_REQUEST_ERROR;              break;
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Reads activation state of internal oscillator.
+ *
+ * \param oscId     [in]: Internal oscillator identification
+ * \param retState [out]: Activation state (oscillator ready)
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Get_OscState( rcc_OscId_t oscId, rcc_FunctionState_t * const retState )
+{
+    rcc_RequestState_t reqState = RCC_REQUEST_ERROR;
+
+    switch( oscId )
+    {
+        case RCC_OSC_HSI64: reqState = Rcc_ClkSrc_Get_Hsi64State( retState ); break;
+        case RCC_OSC_HSI48: reqState = Rcc_ClkSrc_Get_Hsi48State( retState ); break;
+        case RCC_OSC_CSI:   reqState = Rcc_ClkSrc_Get_CsiState( retState );   break;
+        case RCC_OSC_LSI:   reqState = Rcc_ClkSrc_Get_LsiState( retState );   break;
+        default:            reqState = RCC_REQUEST_ERROR;                     break;
+    }
+
+    return ( reqState );
+}
+
+
+/**
+ * \brief Configures divider of internal oscillator output.
+ *
+ * Only HSI64 has an output divider (1, 2, 4 or 8). Other oscillators accept divider 1 only.
+ *
+ * \warning HSI64 divider changes the frequency of all clocks derived from HSI (system clock,
+ *          PLL input, peripheral kernel clocks). SystemCoreClock is updated, peripherals
+ *          (SysTick, timers, communication) have to be reconfigured.
+ *
+ * \param oscId  [in]: Internal oscillator identification
+ * \param oscDiv [in]: Divider value
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_OscDiv( rcc_OscId_t oscId, rcc_OscDiv_t oscDiv )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+
+    if( RCC_OSC_HSI64 == oscId )
+    {
+        uint32_t llDivider = LL_RCC_HSI_DIV_1;
+
+        retState = RCC_REQUEST_OK;
+
+        switch( oscDiv )
+        {
+            case 1u: llDivider = LL_RCC_HSI_DIV_1;         break;
+            case 2u: llDivider = LL_RCC_HSI_DIV_2;         break;
+            case 4u: llDivider = LL_RCC_HSI_DIV_4;         break;
+            case 8u: llDivider = LL_RCC_HSI_DIV_8;         break;
+            default: retState  = RCC_REQUEST_ERROR;        break;
+        }
+
+        if( RCC_REQUEST_OK == retState )
+        {
+            rcc_FreqHz_t hclkFreq = 0u;
+
+            LL_RCC_HSI_SetDivider( llDivider );
+
+            retState = RCC_REQUEST_ERROR;
+
+            for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+            {
+                if( ( llDivider == LL_RCC_HSI_GetDivider()     ) &&
+                    ( 0u        != LL_RCC_HSI_IsDividerReady() )    )
+                {
+                    retState = RCC_REQUEST_OK;
+                    break;
+                }
+                else
+                {
+                    /* Divider not applied yet */
+                }
+            }
+
+            if( ( RCC_REQUEST_OK == retState                            ) &&
+                ( RCC_REQUEST_OK == Rcc_ClkBus_Get_AHBClk( &hclkFreq ) )    )
+            {
+                LL_SetSystemCoreClock( hclkFreq );
+            }
+            else
+            {
+                /* Divider not applied - system clock not changed */
+            }
+        }
+        else
+        {
+            /* Unsupported divider value */
+        }
+    }
+    else if( ( RCC_OSC_CNT > oscId ) &&
+             ( 1u          == oscDiv )    )
+    {
+        /* Oscillator without divider */
+        retState = RCC_REQUEST_OK;
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Reads divider of internal oscillator output.
+ *
+ * \param oscId   [in]: Internal oscillator identification
+ * \param oscDiv [out]: Divider value (1 for oscillators without divider)
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Get_OscDiv( rcc_OscId_t oscId, rcc_OscDiv_t * const oscDiv )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+
+    if( ( RCC_OSC_CNT   > oscId  ) &&
+        ( RCC_NULL_PTR != oscDiv )    )
+    {
+        if( RCC_OSC_HSI64 == oscId )
+        {
+            *oscDiv = (rcc_OscDiv_t)( 1u << ( LL_RCC_HSI_GetDivider() >> RCC_CR_HSIDIV_Pos ) );
+        }
+        else
+        {
+            *oscDiv = 1u;
+        }
+
+        retState = RCC_REQUEST_OK;
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
+}
+
+/*-------------------------- RTC clock configuration -------------------------*/
+
+/**
+ * \brief Selects Real Time Clock (RTC) clock source.
+ *
+ * \param clkSource [in]: RTC clock source
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_RtcClkSource( rcc_Rtc_ClkSource_t clkSource )
+{
+    return ( Rcc_Pll_Set_RtcClkSource( clkSource ) );
+}
+
+
+/**
+ * \brief Reads Real Time Clock (RTC) clock source.
+ *
+ * \param clkSource [out]: RTC clock source
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Get_RtcClkSource( rcc_Rtc_ClkSource_t * const clkSource )
+{
+    return ( Rcc_Pll_Get_RtcClkSource( clkSource ) );
+}
+
+
 /*----------------------- Clock outputs configuration ------------------------*/
 
 /**
@@ -2914,6 +3362,111 @@ rcc_RequestState_t Rcc_Set_ResetSourceClear( void )
 /* =========================== LOCAL FUNCTIONS ============================== */
 
 /**
+ * \brief Starts internal oscillator used as peripheral kernel clock source.
+ *
+ * Clock sources HSI64, HSI48, CSI and LSI are mapped to internal oscillators,
+ * oscillator which is not running is activated. Other clock sources (buses,
+ * PLL outputs, HSE, LSE) are not handled.
+ *
+ * \param clkSrcId [in]: Kernel clock source of the peripheral
+ *
+ * \return Returns "OK" if the clock source is not an internal oscillator or the
+ *         oscillator is running. Otherwise returns error.
+ */
+static rcc_RequestState_t Rcc_Set_ClkSrcOscActive( rcc_ClkSrcId_t clkSrcId )
+{
+    rcc_RequestState_t  retState = RCC_REQUEST_OK;
+    rcc_OscId_t         oscId    = RCC_OSC_CNT;
+    rcc_FunctionState_t oscState = RCC_FUNCTION_INACTIVE;
+
+    switch( clkSrcId )
+    {
+        case RCC_CLK_SRC_HSI64CLK: oscId = RCC_OSC_HSI64; break;
+        case RCC_CLK_SRC_HSI48CLK: oscId = RCC_OSC_HSI48; break;
+        case RCC_CLK_SRC_CSI4CLK:  oscId = RCC_OSC_CSI;   break;
+        case RCC_CLK_SRC_LSICLK:   oscId = RCC_OSC_LSI;   break;
+        default:                   oscId = RCC_OSC_CNT;   break;
+    }
+
+    if( RCC_OSC_CNT > oscId )
+    {
+        retState = Rcc_Get_OscState( oscId, &oscState );
+
+        if( ( RCC_REQUEST_OK        == retState ) &&
+            ( RCC_FUNCTION_INACTIVE == oscState )    )
+        {
+            retState = Rcc_Set_OscActive( oscId );
+        }
+        else
+        {
+            /* Oscillator is already running or state read failed */
+        }
+    }
+    else
+    {
+        /* Clock source is not an internal oscillator */
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Checks if the kernel clock multiplexer of the peripheral is shared with another
+ *        enabled peripheral block (e.g. ADCDACSEL of ADC and DAC).
+ *
+ * Records of one multiplexer field report the same selected record by
+ * Rcc_ClkMux_Get_ClkSrc(), records of other blocks with the same selected record use the
+ * same field.
+ *
+ * \param periphId [in]: ID of the peripheral (valid, with clock multiplexer)
+ *
+ * \return Returns RCC_FUNCTION_ACTIVE if another enabled peripheral block uses the same
+ *         multiplexer field (or the selection can not be read). Otherwise returns
+ *         RCC_FUNCTION_INACTIVE.
+ */
+static rcc_FunctionState_t Rcc_Get_ClkMuxShared( rcc_PeriphId_t periphId )
+{
+    rcc_FunctionState_t   sharedState = RCC_FUNCTION_ACTIVE;
+    rcc_ClkMuxId_t        ownSelected = RCC_CLK_MUX_LIST_CNT;
+    const rcc_BlockList_t ownBlockId  = rcc_ConfigStruct[ periphId ].BlockId;
+
+    if( RCC_REQUEST_OK == Rcc_ClkMux_Get_ClkSrc( rcc_ConfigStruct[ periphId ].ClkMuxId, &ownSelected ) )
+    {
+        sharedState = RCC_FUNCTION_INACTIVE;
+
+        for( uint32_t rowIdx = 0u; RCC_PERIPH_ID_CNT > rowIdx; rowIdx ++ )
+        {
+            const rcc_PeriphConfigStruct_t * const row           = &rcc_ConfigStruct[ rowIdx ];
+            rcc_ClkMuxId_t                         otherSelected = RCC_CLK_MUX_LIST_CNT;
+            rcc_FunctionState_t                    otherState    = RCC_FUNCTION_INACTIVE;
+
+            if( ( ownBlockId           != row->BlockId                                                 ) &&
+                ( RCC_CLK_MUX_LIST_CNT  > row->ClkMuxId                                                ) &&
+                ( RCC_REQUEST_OK       == Rcc_ClkMux_Get_ClkSrc( row->ClkMuxId, &otherSelected )       ) &&
+                ( ownSelected          == otherSelected                                                ) &&
+                ( RCC_REQUEST_OK       == Rcc_Get_PeriphState( (rcc_PeriphId_t)rowIdx, &otherState )   ) &&
+                ( RCC_FUNCTION_ACTIVE  == otherState                                                   )    )
+            {
+                sharedState = RCC_FUNCTION_ACTIVE;
+                break;
+            }
+            else
+            {
+                /* Record of the own block, other field or disabled block */
+            }
+        }
+    }
+    else
+    {
+        /* Selection unknown - multiplexer is kept */
+    }
+
+    return ( sharedState );
+}
+
+
+/**
  * \brief Function used to wrap PLL1 clock output R frequency
  *
  * \param clkFreq [out]: Pointer to PLL1 clock frequency in Hz
@@ -3069,8 +3622,7 @@ static rcc_RequestState_t Rcc_Get_ExpectedSysClkFrequency( rcc_ConfigStruct_t * 
         {
             if( RCC_PLL_SRC_HSI == clockConfig->Pll_Config[ RCC_PLL_1 ].Pll_Source )
             {
-                pllSrcFreq = HSI_VALUE;
-                retState = RCC_REQUEST_OK;
+                retState = Rcc_ClkSrc_Get_Hsi64Clk( &pllSrcFreq );
             }
             else if( RCC_PLL_SRC_HSE == clockConfig->Pll_Config[ RCC_PLL_1 ].Pll_Source )
             {
@@ -3088,7 +3640,7 @@ static rcc_RequestState_t Rcc_Get_ExpectedSysClkFrequency( rcc_ConfigStruct_t * 
                  *sysClk = __LL_RCC_CALC_PLL1CLK_P_FREQ( pllSrcFreq,
                                                          clockConfig->Pll_Config[ RCC_PLL_1 ].M_Divider,
                                                          clockConfig->Pll_Config[ RCC_PLL_1 ].N_Multiplier,
-                                                         clockConfig->Pll_Config[ RCC_PLL_1 ].R_Divider );
+                                                         clockConfig->Pll_Config[ RCC_PLL_1 ].P_Divider );
             }
             else
             {
@@ -3098,11 +3650,12 @@ static rcc_RequestState_t Rcc_Get_ExpectedSysClkFrequency( rcc_ConfigStruct_t * 
         }
         else if( RCC_SYSTEM_CLOCK_SOURCE_HSI == clockConfig->SystemClockSource )
         {
-            *sysClk = HSI_VALUE;
+            retState = Rcc_ClkSrc_Get_Hsi64Clk( sysClk );
         }
         else if( RCC_SYSTEM_CLOCK_SOURCE_HSE == clockConfig->SystemClockSource )
         {
-            *sysClk = clockConfig->HSE_Frequency_Hz;
+            *sysClk  = clockConfig->HSE_Frequency_Hz;
+            retState = RCC_REQUEST_OK;
         }
         else
         {

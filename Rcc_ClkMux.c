@@ -18,7 +18,12 @@
  *                     (rcc_BlockList_t, Rcc.h).
  * - ClkMuxRegId     - RCC register containing the multiplexer field.
  * - ClkSrcMask      - Bit mask of the multiplexer field in that register.
- * - ClkSrcVal       - Field value selecting this clock source.
+ * - ClkSrcVal       - Value selecting this clock source - LL_RCC_xxx_CLKSOURCE_yyy
+ *                     constant. Depending on the multiplexer it is either the
+ *                     raw field value (within ClkSrcMask) or the LL_CLKSOURCE()
+ *                     encoded value (register offset, position, mask and field
+ *                     value). Both forms are converted to the field value by
+ *                     Rcc_ClkMux_Get_FieldVal().
  * - DefaultClkMuxId - Record holding the default (reset) selection of this
  *                     multiplexer.
  *
@@ -98,6 +103,9 @@ typedef struct __attribute__((packed))
 }   rcc_ClkMuxConfigStruct_t;
 
 /* ======================== FORWARD DECLARATIONS ============================ */
+
+static uint32_t           Rcc_ClkMux_Get_FieldVal ( rcc_ClkMuxId_t clkMuxId );
+static rcc_RequestState_t Rcc_ClkMux_Check_Record ( rcc_ClkMuxId_t clkMuxId );
 
 /* =============================== MACROS =================================== */
 
@@ -555,9 +563,15 @@ rcc_RequestState_t Rcc_ClkMux_Init( void )
             retState = RCC_REQUEST_ERROR;
             break;
         }
+        else if( RCC_REQUEST_OK != Rcc_ClkMux_Check_Record( clkMuxId ) )
+        {
+            /* Configuration error: Clock source value does not belong to the multiplexer field */
+            retState = RCC_REQUEST_ERROR;
+            break;
+        }
         else
         {
-            /* Indexes match, proceed to next entry */
+            /* Record is valid, proceed to next entry */
         }
     }
 
@@ -588,6 +602,7 @@ void Rcc_ClkMux_Task( void )
  *
  * \warning To change the clock source of a peripheral, first the peripheral
  * must be disabled by setting the clock multiplexer to its default value.
+ * Selection of the already selected clock source is accepted.
  *
  * \param clkMuxId [in]: Peripheral clock source identifier
  *
@@ -601,17 +616,18 @@ rcc_RequestState_t Rcc_ClkMux_Set_ClkActive( rcc_ClkMuxId_t clkMuxId  )
 
     if( RCC_CLK_MUX_LIST_CNT > clkMuxId )
     {
-        uint32_t    ctrlRegVal  = rcc_ClkMuxConfig[ clkMuxId ].ClkSrcVal;
+        uint32_t    ctrlRegVal  = Rcc_ClkMux_Get_FieldVal( clkMuxId );
         uint32_t    ctrlRegMask = rcc_ClkMuxConfig[ clkMuxId ].ClkSrcMask;
         rcc_RegId_t ctrlRegId   = rcc_ClkMuxConfig[ clkMuxId ].ClkMuxRegId;
 
         rcc_ClkMuxId_t defaultClkMuxId   = rcc_ClkMuxConfig[ clkMuxId ].DefaultClkMuxId;
-        uint32_t       defaultCtrlRegVal = rcc_ClkMuxConfig[ defaultClkMuxId ].ClkSrcVal;
+        uint32_t       defaultCtrlRegVal = Rcc_ClkMux_Get_FieldVal( defaultClkMuxId );
 
-        /* Check if the clock multiplexer is set to default value. */
+        /* Check if the clock multiplexer is set to default value (or already to required value). */
         uint32_t actualRegVal = Rcc_Get_RegVal( ctrlRegId, ctrlRegMask );
 
-        if( actualRegVal == defaultCtrlRegVal )
+        if( ( actualRegVal == defaultCtrlRegVal ) ||
+            ( actualRegVal == ctrlRegVal        )    )
         {
             Rcc_Set_RegVal( ctrlRegId, ctrlRegMask, ctrlRegVal );
 
@@ -661,12 +677,11 @@ rcc_RequestState_t Rcc_ClkMux_Set_ClkInactive( rcc_ClkMuxId_t clkMuxId  )
 
     if( RCC_CLK_MUX_LIST_CNT > clkMuxId )
     {
-        uint32_t    ctrlRegVal  = rcc_ClkMuxConfig[ clkMuxId ].ClkSrcVal;
         uint32_t    ctrlRegMask = rcc_ClkMuxConfig[ clkMuxId ].ClkSrcMask;
         rcc_RegId_t ctrlRegId   = rcc_ClkMuxConfig[ clkMuxId ].ClkMuxRegId;
 
         rcc_ClkMuxId_t defaultClkMuxId   = rcc_ClkMuxConfig[ clkMuxId ].DefaultClkMuxId;
-        uint32_t       defaultCtrlRegVal = rcc_ClkMuxConfig[ defaultClkMuxId ].ClkSrcVal;
+        uint32_t       defaultCtrlRegVal = Rcc_ClkMux_Get_FieldVal( defaultClkMuxId );
 
         Rcc_Set_RegVal( ctrlRegId, ctrlRegMask, defaultCtrlRegVal );
 
@@ -674,7 +689,7 @@ rcc_RequestState_t Rcc_ClkMux_Set_ClkInactive( rcc_ClkMuxId_t clkMuxId  )
         {
             regValue = Rcc_Get_RegVal( ctrlRegId, ctrlRegMask);
 
-            if( regValue == ctrlRegVal )
+            if( regValue == defaultCtrlRegVal )
             {
                 retState = RCC_REQUEST_OK;
                 break;
@@ -716,14 +731,16 @@ rcc_RequestState_t Rcc_ClkMux_Get_ClkSrc( rcc_ClkMuxId_t clkMuxIdIn, rcc_ClkMuxI
         uint32_t    ctrlRegMask = rcc_ClkMuxConfig[ clkMuxIdIn ].ClkSrcMask;
         rcc_RegId_t ctrlRegId   = rcc_ClkMuxConfig[ clkMuxIdIn ].ClkMuxRegId;
 
-        /* Actual multiplexer value is searched in consecutive entries of the block */
+        /* Actual multiplexer value is searched in consecutive entries of the same multiplexer */
         uint32_t actualRegVal = Rcc_Get_RegVal( ctrlRegId, ctrlRegMask );
 
         *clkMuxId = RCC_CLK_MUX_LIST_CNT;
 
-        for( rcc_ClkMuxId_t muxId = defaultClkMux; ( RCC_CLK_MUX_LIST_CNT > muxId ) && ( blockId == rcc_ClkMuxConfig[ muxId ].BlockId ); muxId ++ )
+        for( rcc_ClkMuxId_t muxId = defaultClkMux; ( RCC_CLK_MUX_LIST_CNT > muxId                               ) &&
+                                                   ( blockId       == rcc_ClkMuxConfig[ muxId ].BlockId         ) &&
+                                                   ( defaultClkMux == rcc_ClkMuxConfig[ muxId ].DefaultClkMuxId );    muxId ++ )
         {
-            if( rcc_ClkMuxConfig[ muxId ].ClkSrcVal == actualRegVal )
+            if( Rcc_ClkMux_Get_FieldVal( muxId ) == actualRegVal )
             {
                 *clkMuxId = rcc_ClkMuxConfig[ muxId ].ClkMuxId;
                 retState  = RCC_REQUEST_OK;
@@ -744,6 +761,69 @@ rcc_RequestState_t Rcc_ClkMux_Get_ClkSrc( rcc_ClkMuxId_t clkMuxIdIn, rcc_ClkMuxI
 }
 
 /* =========================== LOCAL FUNCTIONS ============================== */
+
+/**
+ * \brief Returns the multiplexer field value (masked, not shifted) selecting the clock source of the record.
+ *
+ * ClkSrcVal holds either the raw field value (always within ClkSrcMask) or the
+ * LL_CLKSOURCE() encoded value (bits outside of ClkSrcMask - register offset,
+ * position and mask), which is converted by LL_CLKSOURCE_CONFIG().
+ *
+ * \param clkMuxId [in]: Clock multiplexer record identifier (must be valid)
+ *
+ * \return Field value to be written to / compared with the masked register value.
+ */
+static uint32_t Rcc_ClkMux_Get_FieldVal( rcc_ClkMuxId_t clkMuxId )
+{
+    const uint32_t clkSrcVal  = rcc_ClkMuxConfig[ clkMuxId ].ClkSrcVal;
+    const uint32_t clkSrcMask = rcc_ClkMuxConfig[ clkMuxId ].ClkSrcMask;
+    uint32_t       fieldVal   = clkSrcVal;
+
+    if( 0u != ( clkSrcVal & ~clkSrcMask ) )
+    {
+        /* LL_CLKSOURCE() encoded value */
+        fieldVal = LL_CLKSOURCE_CONFIG( clkSrcVal );
+    }
+    else
+    {
+        /* Raw field value */
+    }
+
+    return ( fieldVal );
+}
+
+
+/**
+ * \brief Checks that the clock source value of the record belongs to the multiplexer field of the record.
+ *
+ * \param clkMuxId [in]: Clock multiplexer record identifier (must be valid)
+ *
+ * \return Returns "OK" if the raw value lies within ClkSrcMask or the encoded value
+ *         describes the same field (mask), otherwise returns error.
+ */
+static rcc_RequestState_t Rcc_ClkMux_Check_Record( rcc_ClkMuxId_t clkMuxId )
+{
+    rcc_RequestState_t retState   = RCC_REQUEST_ERROR;
+    const uint32_t     clkSrcVal  = rcc_ClkMuxConfig[ clkMuxId ].ClkSrcVal;
+    const uint32_t     clkSrcMask = rcc_ClkMuxConfig[ clkMuxId ].ClkSrcMask;
+
+    if( 0u == ( clkSrcVal & ~clkSrcMask ) )
+    {
+        /* Raw field value */
+        retState = RCC_REQUEST_OK;
+    }
+    else if( clkSrcMask == LL_CLKSOURCE_MASK( clkSrcVal ) )
+    {
+        /* LL_CLKSOURCE() encoded value of the same field */
+        retState = RCC_REQUEST_OK;
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
+}
 
 /* =========================== INTERRUPT HANDLERS =========================== */
 

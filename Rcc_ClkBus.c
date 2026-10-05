@@ -20,6 +20,8 @@
 
 /* ======================== FORWARD DECLARATIONS ============================ */
 
+static rcc_FreqHz_t Rcc_ClkBus_Get_TimClk( rcc_FreqHz_t hClk, rcc_FreqHz_t pClk );
+
 /* =============================== MACROS =================================== */
 
 /* ========================== EXPORTED VARIABLES ============================ */
@@ -577,7 +579,112 @@ rcc_RequestState_t Rcc_ClkBus_Get_APB3Clk( rcc_FreqHz_t * const busClk )
     return ( retState );
 }
 
+
+/**
+ * \brief Reading of kernel clock frequency of timers on APB1 bus
+ *
+ * \param timClk [out]: Pointer to timer kernel clock frequency in Hz
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_ClkBus_Get_APB1TimClk( rcc_FreqHz_t * const timClk )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+    rcc_FreqHz_t       hClk     = 0u;
+    rcc_FreqHz_t       pClk     = 0u;
+
+    const rcc_RequestState_t hClkState = Rcc_ClkBus_Get_AHBClk( &hClk );
+    const rcc_RequestState_t pClkState = Rcc_ClkBus_Get_APB1Clk( &pClk );
+
+    if( ( RCC_REQUEST_OK == hClkState ) &&
+        ( RCC_REQUEST_OK == pClkState ) &&
+        ( RCC_NULL_PTR   != timClk    )    )
+    {
+        *timClk  = Rcc_ClkBus_Get_TimClk( hClk, pClk );
+        retState = RCC_REQUEST_OK;
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Reading of kernel clock frequency of timers on APB2 bus
+ *
+ * \param timClk [out]: Pointer to timer kernel clock frequency in Hz
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_ClkBus_Get_APB2TimClk( rcc_FreqHz_t * const timClk )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+    rcc_FreqHz_t       hClk     = 0u;
+    rcc_FreqHz_t       pClk     = 0u;
+
+    const rcc_RequestState_t hClkState = Rcc_ClkBus_Get_AHBClk( &hClk );
+    const rcc_RequestState_t pClkState = Rcc_ClkBus_Get_APB2Clk( &pClk );
+
+    if( ( RCC_REQUEST_OK == hClkState ) &&
+        ( RCC_REQUEST_OK == pClkState ) &&
+        ( RCC_NULL_PTR   != timClk    )    )
+    {
+        *timClk  = Rcc_ClkBus_Get_TimClk( hClk, pClk );
+        retState = RCC_REQUEST_OK;
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
+}
+
 /* =========================== LOCAL FUNCTIONS ============================== */
+
+/**
+ * \brief Calculates timer kernel clock of APB bus timers (RM0481, timer clock selection)
+ *
+ * - APB prescaler 1:          timer clock = PCLK
+ * - TIMPRE = 0, prescaler > 1: timer clock = 2 x PCLK
+ * - TIMPRE = 1, prescaler 2/4: timer clock = HCLK
+ * - TIMPRE = 1, prescaler > 4: timer clock = 4 x PCLK
+ *
+ * \param hClk [in]: AHB clock frequency in Hz
+ * \param pClk [in]: APB clock frequency in Hz
+ *
+ * \return Timer kernel clock frequency in Hz
+ */
+static rcc_FreqHz_t Rcc_ClkBus_Get_TimClk( rcc_FreqHz_t hClk, rcc_FreqHz_t pClk )
+{
+    rcc_FreqHz_t timClk = pClk;
+
+    if( hClk == pClk )
+    {
+        /* APB prescaler 1 - timer clock is the APB clock */
+        timClk = pClk;
+    }
+    else if( LL_RCC_TIM_PRESCALER_TWICE == LL_RCC_GetTIMPrescaler() )
+    {
+        timClk = 2u * pClk;
+    }
+    else if( hClk <= ( 4u * pClk ) )
+    {
+        /* TIMPRE = 1 and APB prescaler 2 or 4 */
+        timClk = hClk;
+    }
+    else
+    {
+        timClk = 4u * pClk;
+    }
+
+    return ( timClk );
+}
 
 /* =========================== INTERRUPT HANDLERS =========================== */
 
