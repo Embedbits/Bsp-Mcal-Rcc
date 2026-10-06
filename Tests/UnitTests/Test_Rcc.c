@@ -25,6 +25,7 @@
 #include "Stm32_pwr.h"                      /* PWR registers definition       */
 #include "Stm32_system.h"                   /* FLASH registers definition     */
 #include "Stm32_icache.h"                   /* ICACHE registers definition    */
+#include "Stm32_crs.h"                      /* CRS registers definition       */
 /* ============================= TYPEDEFS =================================== */
 
 /** Expected clock enable bit of peripheral */
@@ -1286,6 +1287,211 @@ void Ut_Rcc_Set_OscDiv_InvalidDivider_ReturnsErrorWithoutChange( void )
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_OscDiv( RCC_OSC_HSI64, NULL ) );
 }
 
+/* ========================== POWER SUPPLY VALIDITY ========================= */
+
+/**
+ * \brief   VDDUSB supply is validated and invalidated.
+ *
+ * \details Reads the state of the reset configuration, validates the supply, reads
+ *          the state, invalidates the supply and reads the state again.
+ *
+ * \par Expected results
+ * - Inactive at reset (PWR_USBSCR.USB33SV = 0).
+ * - After validation: RCC_REQUEST_OK, USB33SV set, state active.
+ * - After invalidation: RCC_REQUEST_OK, USB33SV cleared, state inactive.
+ */
+void Ut_Rcc_Set_PwrSupplyActive_Vddusb_ValidityBitFollowsRequest( void )
+{
+#if defined(PWR_USBSCR_USB33SV)
+    rcc_FunctionState_t state = RCC_FUNCTION_ACTIVE;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PwrSupplyState( RCC_PWR_SUPPLY_VDDUSB, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PwrSupplyActive( RCC_PWR_SUPPLY_VDDUSB ) );
+    TEST_ASSERT_BITS_HIGH( PWR_USBSCR_USB33SV, PWR->USBSCR );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PwrSupplyState( RCC_PWR_SUPPLY_VDDUSB, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PwrSupplyInactive( RCC_PWR_SUPPLY_VDDUSB ) );
+    TEST_ASSERT_BITS_LOW( PWR_USBSCR_USB33SV, PWR->USBSCR );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PwrSupplyState( RCC_PWR_SUPPLY_VDDUSB, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+#else
+    TEST_IGNORE_MESSAGE( "VDDUSB supply validity is not available on this MCU" );
+#endif /* PWR_USBSCR_USB33SV */
+}
+
+
+/**
+ * \brief   Power supply functions reject invalid arguments.
+ *
+ * \details Calls the functions with supply out of range and the getter with NULL.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_ERROR, no register is changed.
+ */
+void Ut_Rcc_PwrSupply_InvalidArguments_ReturnsError( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_INACTIVE;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_PwrSupplyActive( RCC_PWR_SUPPLY_CNT ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_PwrSupplyInactive( RCC_PWR_SUPPLY_CNT ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_PwrSupplyState( RCC_PWR_SUPPLY_CNT, &state ) );
+    TEST_ASSERT_EQUAL_HEX32( 0u, PWR->VOSCR );
+
+#if defined(PWR_USBSCR_USB33SV)
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_PwrSupplyState( RCC_PWR_SUPPLY_VDDUSB, NULL ) );
+    TEST_ASSERT_EQUAL_HEX32( 0u, PWR->USBSCR );
+#endif /* PWR_USBSCR_USB33SV */
+}
+
+/* ======================== HSI48 AUTOMATIC TRIMMING ======================== */
+
+/**
+ * \brief   Automatic trimming of HSI48 by USB start of frame is configured.
+ *
+ * \details HW model sets oscillator ready flag. Activates the trimming with USB SOF
+ *          synchronization (1 kHz), reads the state.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, CRS clock and HSI48 enabled.
+ * - CRS_CFGR: RELOAD = 47999 (48 MHz / 1 kHz - 1), FELIM = 0x22, SYNCDIV = /1, USB SOF source,
+ *   rising edge. CRS_CR: TRIM = 0x20, AUTOTRIMEN and CEN set.
+ * - State active.
+ */
+void Ut_Rcc_Set_Hsi48TrimActive_UsbSof_ConfiguresCrs( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_INACTIVE;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_Hsi48TrimActive( RCC_HSI48_TRIM_SRC_USB_SOF ) );
+
+    TEST_ASSERT_BITS_HIGH( RCC_APB1LENR_CRSEN, RCC->APB1LENR );
+    TEST_ASSERT_BITS_HIGH( RCC_CR_HSI48ON, RCC->CR );
+
+    TEST_ASSERT_EQUAL_UINT32( 47999u, CRS->CFGR & CRS_CFGR_RELOAD );
+    TEST_ASSERT_EQUAL_UINT32( LL_CRS_ERRORLIMIT_DEFAULT, ( CRS->CFGR & CRS_CFGR_FELIM ) >> CRS_CFGR_FELIM_Pos );
+    TEST_ASSERT_EQUAL_HEX32( LL_CRS_SYNC_DIV_1, CRS->CFGR & CRS_CFGR_SYNCDIV );
+    TEST_ASSERT_EQUAL_HEX32( LL_CRS_SYNC_POLARITY_RISING, CRS->CFGR & CRS_CFGR_SYNCPOL );
+#if defined(USB_DRD_FS)
+    TEST_ASSERT_EQUAL_HEX32( LL_CRS_SYNC_SOURCE_USB, CRS->CFGR & CRS_CFGR_SYNCSRC );
+#else
+    TEST_ASSERT_EQUAL_HEX32( LL_CRS_SYNC_SOURCE_OTG_FS, CRS->CFGR & CRS_CFGR_SYNCSRC );
+#endif
+    TEST_ASSERT_EQUAL_UINT32( LL_CRS_HSI48CALIBRATION_DEFAULT, ( CRS->CR & CRS_CR_TRIM ) >> CRS_CR_TRIM_Pos );
+    TEST_ASSERT_BITS_HIGH( CRS_CR_AUTOTRIMEN | CRS_CR_CEN, CRS->CR );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_Hsi48TrimState( &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
+}
+
+
+/**
+ * \brief   Automatic trimming of HSI48 by LSE is configured.
+ *
+ * \details HW model sets oscillator ready flag. Activates the trimming with LSE
+ *          synchronization (32.768 kHz).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, CRS_CFGR: RELOAD = 1463 (48 MHz / 32768 Hz - 1), LSE source.
+ */
+void Ut_Rcc_Set_Hsi48TrimActive_Lse_ReloadForLseFrequency( void )
+{
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_Hsi48TrimActive( RCC_HSI48_TRIM_SRC_LSE ) );
+
+    TEST_ASSERT_EQUAL_UINT32( 1463u, CRS->CFGR & CRS_CFGR_RELOAD );
+    TEST_ASSERT_EQUAL_HEX32( LL_CRS_SYNC_SOURCE_LSE, CRS->CFGR & CRS_CFGR_SYNCSRC );
+    TEST_ASSERT_BITS_HIGH( CRS_CR_AUTOTRIMEN | CRS_CR_CEN, CRS->CR );
+}
+
+
+/**
+ * \brief   Automatic trimming of HSI48 rejects invalid synchronization source.
+ *
+ * \details Activates the trimming with source out of range.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_ERROR, CRS registers and the CRS clock are not changed.
+ */
+void Ut_Rcc_Set_Hsi48TrimActive_InvalidSource_ReturnsErrorWithoutChange( void )
+{
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_Hsi48TrimActive( RCC_HSI48_TRIM_SRC_CNT ) );
+
+    TEST_ASSERT_EQUAL_HEX32( 0u, CRS->CR );
+    TEST_ASSERT_EQUAL_HEX32( 0u, CRS->CFGR );
+    TEST_ASSERT_BITS_LOW( RCC_APB1LENR_CRSEN, RCC->APB1LENR );
+}
+
+
+/**
+ * \brief   Automatic trimming of HSI48 reports oscillator that does not start.
+ *
+ * \details Activates the trimming without HW model - HSI48 ready flag is never set.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_ERROR, trimming is not started (CRS_CR.AUTOTRIMEN and CEN cleared).
+ */
+void Ut_Rcc_Set_Hsi48TrimActive_OscillatorNotReady_ReturnsError( void )
+{
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_Hsi48TrimActive( RCC_HSI48_TRIM_SRC_USB_SOF ) );
+
+    TEST_ASSERT_BITS_LOW( CRS_CR_AUTOTRIMEN | CRS_CR_CEN, CRS->CR );
+}
+
+
+/**
+ * \brief   Automatic trimming of HSI48 is stopped.
+ *
+ * \details HW model sets oscillator ready flag. Activates the trimming, deactivates it
+ *          and reads the state.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, CRS_CR.AUTOTRIMEN and CEN cleared, CRS clock disabled, state inactive.
+ */
+void Ut_Rcc_Set_Hsi48TrimInactive_AfterActive_StopsTrimmingAndClock( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_ACTIVE;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_Hsi48TrimActive( RCC_HSI48_TRIM_SRC_USB_SOF ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_Hsi48TrimInactive() );
+
+    TEST_ASSERT_BITS_LOW( CRS_CR_AUTOTRIMEN | CRS_CR_CEN, CRS->CR );
+    TEST_ASSERT_BITS_LOW( RCC_APB1LENR_CRSEN, RCC->APB1LENR );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_Hsi48TrimState( &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+}
+
+
+/**
+ * \brief   State of the automatic trimming of HSI48 depends on the CRS clock.
+ *
+ * \details Reads the state at reset, with CRS counter enabled but CRS clock off, and with NULL.
+ *
+ * \par Expected results
+ * - State inactive in both cases (CRS without clock can not trim), NULL pointer: RCC_REQUEST_ERROR.
+ */
+void Ut_Rcc_Get_Hsi48TrimState_ClockOff_ReportsInactive( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_ACTIVE;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_Hsi48TrimState( &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+
+    CRS->CR = CRS_CR_AUTOTRIMEN | CRS_CR_CEN;
+    state   = RCC_FUNCTION_ACTIVE;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_Hsi48TrimState( &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_Hsi48TrimState( NULL ) );
+}
+
 /* ============================== RTC CLOCK ================================= */
 
 /**
@@ -1674,8 +1880,10 @@ void Ut_Rcc_Get_PeriphClk_OscillatorSources_NominalFrequency( void )
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_USART1_CSI, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( CSI_VALUE, freq );
+#if defined(USB_DRD_FS)
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_USB_HSI48, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( HSI48_VALUE, freq );
+#endif /* USB_DRD_FS */
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_RTC_LSI, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( LSI_VALUE, freq );
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_RTC_LSE, &freq ) );

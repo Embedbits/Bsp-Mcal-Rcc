@@ -730,6 +730,36 @@ typedef enum
 /** \brief Oscillator divider value type definition. */
 typedef uint32_t rcc_OscDiv_t;
 
+/*--------------- Power supply validity and HSI48 automatic trimming ---------*/
+
+/**
+ * \brief Supplies validated by software (PWR register access is part of the RCC module)
+ *
+ * Isolated supply domains are electrically and logically connected to the core only
+ * after the software validates the supply.
+ */
+typedef enum
+{
+#if defined(PWR_USBSCR_USB33SV)
+    RCC_PWR_SUPPLY_VDDUSB = 0u, /**< VDDUSB supply (PWR_USBSCR.USB33SV) of the USB peripheral */
+#endif
+    RCC_PWR_SUPPLY_CNT          /**< Count of available supplies                              */
+}   rcc_PwrSupplyId_t;
+
+
+/**
+ * \brief Synchronization source of the HSI48 automatic trimming (Clock Recovery System, CRS)
+ *
+ * The CRS compares the HSI48 frequency with the synchronization signal and trims the
+ * oscillator, so the 48 MHz clock keeps the accuracy required by USB.
+ */
+typedef enum
+{
+    RCC_HSI48_TRIM_SRC_USB_SOF = 0u, /**< USB start of frame (1 kHz)       */
+    RCC_HSI48_TRIM_SRC_LSE,          /**< LSE oscillator (32.768 kHz)      */
+    RCC_HSI48_TRIM_SRC_CNT           /**< Count of synchronization sources */
+}   rcc_Hsi48TrimSrc_t;
+
 /*------------------- Phase Locked Loop's (PLL) configuration ----------------*/
 
 /** \brief Phase Locked Loop identification enumeration */

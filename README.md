@@ -92,6 +92,23 @@ are not started automatically.
 - `rcc_RequestState_t Rcc_Set_RtcClkSource(rcc_Rtc_ClkSource_t clkSource)`
 - `rcc_RequestState_t Rcc_Get_RtcClkSource(rcc_Rtc_ClkSource_t * const clkSource)`
 
+### Power Supply Validity
+Supplies of isolated domains validated by software (PWR register access is part of the RCC module,
+`rcc_PwrSupplyId_t`). STM32H5 has the VDDUSB supply of the USB peripheral (`PWR_USBSCR.USB33SV`,
+reset value 0 - the USB peripheral is isolated until the supply is validated). STM32H503 has no
+isolated domain - the functions return error.
+- `rcc_RequestState_t Rcc_Set_PwrSupplyActive(rcc_PwrSupplyId_t supplyId)`
+- `rcc_RequestState_t Rcc_Set_PwrSupplyInactive(rcc_PwrSupplyId_t supplyId)`
+- `rcc_RequestState_t Rcc_Get_PwrSupplyState(rcc_PwrSupplyId_t supplyId, rcc_FunctionState_t * const retState)`
+
+### HSI48 Automatic Trimming
+Clock recovery system (CRS) keeping the accuracy of the HSI48 oscillator (USB needs +-0.25 %). The
+synchronization is configured for the 48 MHz target (`rcc_Hsi48TrimSrc_t`: USB start of frame 1 kHz,
+LSE 32.768 kHz), the CRS clock and the HSI48 oscillator are activated by the function.
+- `rcc_RequestState_t Rcc_Set_Hsi48TrimActive(rcc_Hsi48TrimSrc_t trimSource)`
+- `rcc_RequestState_t Rcc_Set_Hsi48TrimInactive(void)`
+- `rcc_RequestState_t Rcc_Get_Hsi48TrimState(rcc_FunctionState_t * const retState)`
+
 ### Clock Bus Configuration
 - `rcc_RequestState_t Rcc_Set_SysClkSource(rcc_SystemClkSrc_t systemClkSource)`
 - `rcc_RequestState_t Rcc_Get_SysClkSource(rcc_SystemClkSrc_t * const systemClkSource)`

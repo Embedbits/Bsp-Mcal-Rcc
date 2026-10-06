@@ -80,6 +80,18 @@ rcc_RequestState_t          Rcc_Get_OscState            ( rcc_OscId_t oscId, rcc
 rcc_RequestState_t          Rcc_Set_OscDiv              ( rcc_OscId_t oscId, rcc_OscDiv_t oscDiv );
 rcc_RequestState_t          Rcc_Get_OscDiv              ( rcc_OscId_t oscId, rcc_OscDiv_t * const oscDiv );
 
+/*---------------------------- Power supply validity -------------------------*/
+
+rcc_RequestState_t          Rcc_Set_PwrSupplyActive     ( rcc_PwrSupplyId_t supplyId );
+rcc_RequestState_t          Rcc_Set_PwrSupplyInactive   ( rcc_PwrSupplyId_t supplyId );
+rcc_RequestState_t          Rcc_Get_PwrSupplyState      ( rcc_PwrSupplyId_t supplyId, rcc_FunctionState_t * const retState );
+
+/*------------------------ HSI48 automatic trimming (CRS) --------------------*/
+
+rcc_RequestState_t          Rcc_Set_Hsi48TrimActive     ( rcc_Hsi48TrimSrc_t trimSource );
+rcc_RequestState_t          Rcc_Set_Hsi48TrimInactive   ( void );
+rcc_RequestState_t          Rcc_Get_Hsi48TrimState      ( rcc_FunctionState_t * const retState );
+
 /*----------------------- Low Speed Clock configuration ----------------------*/
 
 rcc_RequestState_t          Rcc_Set_RtcClkSource        ( rcc_Rtc_ClkSource_t clkSource );

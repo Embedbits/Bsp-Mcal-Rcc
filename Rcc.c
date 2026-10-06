@@ -5,12 +5,14 @@
  * \brief Reset and Clock Control (RCC) module common functionality
  *
  * \note  Exception of MCAL layering rule: PWR (voltage scaling, UCPD dead
- *        battery), FLASH (latency, prefetch) and ICACHE / DCACHE have no MCAL
- *        module. Their configuration is part of the clock configuration
+ *        battery, supply validity), FLASH (latency, prefetch) and ICACHE / DCACHE
+ *        have no MCAL module. Their configuration is part of the clock configuration
  *        sequence, therefore RCC accesses their LL functions directly
  *        (\ref Rcc_Init, \ref Rcc_Set_PwrRange, \ref Rcc_Set_FlashLatency,
- *        \ref Rcc_Set_FlashPrefetchActive). New accesses shall be moved into a
- *        dedicated MCAL module once it exists.
+ *        \ref Rcc_Set_FlashPrefetchActive, \ref Rcc_Set_PwrSupplyActive). New accesses
+ *        shall be moved into a dedicated MCAL module once it exists. The clock
+ *        recovery system (CRS) serves only the HSI48 oscillator and is therefore
+ *        a part of the RCC module (\ref Rcc_Set_Hsi48TrimActive).
  *
  */
 /* ============================== INCLUDES ================================== */
@@ -29,6 +31,7 @@
 #include "Stm32_utils.h"                    /* MCU utilities RAL functionality*/
 #include "Stm32_icache.h"                   /* Instruction cache functionality*/
 #include "Stm32_dcache.h"                   /* Data cache functionality       */
+#include "Stm32_crs.h"                      /* Clock recovery system RAL      */
 /* ========================== SYMBOLIC CONSTANTS ============================ */
 
 /** Value of major version of SW module */
@@ -113,6 +116,15 @@
 /** Count of milliseconds in one second */
 #define RCC_MS_IN_SECOND                        ( 1000u )
 
+/** Target frequency of the HSI48 oscillator in Hz (clock recovery system) */
+#define RCC_HSI48_TARGET_HZ                     ( 48000000u )
+
+/** Frequency of the USB start of frame synchronization signal in Hz */
+#define RCC_HSI48_SYNC_USB_SOF_HZ               ( 1000u )
+
+/** Frequency of the LSE synchronization signal in Hz */
+#define RCC_HSI48_SYNC_LSE_HZ                   ( 32768u )
+
 /** Minimum SysTick ticks count per interval (reload register value 1) */
 #define RCC_SYSTICK_TICKS_MIN                   ( 2u )
 
@@ -168,6 +180,14 @@ typedef struct
     rcc_ClkSrcCallback_t ClkSrcCallback; /**< Callback function pointer */
 }   rcc_ClkSrcConfigStruct_t;
 
+
+/** Synchronization source of the HSI48 automatic trimming (clock recovery system) */
+typedef struct
+{
+    uint32_t LlSource;  /**< Synchronization source selection (LL_CRS_SYNC_SOURCE_x) */
+    uint32_t SyncFreq;  /**< Frequency of the synchronization signal in Hz           */
+}   rcc_Hsi48TrimConfigStruct_t;
+
 /* ======================== FORWARD DECLARATIONS ============================ */
 
 static rcc_RequestState_t Rcc_Get_ExpectedSysClkFrequency( rcc_ConfigStruct_t * const clockConfig, rcc_FreqHz_t *sysClk );
@@ -199,6 +219,19 @@ static rcc_RequestState_t Rcc_Pll_Get_3_PClk( rcc_FreqHz_t * const clkFreq );
 uint32_t      SystemCoreClock    = RCC_SYSCLK_RESET_FREQ_HZ;
 const uint8_t AHBPrescTable[16u] = {0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 1U, 2U, 3U, 4U, 6U, 7U, 8U, 9U};
 const uint8_t APBPrescTable[8u]  = {0U, 0U, 0U, 0U, 1U, 2U, 3U, 4U};
+
+/* ----------------------- HSI48 trimming sources --------------------------- */
+
+/** \brief Synchronization sources of the HSI48 automatic trimming, indexed by \ref rcc_Hsi48TrimSrc_t */
+static const rcc_Hsi48TrimConfigStruct_t rcc_Hsi48TrimLut[ RCC_HSI48_TRIM_SRC_CNT ] =
+{
+#if defined(USB_DRD_FS)
+    [RCC_HSI48_TRIM_SRC_USB_SOF] = { .LlSource = LL_CRS_SYNC_SOURCE_USB    , .SyncFreq = RCC_HSI48_SYNC_USB_SOF_HZ },
+#else
+    [RCC_HSI48_TRIM_SRC_USB_SOF] = { .LlSource = LL_CRS_SYNC_SOURCE_OTG_FS , .SyncFreq = RCC_HSI48_SYNC_USB_SOF_HZ },
+#endif
+    [RCC_HSI48_TRIM_SRC_LSE]     = { .LlSource = LL_CRS_SYNC_SOURCE_LSE    , .SyncFreq = RCC_HSI48_SYNC_LSE_HZ     },
+};
 
 /* ------------------------- Peripherals arrays ----------------------------- */
 
@@ -3156,6 +3189,334 @@ rcc_RequestState_t Rcc_Get_OscDiv( rcc_OscId_t oscId, rcc_OscDiv_t * const oscDi
     }
 
     return ( retState );
+}
+
+/*---------------------------- Power supply validity -------------------------*/
+
+/**
+ * \brief Validates a power supply (software confirms that the supply is present).
+ *
+ * The isolated supply domain (VDDUSB of the USB peripheral, PWR_USBSCR.USB33SV) is
+ * electrically and logically connected to the core after the validation. The supply
+ * shall be validated only if it is present on the supply pin.
+ *
+ * \note  Supplies are available only on the devices with the isolated domain - STM32H503
+ *        has no VDDUSB isolation (\ref RCC_PWR_SUPPLY_VDDUSB is not defined, error is returned).
+ *
+ * \param supplyId [in]: Supply identification
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_PwrSupplyActive( rcc_PwrSupplyId_t supplyId )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+
+#if defined(PWR_USBSCR_USB33SV)
+    if( RCC_PWR_SUPPLY_VDDUSB == supplyId )
+    {
+        LL_PWR_EnableVddUSB();
+
+        for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+        {
+            const uint32_t supplyState = LL_PWR_IsEnabledVddUSB();
+
+            if( 0u != supplyState )
+            {
+                retState = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                /* Supply validity bit not set yet */
+            }
+        }
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+#else
+    /* No supply with software validation on this device */
+    (void)supplyId;
+#endif
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Invalidates a power supply (isolates the supply domain).
+ *
+ * \param supplyId [in]: Supply identification
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_PwrSupplyInactive( rcc_PwrSupplyId_t supplyId )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+
+#if defined(PWR_USBSCR_USB33SV)
+    if( RCC_PWR_SUPPLY_VDDUSB == supplyId )
+    {
+        LL_PWR_DisableVddUSB();
+
+        for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+        {
+            const uint32_t supplyState = LL_PWR_IsEnabledVddUSB();
+
+            if( 0u == supplyState )
+            {
+                retState = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                /* Supply validity bit not cleared yet */
+            }
+        }
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+#else
+    /* No supply with software validation on this device */
+    (void)supplyId;
+#endif
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Reads validity state of a power supply.
+ *
+ * \param supplyId  [in]: Supply identification
+ * \param retState [out]: Validity state (active - supply is validated)
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Get_PwrSupplyState( rcc_PwrSupplyId_t supplyId, rcc_FunctionState_t * const retState )
+{
+    rcc_RequestState_t reqState = RCC_REQUEST_ERROR;
+
+#if defined(PWR_USBSCR_USB33SV)
+    if( ( RCC_PWR_SUPPLY_VDDUSB == supplyId ) &&
+        ( RCC_NULL_PTR          != retState )    )
+    {
+        const uint32_t supplyState = LL_PWR_IsEnabledVddUSB();
+
+        if( 0u != supplyState )
+        {
+            *retState = RCC_FUNCTION_ACTIVE;
+        }
+        else
+        {
+            *retState = RCC_FUNCTION_INACTIVE;
+        }
+
+        reqState = RCC_REQUEST_OK;
+    }
+    else
+    {
+        reqState = RCC_REQUEST_ERROR;
+    }
+#else
+    /* No supply with software validation on this device */
+    (void)supplyId;
+    (void)retState;
+#endif
+
+    return ( reqState );
+}
+
+/*------------------------ HSI48 automatic trimming (CRS) --------------------*/
+
+/**
+ * \brief Activates automatic trimming of the HSI48 oscillator by the clock recovery system (CRS).
+ *
+ * The CRS counts the HSI48 periods between two synchronization events, compares the count
+ * with the expected one (48 MHz) and trims the oscillator, so the clock keeps the accuracy
+ * required by USB (+-0.25 %). The CRS clock and the HSI48 oscillator are activated, the
+ * synchronization is configured for the target frequency 48 MHz (reload value, frequency error
+ * limit, no synchronization divider, rising edge, middle of the trimming range as the start
+ * value) and the automatic trimming with the frequency error counter is started.
+ *
+ * \note  \ref RCC_HSI48_TRIM_SRC_USB_SOF requires the USB controller to receive the start of
+ *        frame (the device connected to a host). The trimming does not change the oscillator
+ *        until the first synchronization event arrives.
+ *
+ * \param trimSource [in]: Synchronization source (USB start of frame, LSE)
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_Hsi48TrimActive( rcc_Hsi48TrimSrc_t trimSource )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+
+    if( RCC_HSI48_TRIM_SRC_CNT > trimSource )
+    {
+        const uint32_t llSource    = rcc_Hsi48TrimLut[ trimSource ].LlSource;
+        const uint32_t reloadValue = ( RCC_HSI48_TARGET_HZ / rcc_Hsi48TrimLut[ trimSource ].SyncFreq ) - 1u;
+
+        /* The clock recovery system and the trimmed oscillator have to run */
+        retState = Rcc_Set_PeriphActive( RCC_PERIPH_CRS );
+
+        if( RCC_REQUEST_OK == retState )
+        {
+            retState = Rcc_Set_OscActive( RCC_OSC_HSI48 );
+        }
+
+        if( RCC_REQUEST_OK == retState )
+        {
+            /* Configuration is written with the trimming stopped */
+            LL_CRS_DisableAutoTrimming();
+            LL_CRS_DisableFreqErrorCounter();
+
+            LL_CRS_SetSyncDivider( LL_CRS_SYNC_DIV_1 );
+            LL_CRS_SetSyncSignalSource( llSource );
+            LL_CRS_SetSyncPolarity( LL_CRS_SYNC_POLARITY_RISING );
+            LL_CRS_SetReloadCounter( reloadValue );
+            LL_CRS_SetFreqErrorLimit( LL_CRS_ERRORLIMIT_DEFAULT );
+            LL_CRS_SetHSI48SmoothTrimming( LL_CRS_HSI48CALIBRATION_DEFAULT );
+
+            LL_CRS_EnableAutoTrimming();
+            LL_CRS_EnableFreqErrorCounter();
+
+            retState = RCC_REQUEST_ERROR;
+
+            for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+            {
+                const uint32_t sourceValue  = LL_CRS_GetSyncSignalSource();
+                const uint32_t reloadRead   = LL_CRS_GetReloadCounter();
+                const uint32_t autoTrimOn   = LL_CRS_IsEnabledAutoTrimming();
+                const uint32_t errCounterOn = LL_CRS_IsEnabledFreqErrorCounter();
+
+                if( ( llSource    == sourceValue  ) &&
+                    ( reloadValue == reloadRead   ) &&
+                    ( 0u          != autoTrimOn   ) &&
+                    ( 0u          != errCounterOn )    )
+                {
+                    retState = RCC_REQUEST_OK;
+                    break;
+                }
+                else
+                {
+                    /* Configuration not applied yet */
+                }
+            }
+        }
+        else
+        {
+            /* CRS clock or HSI48 oscillator could not be started */
+        }
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Deactivates automatic trimming of the HSI48 oscillator and the CRS clock.
+ *
+ * The oscillator keeps the last trim value.
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Set_Hsi48TrimInactive( void )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+
+    LL_CRS_DisableAutoTrimming();
+    LL_CRS_DisableFreqErrorCounter();
+
+    for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+    {
+        const uint32_t autoTrimOn   = LL_CRS_IsEnabledAutoTrimming();
+        const uint32_t errCounterOn = LL_CRS_IsEnabledFreqErrorCounter();
+
+        if( ( 0u == autoTrimOn   ) &&
+            ( 0u == errCounterOn )    )
+        {
+            retState = RCC_REQUEST_OK;
+            break;
+        }
+        else
+        {
+            /* Trimming not stopped yet */
+        }
+    }
+
+    if( RCC_REQUEST_OK == retState )
+    {
+        retState = Rcc_Set_PeriphInactive( RCC_PERIPH_CRS );
+    }
+    else
+    {
+        /* Trimming could not be stopped - CRS clock is kept */
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Reads state of the automatic trimming of the HSI48 oscillator.
+ *
+ * \param retState [out]: Active if the CRS clock is enabled and both the automatic trimming and
+ *                        the frequency error counter are enabled
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_Get_Hsi48TrimState( rcc_FunctionState_t * const retState )
+{
+    rcc_RequestState_t reqState = RCC_REQUEST_ERROR;
+
+    if( RCC_NULL_PTR != retState )
+    {
+        rcc_FunctionState_t crsClockState = RCC_FUNCTION_INACTIVE;
+
+        reqState = Rcc_Get_PeriphState( RCC_PERIPH_CRS, &crsClockState );
+
+        *retState = RCC_FUNCTION_INACTIVE;
+
+        if( ( RCC_REQUEST_OK      == reqState      ) &&
+            ( RCC_FUNCTION_ACTIVE == crsClockState )    )
+        {
+            const uint32_t autoTrimOn   = LL_CRS_IsEnabledAutoTrimming();
+            const uint32_t errCounterOn = LL_CRS_IsEnabledFreqErrorCounter();
+
+            if( ( 0u != autoTrimOn   ) &&
+                ( 0u != errCounterOn )    )
+            {
+                *retState = RCC_FUNCTION_ACTIVE;
+            }
+            else
+            {
+                /* Trimming not running */
+            }
+        }
+        else
+        {
+            /* CRS is not clocked - trimming can not run */
+        }
+    }
+    else
+    {
+        reqState = RCC_REQUEST_ERROR;
+    }
+
+    return ( reqState );
 }
 
 /*-------------------------- RTC clock configuration -------------------------*/
