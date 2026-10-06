@@ -42,7 +42,11 @@ static void It_Rcc_Check_BusClocks  ( rcc_FreqHz_t ahbClk, rcc_FreqHz_t apb1Clk,
 /* ========================= SYMBOLIC CONSTANTS ============================= */
 
 /*----------------------------- Board configuration --------------------------*/
-#if defined(IT_BOARD_STM32F4DISCOVERY)
+/* Boards are named by their MCU (IT_BOARD_<MCU>, name of the board from the detection) */
+#if defined(IT_BOARD_STM32F405xG) || \
+    defined(IT_BOARD_STM32F407xG) || \
+    defined(IT_BOARD_STM32F415xG) || \
+    defined(IT_BOARD_STM32F417xG)
 
     /** HSE - 8 MHz crystal X2 */
     #define IT_RCC_HSE_TYPE                 ( RCC_HSE_TYPE_CRYSTAL )
@@ -63,13 +67,14 @@ static void It_Rcc_Check_BusClocks  ( rcc_FreqHz_t ahbClk, rcc_FreqHz_t apb1Clk,
     #define IT_RCC_FREE_PIN                 ( GPIO_PIN_ID_7 )
     #define IT_RCC_FREE_PERIPH              ( RCC_PERIPH_GPIOE )
 
-#elif defined(IT_BOARD_NUCLEO_F401RE) || defined(IT_BOARD_NUCLEO_F411RE)
+#elif defined(IT_BOARD_STM32F401xE) || \
+      defined(IT_BOARD_STM32F411xE)
 
     /** HSE - 8 MHz MCO of the ST-LINK (oscillator bypassed, X3 not fitted) */
     #define IT_RCC_HSE_TYPE                 ( RCC_HSE_TYPE_SIG_IN )
     #define IT_RCC_HSE_FREQ_HZ              ( 8000000u )
 
-#if defined(IT_BOARD_NUCLEO_F401RE)
+#if defined(IT_BOARD_STM32F401xE)
     /** Main PLL from HSE: 8 MHz / 8 * 336 / 4 = 84 MHz, Q 7 = 48 MHz (STM32F401 maximum) */
     #define IT_RCC_HSE_PLL_M                ( 8u )
     #define IT_RCC_HSE_PLL_N                ( 336u )
