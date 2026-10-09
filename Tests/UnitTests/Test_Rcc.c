@@ -1030,6 +1030,67 @@ void Ut_Rcc_Set_FlashLatency_PllUsesPDivider( void )
     TEST_ASSERT_EQUAL_HEX32( LL_FLASH_LATENCY_3, LL_FLASH_GetLatency() );
 }
 
+/**
+ * \brief   Flash latency follows the wait state table of every voltage scale.
+ *
+ * \details For every voltage scale (VOS 0 - 3) and every wait state band the system clock
+ *          source HSE with the upper limit of the band and with the limit + 1 Hz is
+ *          configured and the flash latency is calculated. Limits of the bands (RM0481):
+ *          VOS0 42 / 84 / 126 / 168 / 210 / 250 MHz, VOS1 34 / 68 / 102 / 136 / 170 / 200 MHz,
+ *          VOS2 30 / 60 / 90 / 120 / 150 MHz, VOS3 20 / 40 / 60 / 80 / 100 MHz.
+ *
+ * \par Expected results
+ * - Limit of band n: RCC_REQUEST_OK, n wait states.
+ * - Limit + 1 Hz: RCC_REQUEST_OK, n + 1 wait states, behind the last band RCC_REQUEST_ERROR.
+ */
+void Ut_Rcc_Set_FlashLatency_AllScales_BandLimits( void )
+{
+    const struct
+    {
+        uint32_t     Scale;
+        uint32_t     BandCnt;
+        rcc_FreqHz_t Limit[ 6u ];
+    }   scaleLut[] =
+    {
+        { LL_PWR_REGU_VOLTAGE_SCALE0, 6u, { 42000000u, 84000000u, 126000000u, 168000000u, 210000000u, 250000000u } },
+        { LL_PWR_REGU_VOLTAGE_SCALE1, 6u, { 34000000u, 68000000u, 102000000u, 136000000u, 170000000u, 200000000u } },
+        { LL_PWR_REGU_VOLTAGE_SCALE2, 5u, { 30000000u, 60000000u,  90000000u, 120000000u, 150000000u,         0u } },
+        { LL_PWR_REGU_VOLTAGE_SCALE3, 5u, { 20000000u, 40000000u,  60000000u,  80000000u, 100000000u,         0u } },
+    };
+    const uint32_t latencyLut[ 6u ] =
+    {
+        LL_FLASH_LATENCY_0, LL_FLASH_LATENCY_1, LL_FLASH_LATENCY_2, LL_FLASH_LATENCY_3, LL_FLASH_LATENCY_4, LL_FLASH_LATENCY_5
+    };
+    rcc_ConfigStruct_t config;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    config.SystemClockSource = RCC_SYSTEM_CLOCK_SOURCE_HSE;
+
+    for( uint32_t scaleIdx = 0u; ( sizeof( scaleLut ) / sizeof( scaleLut[ 0u ] ) ) > scaleIdx; scaleIdx++ )
+    {
+        PWR->VOSCR = scaleLut[ scaleIdx ].Scale;
+
+        for( uint32_t band = 0u; scaleLut[ scaleIdx ].BandCnt > band; band++ )
+        {
+            config.HSE_Frequency_Hz = scaleLut[ scaleIdx ].Limit[ band ];
+            TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_FlashLatency( &config ) );
+            TEST_ASSERT_EQUAL_HEX32_MESSAGE( latencyLut[ band ], LL_FLASH_GetLatency(), "Upper limit of the band" );
+
+            config.HSE_Frequency_Hz = scaleLut[ scaleIdx ].Limit[ band ] + 1u;
+
+            if( ( scaleLut[ scaleIdx ].BandCnt - 1u ) > band )
+            {
+                TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_FlashLatency( &config ) );
+                TEST_ASSERT_EQUAL_HEX32_MESSAGE( latencyLut[ band + 1u ], LL_FLASH_GetLatency(), "Limit + 1 Hz" );
+            }
+            else
+            {
+                TEST_ASSERT_EQUAL_MESSAGE( RCC_REQUEST_ERROR, Rcc_Set_FlashLatency( &config ), "Behind the last band" );
+            }
+        }
+    }
+}
+
 /* ================================= PLL ==================================== */
 
 /**
