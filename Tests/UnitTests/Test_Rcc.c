@@ -159,19 +159,40 @@ static const utRcc_PeriphRegs_t utRcc_PeriphRegs[] =
 /** Clock enable registers of all register banks */
 static volatile uint32_t * const utRcc_EnableRegs[] =
 {
-    &RCC->AHB1ENR, &RCC->AHB2ENR, &RCC->AHB3ENR, &RCC->APB1ENR, &RCC->APB2ENR, &RCC->BDCR
+    &RCC->AHB1ENR,
+#if defined(RCC_AHB2_SUPPORT)
+    &RCC->AHB2ENR,
+#endif /* RCC_AHB2_SUPPORT */
+#if defined(RCC_AHB3_SUPPORT)
+    &RCC->AHB3ENR,
+#endif /* RCC_AHB3_SUPPORT */
+    &RCC->APB1ENR, &RCC->APB2ENR, &RCC->BDCR
 };
 
 /** Reset registers of all register banks */
 static volatile uint32_t * const utRcc_ResetRegs[] =
 {
-    &RCC->AHB1RSTR, &RCC->AHB2RSTR, &RCC->AHB3RSTR, &RCC->APB1RSTR, &RCC->APB2RSTR
+    &RCC->AHB1RSTR,
+#if defined(RCC_AHB2_SUPPORT)
+    &RCC->AHB2RSTR,
+#endif /* RCC_AHB2_SUPPORT */
+#if defined(RCC_AHB3_SUPPORT)
+    &RCC->AHB3RSTR,
+#endif /* RCC_AHB3_SUPPORT */
+    &RCC->APB1RSTR, &RCC->APB2RSTR
 };
 
 /** Clock enable in sleep mode registers of all register banks */
 static volatile uint32_t * const utRcc_SleepRegs[] =
 {
-    &RCC->AHB1LPENR, &RCC->AHB2LPENR, &RCC->AHB3LPENR, &RCC->APB1LPENR, &RCC->APB2LPENR
+    &RCC->AHB1LPENR,
+#if defined(RCC_AHB2_SUPPORT)
+    &RCC->AHB2LPENR,
+#endif /* RCC_AHB2_SUPPORT */
+#if defined(RCC_AHB3_SUPPORT)
+    &RCC->AHB3LPENR,
+#endif /* RCC_AHB3_SUPPORT */
+    &RCC->APB1LPENR, &RCC->APB2LPENR
 };
 
 /* ============================ TEST FIXTURE ================================ */
@@ -1964,7 +1985,6 @@ void Ut_Rcc_Set_PllsSource_NoPllActive_WritesPllsrc( void )
 }
 
 
-#if defined(RCC_CR_PLLI2SON)
 /**
  * \brief   Common PLL source can not be changed while other PLL is active.
  *
@@ -1975,13 +1995,16 @@ void Ut_Rcc_Set_PllsSource_NoPllActive_WritesPllsrc( void )
  */
 void Ut_Rcc_Set_PllsSource_OtherPllActive_ReturnsError( void )
 {
+#if defined(RCC_CR_PLLI2SON)
     RCC->CR = RCC_CR_PLLI2SON | RCC_CR_PLLI2SRDY;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_PllsSource( RCC_PLL_MAIN, RCC_PLL_SRC_HSE ) );
 
     TEST_ASSERT_EQUAL_HEX32( RCC_PLLCFGR_PLLSRC_HSI, RCC->PLLCFGR & RCC_PLLCFGR_PLLSRC );
-}
+#else
+    TEST_IGNORE_MESSAGE( "MCU without PLLI2S" );
 #endif /* RCC_CR_PLLI2SON */
+}
 
 /* ============================== OSCILLATORS =============================== */
 
