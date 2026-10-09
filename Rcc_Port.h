@@ -2,7 +2,7 @@
  * \author Mr.Nobody
  * \file Rcc_Port.h
  * \ingroup Rcc
- * \brief Rcc module public functionality
+ * \brief Reset and Clock Control (RCC) module public functionality
  *
  * This file contains all available public functionality, any other files shall 
  * not used outside of the module.
@@ -43,6 +43,7 @@ rcc_RequestState_t          Rcc_Set_PeriphInactive      ( rcc_PeriphId_t periphI
 rcc_RequestState_t          Rcc_Get_PeriphState         ( rcc_PeriphId_t periphId, rcc_FunctionState_t * const funcState );
 
 rcc_RequestState_t          Rcc_Get_PeriphClk           ( rcc_PeriphId_t periphId, rcc_FreqHz_t * const periphClk );
+rcc_RequestState_t          Rcc_Get_PeriphClkSrc        ( rcc_PeriphId_t periphId, rcc_PeriphId_t * const periphClkSrc );
 
 rcc_RequestState_t          Rcc_Set_ResetActive         ( rcc_PeriphId_t periphId );
 rcc_RequestState_t          Rcc_Set_ResetInactive       ( rcc_PeriphId_t periphId );
@@ -72,63 +73,36 @@ rcc_RequestState_t          Rcc_Get_PllClk_OutR         ( rcc_PllId_t pllId, rcc
 
 /*------------------------ Clock sources configuration -----------------------*/
 
-rcc_RequestState_t          Rcc_Set_HseActive           ( rcc_HseType_t hseType );
-rcc_RequestState_t          Rcc_Set_HseInactive         ( void );
-rcc_RequestState_t          Rcc_Get_HseState            ( rcc_FunctionState_t * const retState );
-rcc_RequestState_t          Rcc_Set_HseClk              ( rcc_FreqHz_t hseFreq );
-rcc_RequestState_t          Rcc_Get_HseClk              ( rcc_FreqHz_t * const hseFreq );
+rcc_RequestState_t          Rcc_Set_OscActive           ( rcc_OscId_t oscId );
+rcc_RequestState_t          Rcc_Set_OscInactive         ( rcc_OscId_t oscId );
+rcc_RequestState_t          Rcc_Get_OscState            ( rcc_OscId_t oscId, rcc_FunctionState_t * const retState );
 
-rcc_RequestState_t          Rcc_Set_Hsi16Active         ( void );
-rcc_RequestState_t          Rcc_Set_Hsi16Inactive       ( void );
-rcc_RequestState_t          Rcc_Get_Hsi16State          ( rcc_FunctionState_t * const retState );
-rcc_RequestState_t          Rcc_Get_Hsi16Clk            ( rcc_FreqHz_t * const hsiClk );
+rcc_RequestState_t          Rcc_Set_OscDiv              ( rcc_OscId_t oscId, rcc_OscDiv_t oscDiv );
+rcc_RequestState_t          Rcc_Get_OscDiv              ( rcc_OscId_t oscId, rcc_OscDiv_t * const oscDiv );
 
-rcc_RequestState_t          Rcc_Set_Hsi48Active         ( void );
-rcc_RequestState_t          Rcc_Set_Hsi48Inactive       ( void );
-rcc_RequestState_t          Rcc_Get_Hsi48State          ( rcc_FunctionState_t * const retState );
-rcc_RequestState_t          Rcc_Get_Hsi48Clk            ( rcc_FreqHz_t * const hsiClk );
+/*---------------------------- Power supply validity -------------------------*/
 
-rcc_RequestState_t          Rcc_Set_MsisActive          ( rcc_MsisOutId_t msisId, rcc_MsisClkFreq_t clkFreq );
-rcc_RequestState_t          Rcc_Set_MsisInactive        ( rcc_MsisOutId_t msisId );
-rcc_RequestState_t          Rcc_Get_MsisState           ( rcc_MsisOutId_t msisId, rcc_FunctionState_t * const retState );
-rcc_RequestState_t          Rcc_Get_MsisClk             ( rcc_MsisOutId_t msisId, rcc_FreqHz_t * const msiClk );
+rcc_RequestState_t          Rcc_Set_PwrSupplyActive     ( rcc_PwrSupplyId_t supplyId );
+rcc_RequestState_t          Rcc_Set_PwrSupplyInactive   ( rcc_PwrSupplyId_t supplyId );
+rcc_RequestState_t          Rcc_Get_PwrSupplyState      ( rcc_PwrSupplyId_t supplyId, rcc_FunctionState_t * const retState );
+
+/*------------------------ HSI48 automatic trimming (CRS) --------------------*/
+
+rcc_RequestState_t          Rcc_Set_Hsi48TrimActive     ( rcc_Hsi48TrimSrc_t trimSource );
+rcc_RequestState_t          Rcc_Set_Hsi48TrimInactive   ( void );
+rcc_RequestState_t          Rcc_Get_Hsi48TrimState      ( rcc_FunctionState_t * const retState );
 
 /*----------------------- Low Speed Clock configuration ----------------------*/
-
-rcc_RequestState_t          Rcc_Set_LseActive           ( void );
-rcc_RequestState_t          Rcc_Set_LseInactive         ( void );
-rcc_RequestState_t          Rcc_Get_LseState            ( rcc_FunctionState_t * const retState );
-rcc_RequestState_t          Rcc_Get_LseClk              ( rcc_FreqHz_t * const lseClk );
-
-rcc_RequestState_t          Rcc_Set_LsiActive           ( void );
-rcc_RequestState_t          Rcc_Set_LsiInactive         ( void );
-rcc_RequestState_t          Rcc_Get_LsiState            ( rcc_FunctionState_t * const retState );
-rcc_RequestState_t          Rcc_Get_LsiClk              ( rcc_FreqHz_t * const lsiClk );
 
 rcc_RequestState_t          Rcc_Set_RtcClkSource        ( rcc_Rtc_ClkSource_t clkSource );
 rcc_RequestState_t          Rcc_Get_RtcClkSource        ( rcc_Rtc_ClkSource_t * const clkSource );
 
 /*------------------------- Clock buses configuration ------------------------*/
 
-rcc_RequestState_t          Rcc_Set_SysClkSource        ( rcc_SystemClkSrc_t systemClkSource );
-rcc_RequestState_t          Rcc_Get_SysClkSource        ( rcc_SystemClkSrc_t * const systemClkSource );
-rcc_RequestState_t          Rcc_Get_SysClk              ( rcc_FreqHz_t * const busClk );
+rcc_RequestState_t          Rcc_Set_ClkBusDivider       ( rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv_t clkBusDivider );
+rcc_RequestState_t          Rcc_Get_ClkBusDivider       ( rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv_t * const clkBusDivider );
+rcc_RequestState_t          Rcc_Get_ClkBusClk           ( rcc_ClkBusId_t clkBusId, rcc_FreqHz_t * const clkBusFreq );
 
-rcc_RequestState_t          Rcc_Set_AHBDivider          ( rcc_AHB_Div_t dividerId );
-rcc_RequestState_t          Rcc_Get_AHBDivider          ( rcc_AHB_Div_t * const dividerId );
-rcc_RequestState_t          Rcc_Get_AHBClk              ( rcc_FreqHz_t * const busClk );
-
-rcc_RequestState_t          Rcc_Set_APB1Divider         ( rcc_APB1_Div_t dividerId );
-rcc_RequestState_t          Rcc_Get_APB1Divider         ( rcc_APB1_Div_t * const dividerId );
-rcc_RequestState_t          Rcc_Get_APB1Clk             ( rcc_FreqHz_t * const busClk );
-
-rcc_RequestState_t          Rcc_Set_APB2Divider         ( rcc_APB2_Div_t dividerId );
-rcc_RequestState_t          Rcc_Get_APB2Divider         ( rcc_APB2_Div_t * const dividerId );
-rcc_RequestState_t          Rcc_Get_APB2Clk             ( rcc_FreqHz_t * const busClk );
-
-rcc_RequestState_t          Rcc_Set_APB3Divider         ( rcc_APB3_Div_t dividerId );
-rcc_RequestState_t          Rcc_Get_APB3Divider         ( rcc_APB3_Div_t * const dividerId );
-rcc_RequestState_t          Rcc_Get_APB3Clk             ( rcc_FreqHz_t * const busClk );
 
 rcc_RequestState_t          Rcc_Set_PwrRange            ( rcc_ConfigStruct_t * const clockConfig );
 
@@ -142,11 +116,16 @@ rcc_RequestState_t          Rcc_Get_SysTickInterval     ( rcc_Time_ms_t * const 
 
 /*----------------------- Clock outputs configuration ------------------------*/
 
-rcc_RequestState_t          Rcc_Set_McoClockSource      ( rcc_Mco_ClkSource_t clkSource );
-rcc_RequestState_t          Rcc_Get_McoClockSource      ( rcc_Mco_ClkSource_t * const clkSource );
+rcc_RequestState_t          Rcc_Set_ClkOutSource      ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Source_t clkSource );
+rcc_RequestState_t          Rcc_Get_ClkOutSource      ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Source_t * const clkSource );
 
-rcc_RequestState_t          Rcc_Set_McoClockDivider     ( rcc_Mco_Divider_t clkDivider );
-rcc_RequestState_t          Rcc_Get_McoClockDivider     ( rcc_Mco_Divider_t * const clkDivider );
+rcc_RequestState_t          Rcc_Set_ClkOutDivider     ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t clkDivider );
+rcc_RequestState_t          Rcc_Get_ClkOutDivider     ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t * const clkDivider );
+
+/*--------------------------- Reset source flags -----------------------------*/
+
+rcc_RequestState_t          Rcc_Get_ResetSource       ( rcc_ResetSrc_t resetSrc, rcc_FlagState_t * const flagState );
+rcc_RequestState_t          Rcc_Set_ResetSourceClear  ( void );
 
 
 #ifdef __cplusplus

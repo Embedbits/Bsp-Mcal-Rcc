@@ -19,19 +19,25 @@ set( Rcc_PrivateIncludeDirs
 # Source files list for current library generation
 set( Rcc_SourceFiles
     Rcc.c
+    Rcc_ClkBus.c
+    Rcc_ClkMux.c
+    Rcc_ClkOut.c
+    Rcc_ClkSrc.c
+    Rcc_Pll.c
+    Rcc_Reg.c
 )
 
 
 # List of public header files provided by the current library
 set( Rcc_PublicHeaders 
     Rcc_Types.h
-    Rcc_Port.h 
+    Rcc_Port.h
 )
 
 
 # List of dependent libraries that are publicly used by the current library
 set( Rcc_PublicDependentLibs
-    Ral_Lib 
+    Ral_Lib
 )
 
 
@@ -80,10 +86,9 @@ target_include_directories( Rcc_Lib
     PUBLIC
         $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
         $<INSTALL_INTERFACE:include>
-        Rcc_PublicIncludeDirs
+        ${Rcc_PublicIncludeDirs}
     PRIVATE
-        ${Rcc_IncludeDirs}
-        Rcc_PrivateIncludeDirs
+        ${Rcc_PrivateIncludeDirs}
 )
 
 
@@ -93,4 +98,14 @@ message(STATUS "Rcc_Lib library created")
 #========================= Documentation configuration ========================#
 if(DOXYGEN_AVAILABLE STREQUAL "ON")
     Doxygen_AddPath("${CMAKE_CURRENT_SOURCE_DIR}/")
+endif()
+
+#========================= Unit tests configuration ===========================#
+if(UNIT_TESTING_AVAILABLE STREQUAL "ON")
+    UnitTesting_AddPath("${CMAKE_CURRENT_SOURCE_DIR}/Tests/UnitTests")
+endif()
+
+#===================== Integration tests configuration ========================#
+if(INTEGRATION_TESTING_AVAILABLE STREQUAL "ON")
+    IntegrationTesting_AddPath("${CMAKE_CURRENT_SOURCE_DIR}/Tests/IntegrationTests")
 endif()
