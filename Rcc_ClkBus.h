@@ -44,6 +44,10 @@ rcc_RequestState_t          Rcc_ClkBus_Set_APB2Divider  ( rcc_APB2_Div_t divider
 rcc_RequestState_t          Rcc_ClkBus_Get_APB2Divider  ( rcc_APB2_Div_t * const dividerId );
 rcc_RequestState_t          Rcc_ClkBus_Get_APB2Clk      ( rcc_FreqHz_t * const busClk );
 
+rcc_RequestState_t          Rcc_ClkBus_Get_APB1TimClk   ( rcc_FreqHz_t * const timClk );
+rcc_RequestState_t          Rcc_ClkBus_Get_APB2TimClk   ( rcc_FreqHz_t * const timClk );
+
+
 #ifdef __cplusplus
 }
 #endif

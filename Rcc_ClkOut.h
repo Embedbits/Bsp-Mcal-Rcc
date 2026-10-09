@@ -30,8 +30,6 @@ rcc_RequestState_t          Rcc_ClkOut_Get_ClockSource  ( rcc_ClkOut_Id_t outId,
 rcc_RequestState_t          Rcc_ClkOut_Set_ClockDivider ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t clkDivider );
 rcc_RequestState_t          Rcc_ClkOut_Get_ClockDivider ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t * const clkDivider );
 
-rcc_RequestState_t          Rcc_ClkOut_Set_ClockPin     ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Pin_t pinId );
-
 #ifdef __cplusplus
 }
 #endif

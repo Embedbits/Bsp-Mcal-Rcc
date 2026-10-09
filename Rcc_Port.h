@@ -43,6 +43,7 @@ rcc_RequestState_t          Rcc_Set_PeriphInactive      ( rcc_PeriphId_t periphI
 rcc_RequestState_t          Rcc_Get_PeriphState         ( rcc_PeriphId_t periphId, rcc_FunctionState_t * const funcState );
 
 rcc_RequestState_t          Rcc_Get_PeriphClk           ( rcc_PeriphId_t periphId, rcc_FreqHz_t * const periphClk );
+rcc_RequestState_t          Rcc_Get_PeriphClkSrc        ( rcc_PeriphId_t periphId, rcc_PeriphId_t * const periphClkSrc );
 
 rcc_RequestState_t          Rcc_Set_ResetActive         ( rcc_PeriphId_t periphId );
 rcc_RequestState_t          Rcc_Set_ResetInactive       ( rcc_PeriphId_t periphId );
@@ -61,7 +62,7 @@ rcc_RequestState_t          Rcc_Get_PllInternalClk      ( rcc_PllId_t pllId, rcc
 
 rcc_RequestState_t          Rcc_Set_PllActive           ( rcc_PllId_t pllId );
 rcc_RequestState_t          Rcc_Set_PllInactive         ( rcc_PllId_t pllId );
-rcc_RequestState_t          Rcc_Get_PllState            ( rcc_PllId_t pllId, rcc_FunctionState_t * const pllRetState );
+rcc_RequestState_t          Rcc_Get_PllState            ( rcc_PllId_t pllId, rcc_FunctionState_t * const retState );
 
 rcc_RequestState_t          Rcc_Set_PllsSource          ( rcc_PllId_t pllId, rcc_PllClkSrc_t clkSource );
 rcc_RequestState_t          Rcc_Get_PllsSource          ( rcc_PllId_t pllId, rcc_PllClkSrc_t * const clkSource );
@@ -74,7 +75,7 @@ rcc_RequestState_t          Rcc_Get_PllClk_OutR         ( rcc_PllId_t pllId, rcc
 
 rcc_RequestState_t          Rcc_Set_OscActive           ( rcc_OscId_t oscId );
 rcc_RequestState_t          Rcc_Set_OscInactive         ( rcc_OscId_t oscId );
-rcc_RequestState_t          Rcc_Get_OscState            ( rcc_OscId_t oscId, rcc_FunctionState_t * const oscRetState );
+rcc_RequestState_t          Rcc_Get_OscState            ( rcc_OscId_t oscId, rcc_FunctionState_t * const retState );
 
 rcc_RequestState_t          Rcc_Set_OscDiv              ( rcc_OscId_t oscId, rcc_OscDiv_t oscDiv );
 rcc_RequestState_t          Rcc_Get_OscDiv              ( rcc_OscId_t oscId, rcc_OscDiv_t * const oscDiv );
@@ -88,13 +89,12 @@ rcc_RequestState_t          Rcc_Get_RtcClkSource        ( rcc_Rtc_ClkSource_t * 
 
 rcc_RequestState_t          Rcc_Set_ClkBusDivider       ( rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv_t clkBusDivider );
 rcc_RequestState_t          Rcc_Get_ClkBusDivider       ( rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv_t * const clkBusDivider );
+rcc_RequestState_t          Rcc_Get_ClkBusClk           ( rcc_ClkBusId_t clkBusId, rcc_FreqHz_t * const clkBusFreq );
 
-rcc_RequestState_t          Rcc_Get_ClkFreq             ( rcc_ClkSrcId_t clkId, rcc_FreqHz_t * const clkBusFreq );
 
-rcc_RequestState_t          Rcc_Set_PwrRange            ( rcc_PwrVoltageScale_t voltageScale );
+rcc_RequestState_t          Rcc_Set_PwrRange            ( rcc_ConfigStruct_t * const clockConfig );
 
-rcc_RequestState_t          Rcc_Get_ExpectedFlashLatency( rcc_FreqHz_t hclkClk, rcc_FlashLatency_t * const retLatency );
-rcc_RequestState_t          Rcc_Set_FlashLatency        ( rcc_FlashLatency_t flashLatency );
+rcc_RequestState_t          Rcc_Set_FlashLatency        ( rcc_ConfigStruct_t * const clockConfig );
 
 rcc_RequestState_t          Rcc_Set_FlashPrefetchActive ( void );
 rcc_RequestState_t          Rcc_Set_FlashPrefetchInactive( void );
@@ -104,13 +104,18 @@ rcc_RequestState_t          Rcc_Get_SysTickInterval     ( rcc_Time_ms_t * const 
 
 /*----------------------- Clock outputs configuration ------------------------*/
 
-rcc_RequestState_t          Rcc_Set_ClkOutSource        ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Source_t clkSource );
-rcc_RequestState_t          Rcc_Get_ClkOutSource        ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Source_t * const clkSource );
+rcc_RequestState_t          Rcc_Set_ClkOutSource      ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Source_t clkSource );
+rcc_RequestState_t          Rcc_Get_ClkOutSource      ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Source_t * const clkSource );
 
-rcc_RequestState_t          Rcc_Set_ClkOutDivider       ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t clkDivider );
-rcc_RequestState_t          Rcc_Get_ClkOutDivider       ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t * const clkDivider );
+rcc_RequestState_t          Rcc_Set_ClkOutDivider     ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t clkDivider );
+rcc_RequestState_t          Rcc_Get_ClkOutDivider     ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t * const clkDivider );
 
-rcc_RequestState_t          Rcc_Set_ClkOutPin           ( rcc_ClkOut_Id_t outId, rcc_ClkOut_Pin_t clkOutPin );
+/*--------------------------- Reset source flags -----------------------------*/
+
+rcc_RequestState_t          Rcc_Get_ResetSource       ( rcc_ResetSrc_t resetSrc, rcc_FlagState_t * const flagState );
+rcc_RequestState_t          Rcc_Set_ResetSourceClear  ( void );
+
+
 #ifdef __cplusplus
 }
 #endif

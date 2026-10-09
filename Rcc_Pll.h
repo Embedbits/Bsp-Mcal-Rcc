@@ -39,13 +39,13 @@ rcc_RequestState_t          Rcc_Pll_Get_State           ( rcc_PllId_t pllId, rcc
 rcc_RequestState_t          Rcc_Pll_Set_Source          ( rcc_PllId_t pllId, rcc_PllClkSrc_t clkSource );
 rcc_RequestState_t          Rcc_Pll_Get_Source          ( rcc_PllId_t pllId, rcc_PllClkSrc_t * const clkSource );
 
-rcc_RequestState_t          Rcc_Pll_Set_OutP            ( rcc_PllId_t pllId, rcc_PllPDiv_t divider );
+rcc_RequestState_t          Rcc_Pll_Set_OutP            ( rcc_PllId_t pllId, rcc_PllPDivider_t divider );
 rcc_RequestState_t          Rcc_Pll_Get_Clk_OutP        ( rcc_PllId_t pllId, rcc_FreqHz_t * const pllClk );
 
-rcc_RequestState_t          Rcc_Pll_Set_OutQ            ( rcc_PllId_t pllId, rcc_PllQDiv_t divider );
+rcc_RequestState_t          Rcc_Pll_Set_OutQ            ( rcc_PllId_t pllId, rcc_PllQDivider_t divider );
 rcc_RequestState_t          Rcc_Pll_Get_Clk_OutQ        ( rcc_PllId_t pllId, rcc_FreqHz_t * const pllClk );
 
-rcc_RequestState_t          Rcc_Pll_Set_OutR            ( rcc_PllId_t pllId, rcc_PllRDiv_t divider );
+rcc_RequestState_t          Rcc_Pll_Set_OutR            ( rcc_PllId_t pllId, rcc_PllRDivider_t divider );
 rcc_RequestState_t          Rcc_Pll_Get_Clk_OutR        ( rcc_PllId_t pllId, rcc_FreqHz_t * const pllClk );
 
 /*----------------------- Low Speed Clock configuration ----------------------*/

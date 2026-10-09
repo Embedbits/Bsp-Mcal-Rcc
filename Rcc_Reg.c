@@ -1,8 +1,12 @@
 /**
  * \author Mr.Nobody
- * \file Rcc_Reg.h
+ * \file Rcc_Reg.c
  * \ingroup Rcc
  * \brief Rcc module Reg component functionality.
+ *
+ * \note Backup domain control register (BDCR) is write protected after reset
+ *       (PWR_CR1 DBP bit). Every write access to \ref RCC_REG_BDCR releases the
+ *       write protection first (PWR interface clock and DBP bit are set).
  *
  */
 /* ============================== INCLUDES ================================== */
@@ -24,7 +28,12 @@ typedef struct
 
 /* ======================== FORWARD DECLARATIONS ============================ */
 
+static void Rcc_Reg_Set_BkUpAccess( rcc_RegId_t regId );
+
 /* ========================== SYMBOLIC CONSTANTS ============================ */
+
+/** Maximal wait time for backup domain write access confirmation */
+#define RCC_REG_TIMEOUT_RAW                 ( 0x84FCB )
 
 /* =============================== MACROS =================================== */
 
@@ -37,40 +46,45 @@ typedef struct
  * This structure is used to store addresses of RCC registers.
  * It is used to reduce code size while referring to RCC registers.
  */
-const rcc_RegList_t                     rcc_RegList[ RCC_REG_CNT ] =
+const rcc_RegList_t                     rcc_RegList[] =
 {
-    { .RegId = RCC_REG_CR         , .RegAddr = &(RCC->CR        ) }, /**< RCC clock control register                                       */
-    { .RegId = RCC_REG_ICSCR      , .RegAddr = &(RCC->ICSCR     ) }, /**< RCC internal clock sources calibration register                  */
-    { .RegId = RCC_REG_CRRCR      , .RegAddr = &(RCC->CRRCR     ) }, /**< RCC Clock Recovery RC Register                                   */
-    { .RegId = RCC_REG_CFGR       , .RegAddr = &(RCC->CFGR      ) }, /**< RCC clock configuration register 1                               */
-    { .RegId = RCC_REG_PLLCFGR    , .RegAddr = &(RCC->PLLCFGR   ) }, /**< PLL1 Configuration Register                                      */
-    { .RegId = RCC_REG_CIER       , .RegAddr = &(RCC->CIER      ) }, /**< Clock Interrupt Enable Register                                  */
-    { .RegId = RCC_REG_CIFR       , .RegAddr = &(RCC->CIFR      ) }, /**< Clock Interrupt Flag Register                                    */
-    { .RegId = RCC_REG_CICR       , .RegAddr = &(RCC->CICR      ) }, /**< Clock Interrupt Clear Register                                   */
-    { .RegId = RCC_REG_AHB1RSTR   , .RegAddr = &(RCC->AHB1RSTR  ) }, /**< AHB1 Peripherals Reset Register                                  */
-    { .RegId = RCC_REG_AHB2RSTR   , .RegAddr = &(RCC->AHB2RSTR  ) }, /**< AHB2 Peripherals Reset Register 1                                */
-    { .RegId = RCC_REG_AHB3RSTR   , .RegAddr = &(RCC->AHB3RSTR  ) }, /**< AHB3 Peripherals Reset Register                                  */
-    { .RegId = RCC_REG_APB1RSTR1  , .RegAddr = &(RCC->APB1RSTR1 ) }, /**< APB1 Peripherals Reset Register 1                                */
-    { .RegId = RCC_REG_APB1RSTR2  , .RegAddr = &(RCC->APB1RSTR2 ) }, /**< APB1 Peripherals Reset Register 2                                */
-    { .RegId = RCC_REG_APB2RSTR   , .RegAddr = &(RCC->APB2RSTR  ) }, /**< APB2 Peripherals Reset Register                                  */
-    { .RegId = RCC_REG_AHB1ENR    , .RegAddr = &(RCC->AHB1ENR   ) }, /**< AHB1 Peripherals Clock Enable Register                           */
-    { .RegId = RCC_REG_AHB2ENR    , .RegAddr = &(RCC->AHB2ENR   ) }, /**< AHB2 Peripherals Clock Enable Register 1                         */
-    { .RegId = RCC_REG_AHB3ENR    , .RegAddr = &(RCC->AHB3ENR   ) }, /**< AHB3 Peripherals Clock Enable Register                           */
-    { .RegId = RCC_REG_APB1ENR1   , .RegAddr = &(RCC->APB1ENR1  ) }, /**< APB1 Peripherals Clock Enable Register 1                         */
-    { .RegId = RCC_REG_APB1ENR2   , .RegAddr = &(RCC->APB1ENR2  ) }, /**< APB1 Peripherals Clock Enable Register 2                         */
-    { .RegId = RCC_REG_APB2ENR    , .RegAddr = &(RCC->APB2ENR   ) }, /**< APB2 Peripherals Clock Enable Register                           */
-    { .RegId = RCC_REG_AHB1SMENR  , .RegAddr = &(RCC->AHB1SMENR ) }, /**< AHB1 Peripherals Clock Enable in Sleep and Stop Modes Register   */
-    { .RegId = RCC_REG_AHB2SMENR  , .RegAddr = &(RCC->AHB2SMENR ) }, /**< AHB2 Peripherals Clock Enable in Sleep and Stop Modes Register 1 */
-    { .RegId = RCC_REG_AHB3SMENR  , .RegAddr = &(RCC->AHB3SMENR ) }, /**< AHB3 Peripherals Clock Enable in Sleep and Stop Modes Register   */
-    { .RegId = RCC_REG_APB1SMENR1 , .RegAddr = &(RCC->APB1SMENR1) }, /**< APB1 Peripherals Clock Enable in Sleep and Stop Modes Register 1 */
-    { .RegId = RCC_REG_APB1SMENR2 , .RegAddr = &(RCC->APB1SMENR2) }, /**< APB1 Peripherals Clock Enable in Sleep and Stop Modes Register 2 */
-    { .RegId = RCC_REG_APB2SMENR  , .RegAddr = &(RCC->APB2SMENR ) }, /**< APB2 Peripherals Clock Enable in Sleep and Stop Modes Register 1 */
-    { .RegId = RCC_REG_CCIPR1     , .RegAddr = &(RCC->CCIPR     ) }, /**< IPs Clocks Configuration Register 1                              */
-    { .RegId = RCC_REG_CCIPR2     , .RegAddr = &(RCC->CCIPR2    ) }, /**< IPs Clocks Configuration Register 2                              */
-    { .RegId = RCC_REG_BDCR       , .RegAddr = &(RCC->BDCR      ) }, /**< Backup Domain Control Register                                   */
-    { .RegId = RCC_REG_CSR        , .RegAddr = &(RCC->CSR       ) }, /**< V33 Clock Control & Status Register                              */
-    { .RegId = RCC_REG_FLASH_ACR  , .RegAddr = &(FLASH->ACR     ) }  /**< Flash configuration register                                     */
+    { .RegId = RCC_REG_CR         , .RegAddr = &(RCC->CR        ) }, /**< RCC clock control register                                 */
+    { .RegId = RCC_REG_ICSCR      , .RegAddr = &(RCC->ICSCR     ) }, /**< RCC internal clock sources calibration register            */
+    { .RegId = RCC_REG_CFGR       , .RegAddr = &(RCC->CFGR      ) }, /**< RCC clock configuration register                           */
+    { .RegId = RCC_REG_PLLCFGR    , .RegAddr = &(RCC->PLLCFGR   ) }, /**< RCC PLL configuration register                             */
+    { .RegId = RCC_REG_CIER       , .RegAddr = &(RCC->CIER      ) }, /**< RCC clock interrupt enable register                        */
+    { .RegId = RCC_REG_CIFR       , .RegAddr = &(RCC->CIFR      ) }, /**< RCC clock interrupt flag register                          */
+    { .RegId = RCC_REG_CICR       , .RegAddr = &(RCC->CICR      ) }, /**< RCC clock interrupt clear register                         */
+    { .RegId = RCC_REG_AHB1RSTR   , .RegAddr = &(RCC->AHB1RSTR  ) }, /**< RCC AHB1 peripheral reset register                         */
+    { .RegId = RCC_REG_AHB2RSTR   , .RegAddr = &(RCC->AHB2RSTR  ) }, /**< RCC AHB2 peripheral reset register                         */
+    { .RegId = RCC_REG_AHB3RSTR   , .RegAddr = &(RCC->AHB3RSTR  ) }, /**< RCC AHB3 peripheral reset register                         */
+    { .RegId = RCC_REG_APB1RSTR1  , .RegAddr = &(RCC->APB1RSTR1 ) }, /**< RCC APB1 peripheral reset register 1                       */
+    { .RegId = RCC_REG_APB1RSTR2  , .RegAddr = &(RCC->APB1RSTR2 ) }, /**< RCC APB1 peripheral reset register 2                       */
+    { .RegId = RCC_REG_APB2RSTR   , .RegAddr = &(RCC->APB2RSTR  ) }, /**< RCC APB2 peripheral reset register                         */
+    { .RegId = RCC_REG_AHB1ENR    , .RegAddr = &(RCC->AHB1ENR   ) }, /**< RCC AHB1 peripheral clock enable register                  */
+    { .RegId = RCC_REG_AHB2ENR    , .RegAddr = &(RCC->AHB2ENR   ) }, /**< RCC AHB2 peripheral clock enable register                  */
+    { .RegId = RCC_REG_AHB3ENR    , .RegAddr = &(RCC->AHB3ENR   ) }, /**< RCC AHB3 peripheral clock enable register                  */
+    { .RegId = RCC_REG_APB1ENR1   , .RegAddr = &(RCC->APB1ENR1  ) }, /**< RCC APB1 peripheral clock enable register 1                */
+    { .RegId = RCC_REG_APB1ENR2   , .RegAddr = &(RCC->APB1ENR2  ) }, /**< RCC APB1 peripheral clock enable register 2                */
+    { .RegId = RCC_REG_APB2ENR    , .RegAddr = &(RCC->APB2ENR   ) }, /**< RCC APB2 peripheral clock enable register                  */
+    { .RegId = RCC_REG_AHB1SMENR  , .RegAddr = &(RCC->AHB1SMENR ) }, /**< RCC AHB1 peripheral clock enable in sleep / stop mode       */
+    { .RegId = RCC_REG_AHB2SMENR  , .RegAddr = &(RCC->AHB2SMENR ) }, /**< RCC AHB2 peripheral clock enable in sleep / stop mode       */
+    { .RegId = RCC_REG_AHB3SMENR  , .RegAddr = &(RCC->AHB3SMENR ) }, /**< RCC AHB3 peripheral clock enable in sleep / stop mode       */
+    { .RegId = RCC_REG_APB1SMENR1 , .RegAddr = &(RCC->APB1SMENR1) }, /**< RCC APB1 peripheral clock enable in sleep / stop mode 1     */
+    { .RegId = RCC_REG_APB1SMENR2 , .RegAddr = &(RCC->APB1SMENR2) }, /**< RCC APB1 peripheral clock enable in sleep / stop mode 2     */
+    { .RegId = RCC_REG_APB2SMENR  , .RegAddr = &(RCC->APB2SMENR ) }, /**< RCC APB2 peripheral clock enable in sleep / stop mode       */
+    { .RegId = RCC_REG_CCIPR      , .RegAddr = &(RCC->CCIPR     ) }, /**< RCC peripherals independent clock configuration register   */
+    { .RegId = RCC_REG_BDCR       , .RegAddr = &(RCC->BDCR      ) }, /**< RCC backup domain control register                         */
+    { .RegId = RCC_REG_CSR        , .RegAddr = &(RCC->CSR       ) }, /**< RCC clock control & status register                        */
+    { .RegId = RCC_REG_CRRCR      , .RegAddr = &(RCC->CRRCR     ) }, /**< RCC clock recovery RC register (HSI48)                     */
+    { .RegId = RCC_REG_CCIPR2     , .RegAddr = &(RCC->CCIPR2    ) }, /**< RCC peripherals independent clock configuration register 2 */
+    { .RegId = RCC_REG_FLASH_ACR  , .RegAddr = &(FLASH->ACR     ) }, /**< Flash access control register                              */
+    { .RegId = RCC_REG_PWR_CR1    , .RegAddr = &(PWR->CR1       ) }, /**< PWR power control register 1                               */
+    { .RegId = RCC_REG_PWR_CR5    , .RegAddr = &(PWR->CR5       ) }, /**< PWR power control register 5                               */
+    { .RegId = RCC_REG_PWR_SR2    , .RegAddr = &(PWR->SR2       ) }, /**< PWR power status register 2                                */
 };
+
+_Static_assert( (sizeof(rcc_RegList) / sizeof(rcc_RegList_t)) == RCC_REG_CNT, "Rcc_Reg: rcc_RegList has incorrect size." );
 
 /* ========================= EXPORTED FUNCTIONS ============================= */
 
@@ -79,21 +93,21 @@ const rcc_RegList_t                     rcc_RegList[ RCC_REG_CNT ] =
  */
 void Rcc_Reg_Init( void )
 {
-
+    return;
 }
 
 
 /**
  * \brief De-initializes module Rcc_Reg
  *
- * This function shall call every necessary sub-module de-initialization function 
- * and free all the resources allocated by the module. In case of failure, the 
- * function shall handle it by itself and shall not be transferred to AppMain 
+ * This function shall call every necessary sub-module de-initialization function
+ * and free all the resources allocated by the module. In case of failure, the
+ * function shall handle it by itself and shall not be transferred to AppMain
  * layer.
  */
 void Rcc_Reg_Deinit( void )
 {
-
+    return;
 }
 
 
@@ -101,12 +115,12 @@ void Rcc_Reg_Deinit( void )
  * \brief Main task of module Rcc_Reg
  *
  * This function shall be called in the main loop of the application or the task
- * scheduler. It shall be called periodically, depending on the module's 
+ * scheduler. It shall be called periodically, depending on the module's
  * requirements.
  */
 void Rcc_Reg_Task( void )
 {
-
+    return;
 }
 
 
@@ -120,6 +134,8 @@ void Rcc_Set_RegBit( rcc_RegId_t regId, uint32_t bitMask )
 {
     if( RCC_REG_CNT > regId )
     {
+        Rcc_Reg_Set_BkUpAccess( regId );
+
         *rcc_RegList[regId].RegAddr |= bitMask;
     }
 }
@@ -135,6 +151,8 @@ void Rcc_Reset_RegBit( rcc_RegId_t regId, uint32_t bitMask )
 {
     if( RCC_REG_CNT > regId )
     {
+        Rcc_Reg_Set_BkUpAccess( regId );
+
         *rcc_RegList[regId].RegAddr &= ~bitMask;
     }
 }
@@ -171,6 +189,8 @@ void Rcc_Set_RegVal( rcc_RegId_t regId, uint32_t regMask, uint32_t regValue )
 {
     if( RCC_REG_CNT > regId )
     {
+        Rcc_Reg_Set_BkUpAccess( regId );
+
         /* Set the register value with mask */
         *rcc_RegList[regId].RegAddr = ( ( *rcc_RegList[regId].RegAddr & ~regMask ) |
                                         ( regValue & regMask ) );
@@ -199,6 +219,57 @@ uint32_t Rcc_Get_RegVal( rcc_RegId_t regId, uint32_t regMask )
 }
 
 /* =========================== LOCAL FUNCTIONS ============================== */
+
+/**
+ * \brief Releases backup domain write protection before write to BDCR register.
+ *
+ * PWR interface clock is enabled and DBP bit is set (if not set yet). Other
+ * registers are not affected.
+ *
+ * \note The clock enable is read back before the first PWR access (clock is
+ *       effective after the enable register write is completed).
+ *
+ * \param regId [in]: ID of register to be written
+ */
+static void Rcc_Reg_Set_BkUpAccess( rcc_RegId_t regId )
+{
+    if( ( RCC_REG_BDCR == regId                                                 ) &&
+        ( 0u           == ( *rcc_RegList[ RCC_REG_PWR_CR1 ].RegAddr & PWR_CR1_DBP ) )    )
+    {
+        /* PWR registers are accessible only with enabled interface clock */
+        *rcc_RegList[ RCC_REG_APB1ENR1 ].RegAddr |= RCC_APB1ENR1_PWREN;
+
+        for( uint32_t iterationCnt = 0u; RCC_REG_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+        {
+            if( 0u != ( *rcc_RegList[ RCC_REG_APB1ENR1 ].RegAddr & RCC_APB1ENR1_PWREN ) )
+            {
+                break;
+            }
+            else
+            {
+                /* Clock enable not visible yet */
+            }
+        }
+
+        *rcc_RegList[ RCC_REG_PWR_CR1 ].RegAddr |= PWR_CR1_DBP;
+
+        for( uint32_t iterationCnt = 0u; RCC_REG_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+        {
+            if( 0u != ( *rcc_RegList[ RCC_REG_PWR_CR1 ].RegAddr & PWR_CR1_DBP ) )
+            {
+                break;
+            }
+            else
+            {
+                /* Write access not released yet */
+            }
+        }
+    }
+    else
+    {
+        /* Register is not write protected or protection already released */
+    }
+}
 
 /* =========================== INTERRUPT HANDLERS =========================== */
 

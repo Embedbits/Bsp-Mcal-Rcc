@@ -24,19 +24,21 @@ extern "C" {
 
 /* ======================== EXPORTED FUNCTIONS ============================== */
 
-rcc_RequestState_t          Rcc_ClkSrc_Set_HseConfig    ( rcc_HseType_t hseType, rcc_FreqHz_t clkFreq );
-
-rcc_RequestState_t          Rcc_ClkSrc_Set_HseActive    ( void );
+rcc_RequestState_t          Rcc_ClkSrc_Set_HseActive    ( rcc_HseType_t hseType );
 rcc_RequestState_t          Rcc_ClkSrc_Set_HseInactive  ( void );
 rcc_RequestState_t          Rcc_ClkSrc_Get_HseState     ( rcc_FunctionState_t * const retState );
-rcc_RequestState_t          Rcc_ClkSrc_Set_HseType      ( rcc_HseType_t hseType );
 rcc_RequestState_t          Rcc_ClkSrc_Set_HseClk       ( rcc_FreqHz_t clkFreq );
 rcc_RequestState_t          Rcc_ClkSrc_Get_HseClk       ( rcc_FreqHz_t * const clkFreq );
 
-rcc_RequestState_t          Rcc_ClkSrc_Set_Hsi16Active  ( void );
-rcc_RequestState_t          Rcc_ClkSrc_Set_Hsi16Inactive( void );
-rcc_RequestState_t          Rcc_ClkSrc_Get_Hsi16State   ( rcc_FunctionState_t * const retState );
-rcc_RequestState_t          Rcc_ClkSrc_Get_Hsi16Clk     ( rcc_FreqHz_t * const clkFreq );
+rcc_RequestState_t          Rcc_ClkSrc_Set_HseRtcDiv    ( rcc_Rtc_HseDiv_t hseDiv );
+rcc_RequestState_t          Rcc_ClkSrc_Set_HseRtcActive ( void );
+rcc_RequestState_t          Rcc_ClkSrc_Get_HseRtcDiv    ( rcc_Rtc_HseDiv_t * const hseDiv );
+rcc_RequestState_t          Rcc_ClkSrc_Get_HseRtcClk    ( rcc_FreqHz_t * const clkFreq );
+
+rcc_RequestState_t          Rcc_ClkSrc_Set_HsiActive    ( void );
+rcc_RequestState_t          Rcc_ClkSrc_Set_HsiInactive  ( void );
+rcc_RequestState_t          Rcc_ClkSrc_Get_HsiState     ( rcc_FunctionState_t * const retState );
+rcc_RequestState_t          Rcc_ClkSrc_Get_HsiClk       ( rcc_FreqHz_t * const clkFreq );
 
 rcc_RequestState_t          Rcc_ClkSrc_Set_Hsi48Active  ( void );
 rcc_RequestState_t          Rcc_ClkSrc_Set_Hsi48Inactive( void );
@@ -48,7 +50,6 @@ rcc_RequestState_t          Rcc_ClkSrc_Get_Hsi48Clk     ( rcc_FreqHz_t * const c
 rcc_RequestState_t          Rcc_ClkSrc_Set_LseActive    ( void );
 rcc_RequestState_t          Rcc_ClkSrc_Set_LseInactive  ( void );
 rcc_RequestState_t          Rcc_ClkSrc_Get_LseState     ( rcc_FunctionState_t * const retState );
-rcc_RequestState_t          Rcc_ClkSrc_Set_LseType      ( rcc_LseType_t lseType );
 rcc_RequestState_t          Rcc_ClkSrc_Get_LseClk       ( rcc_FreqHz_t * const lseClk );
 
 rcc_RequestState_t          Rcc_ClkSrc_Set_LsiActive    ( void );
