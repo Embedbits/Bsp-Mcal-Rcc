@@ -216,6 +216,9 @@ static rcc_RequestState_t  Rcc_Set_ClkSrcOscActive        ( rcc_ClkSrcId_t clkSr
 static rcc_FunctionState_t Rcc_Get_ClkMuxShared           ( rcc_PeriphId_t periphId );
 static rcc_RequestState_t  Rcc_Set_SysClkOscActive        ( rcc_SystemClkSrc_t systemClkSource );
 static rcc_RequestState_t  Rcc_Set_SupplyValid            ( rcc_BlockList_t blockId );
+static rcc_FunctionState_t Rcc_Get_RtcKernelClkUsed       ( rcc_PeriphId_t periphId );
+static rcc_RequestState_t  Rcc_Set_RtcKernelClkState      ( rcc_FunctionState_t clkState );
+static rcc_FunctionState_t Rcc_Get_RtcKernelClkState      ( void );
 
 static rcc_RequestState_t Rcc_Pll_Get_1_RClk( rcc_FreqHz_t * const clkFreq );
 static rcc_RequestState_t Rcc_Pll_Get_1_QClk( rcc_FreqHz_t * const clkFreq );
@@ -1333,6 +1336,9 @@ rcc_RequestState_t Rcc_Get_DefaultConfig( rcc_ConfigStruct_t * const clockConfig
  * enabled (VDDIO2 for port G, VDDA for ADC / DAC / COMP / OPAMP / VREFBUF,
  * VDDUSB for USB) - the supply must be present on the board.
  *
+ * RTC peripheral IDs (RCC_PERIPH_RTC_xxx) enable the RTC interface clock
+ * (RCC_APB3ENR.RTCAPBEN) and the RTC / TAMP kernel clock (RCC_BDCR.RTCEN).
+ *
  * \param periphId [in]: ID of required peripheral to activate clock source, value from \ref rcc_PeriphId_t
  *
  * \return State of request execution. Returns "OK" if request was success,
@@ -1421,6 +1427,19 @@ rcc_RequestState_t Rcc_Set_PeriphActive( rcc_PeriphId_t periphId )
         retState = RCC_REQUEST_ERROR;
     }
 
+    const rcc_FunctionState_t rtcKernelClk = Rcc_Get_RtcKernelClkUsed( periphId );
+
+    if( ( RCC_REQUEST_OK      == retState     ) &&
+        ( RCC_FUNCTION_ACTIVE == rtcKernelClk )    )
+    {
+        /* RTC kernel clock enable (RCC_BDCR.RTCEN) after the RTC clock selection */
+        retState = Rcc_Set_RtcKernelClkState( RCC_FUNCTION_ACTIVE );
+    }
+    else
+    {
+        /* Previous step failed or peripheral without RTC kernel clock enable */
+    }
+
     return ( retState );
 }
 
@@ -1435,7 +1454,9 @@ rcc_RequestState_t Rcc_Set_PeriphActive( rcc_PeriphId_t periphId )
  * with another kernel clock later. RTC clock selection is kept (RTCSEL is write-once
  * until backup domain reset) and a multiplexer shared with another enabled
  * peripheral block (ADCDACSEL of ADC1 / ADC2, ADC4 and DAC1, LPTIM34SEL,
- * OCTOSPISEL) is kept.
+ * OCTOSPISEL) is kept. RTC peripheral IDs (RCC_PERIPH_RTC_xxx) disable the RTC / TAMP
+ * kernel clock (RCC_BDCR.RTCEN) first, the interface clock is disabled only if it
+ * succeeded.
  *
  * \param periphId [in]: ID of required peripheral to de-activate clock source, value from \ref rcc_PeriphId_t
  *
@@ -1454,7 +1475,24 @@ rcc_RequestState_t Rcc_Set_PeriphInactive( rcc_PeriphId_t periphId )
         const rcc_RegId_t     stateRegId = rcc_ClkBusConfigStruct[ clkBusId ].EnableRegId;
         const rcc_ClkMuxId_t  clkMuxId   = rcc_ConfigStruct[ periphId ].ClkMuxId;
 
-        if( RCC_UNSUPPORTED_FUNCTION != stateMask )
+        const rcc_FunctionState_t rtcKernelClk = Rcc_Get_RtcKernelClkUsed( periphId );
+
+        if( RCC_FUNCTION_ACTIVE == rtcKernelClk )
+        {
+            /* RTC kernel clock disable (RCC_BDCR.RTCEN) before the RTC interface clock */
+            retState = Rcc_Set_RtcKernelClkState( RCC_FUNCTION_INACTIVE );
+        }
+        else
+        {
+            /* Peripheral without RTC kernel clock enable */
+            retState = RCC_REQUEST_OK;
+        }
+
+        if( RCC_REQUEST_OK != retState )
+        {
+            /* RTC kernel clock disable failed, interface clock is kept */
+        }
+        else if( RCC_UNSUPPORTED_FUNCTION != stateMask )
         {
             Rcc_Reset_RegBit( stateRegId, stateMask );
 
@@ -1511,6 +1549,9 @@ rcc_RequestState_t Rcc_Set_PeriphInactive( rcc_PeriphId_t periphId )
 /**
  * \brief Reading state of peripheral clock activation
  *
+ * RTC peripheral IDs (RCC_PERIPH_RTC_xxx) are reported active only with enabled
+ * interface clock (RCC_APB3ENR.RTCAPBEN) and kernel clock (RCC_BDCR.RTCEN).
+ *
  * \param periphId   [in]: ID of required peripheral, value from \ref rcc_PeriphId_t
  * \param funcState [out]: Pointer to store state of peripheral activation. Must not be NULL.
  *
@@ -1546,6 +1587,19 @@ rcc_RequestState_t Rcc_Get_PeriphState( rcc_PeriphId_t periphId, rcc_FunctionSta
         {
             /* Peripheral without clock enable bit is always clocked */
             *funcState = RCC_FUNCTION_ACTIVE;
+        }
+
+        const rcc_FunctionState_t rtcKernelClk = Rcc_Get_RtcKernelClkUsed( periphId );
+
+        if( ( RCC_FUNCTION_ACTIVE == rtcKernelClk ) &&
+            ( RCC_FUNCTION_ACTIVE == *funcState   )    )
+        {
+            /* RTC is active only with enabled interface and kernel clock */
+            *funcState = Rcc_Get_RtcKernelClkState();
+        }
+        else
+        {
+            /* Peripheral without RTC kernel clock enable or interface clock disabled */
         }
 
         retState = RCC_REQUEST_OK;
@@ -3477,6 +3531,118 @@ static rcc_FunctionState_t Rcc_Get_ClkMuxShared( rcc_PeriphId_t periphId )
     }
 
     return ( sharedState );
+}
+
+
+/**
+ * \brief Checks if the peripheral uses the RTC / TAMP kernel clock enable (RCC_BDCR.RTCEN).
+ *
+ * Only RTC peripheral IDs (RCC_PERIPH_RTC_xxx) control the RTC kernel clock.
+ *
+ * \param periphId [in]: ID of the peripheral
+ *
+ * \return Returns RCC_FUNCTION_ACTIVE for RTC peripheral IDs, otherwise returns
+ *         RCC_FUNCTION_INACTIVE.
+ */
+static rcc_FunctionState_t Rcc_Get_RtcKernelClkUsed( rcc_PeriphId_t periphId )
+{
+    rcc_FunctionState_t usedState = RCC_FUNCTION_INACTIVE;
+
+    if( ( RCC_PERIPH_RTC_LSE       == periphId ) ||
+        ( RCC_PERIPH_RTC_LSI       == periphId ) ||
+        ( RCC_PERIPH_RTC_HSE_DIV32 == periphId )    )
+    {
+        usedState = RCC_FUNCTION_ACTIVE;
+    }
+    else
+    {
+        /* Peripheral without RTC kernel clock enable */
+    }
+
+    return ( usedState );
+}
+
+
+/**
+ * \brief Enables or disables the RTC / TAMP kernel clock (RCC_BDCR.RTCEN).
+ *
+ * RCC_BDCR is in the write protected backup domain, the write access is released
+ * (PWR_DBPR.DBP) before the write. Written value is verified by read-back.
+ *
+ * \param clkState [in]: Required state of the RTC kernel clock
+ *
+ * \return Returns "OK" if RCC_BDCR.RTCEN reached the required state, otherwise
+ *         returns error.
+ */
+static rcc_RequestState_t Rcc_Set_RtcKernelClkState( rcc_FunctionState_t clkState )
+{
+    rcc_RequestState_t retState      = Rcc_ClkSrc_Set_BkUpAccess();
+    uint32_t           requiredValue = RCC_FLAG_CLEARED;
+
+    if( RCC_REQUEST_OK != retState )
+    {
+        /* Backup domain write access not released */
+    }
+    else if( RCC_FUNCTION_ACTIVE == clkState )
+    {
+        Rcc_Set_RegBit( RCC_REG_BDCR, RCC_BDCR_RTCEN );
+        requiredValue = RCC_BDCR_RTCEN;
+    }
+    else
+    {
+        Rcc_Reset_RegBit( RCC_REG_BDCR, RCC_BDCR_RTCEN );
+        requiredValue = RCC_FLAG_CLEARED;
+    }
+
+    if( RCC_REQUEST_OK == retState )
+    {
+        retState = RCC_REQUEST_ERROR;
+
+        for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+        {
+            const uint32_t regValue = Rcc_Get_RegBit( RCC_REG_BDCR, RCC_BDCR_RTCEN );
+
+            if( requiredValue == regValue )
+            {
+                retState = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                retState = RCC_REQUEST_ERROR;
+            }
+        }
+    }
+    else
+    {
+        /* Backup domain write access not released */
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Reads the state of the RTC / TAMP kernel clock (RCC_BDCR.RTCEN).
+ *
+ * \return Returns RCC_FUNCTION_ACTIVE if RCC_BDCR.RTCEN is set, otherwise returns
+ *         RCC_FUNCTION_INACTIVE.
+ */
+static rcc_FunctionState_t Rcc_Get_RtcKernelClkState( void )
+{
+    rcc_FunctionState_t clkState = RCC_FUNCTION_INACTIVE;
+    const uint32_t      regValue = Rcc_Get_RegBit( RCC_REG_BDCR, RCC_BDCR_RTCEN );
+
+    if( RCC_FLAG_CLEARED == regValue )
+    {
+        clkState = RCC_FUNCTION_INACTIVE;
+    }
+    else
+    {
+        clkState = RCC_FUNCTION_ACTIVE;
+    }
+
+    return ( clkState );
 }
 
 

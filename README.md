@@ -100,6 +100,12 @@ LSE 32.768 kHz), the CRS clock and the HSI48 oscillator are activated by the fun
 
 RTC clock source can be selected once (changed only after backup domain reset).
 
+RTC peripheral IDs (`RCC_PERIPH_RTC_LSE`, `RCC_PERIPH_RTC_LSI`, `RCC_PERIPH_RTC_HSE_DIV32`) control the RTC
+interface clock (`RCC_APB3ENR.RTCAPBEN`) and the RTC / TAMP kernel clock (`RCC_BDCR.RTCEN`):
+`Rcc_Set_PeriphActive()` selects the RTC clock (`RTCSEL`) and enables both clocks,
+`Rcc_Set_PeriphInactive()` disables the kernel clock first and keeps `RTCSEL`, `Rcc_Get_PeriphState()`
+reports the RTC active only with both clocks enabled.
+
 ### Clock Bus Configuration
 - `rcc_RequestState_t Rcc_Set_ClkBusDivider(rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv_t clkBusDivider)`
 - `rcc_RequestState_t Rcc_Get_ClkBusDivider(rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv_t * const clkBusDivider)`

@@ -600,6 +600,90 @@ void Ut_Rcc_Set_PeriphInactive_Rtc_ClockSelectionKept( void )
 
 
 /**
+ * \brief   Rcc_Set_PeriphActive() enables the RTC kernel clock.
+ *
+ * \details RTC enabled with LSI clock from reset state, PWR_DBPR.DBP = 0 (bug AB#1561 -
+ *          RCC_BDCR.RTCEN was never written, RTC calendar did not run).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, PWR_DBPR.DBP set, APB3ENR.RTCAPBEN set, BDCR.RTCEN set,
+ *   BDCR.RTCSEL = LSI.
+ * - Rcc_Get_PeriphState() reports RCC_FUNCTION_ACTIVE.
+ */
+void Ut_Rcc_Set_PeriphActive_RtcLsi_KernelClockEnabled( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_INACTIVE;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_RTC_LSI ) );
+
+    TEST_ASSERT_BITS_HIGH( PWR_DBPR_DBP, PWR->DBPR );
+    TEST_ASSERT_BITS_HIGH( RCC_APB3ENR_RTCAPBEN, RCC->APB3ENR );
+    TEST_ASSERT_BITS_HIGH( RCC_BDCR_RTCEN, RCC->BDCR );
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_RTC_CLKSOURCE_LSI, RCC->BDCR & RCC_BDCR_RTCSEL );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSI, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
+}
+
+
+/**
+ * \brief   Rcc_Set_PeriphInactive() disables the RTC kernel clock.
+ *
+ * \details RTCSEL = LSE, RTCEN and RTCAPBEN preset, RTC with LSE source is deactivated
+ *          (bug AB#1561).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, BDCR.RTCEN and APB3ENR.RTCAPBEN cleared, RTCSEL stays LSE.
+ * - Rcc_Get_PeriphState() reports RCC_FUNCTION_INACTIVE.
+ */
+void Ut_Rcc_Set_PeriphInactive_RtcLse_KernelClockDisabled( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_ACTIVE;
+
+    RCC->BDCR    = RCC_BDCR_RTCSEL_0 | RCC_BDCR_RTCEN;  /* RTCSEL = LSE */
+    RCC->APB3ENR = RCC_APB3ENR_RTCAPBEN;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphInactive( RCC_PERIPH_RTC_LSE ) );
+
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_RTCEN, RCC->BDCR );
+    TEST_ASSERT_BITS_LOW( RCC_APB3ENR_RTCAPBEN, RCC->APB3ENR );
+    TEST_ASSERT_EQUAL_HEX32( RCC_BDCR_RTCSEL_0, RCC->BDCR & RCC_BDCR_RTCSEL );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSE, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+}
+
+
+/**
+ * \brief   Rcc_Get_PeriphState() reports RTC inactive without the kernel clock.
+ *
+ * \details APB3ENR.RTCAPBEN = 1 and BDCR.RTCEN = 0 preset (interface clock only), then
+ *          BDCR.RTCEN = 1 preset (bug AB#1561).
+ *
+ * \par Expected results
+ * - Interface clock only: RCC_REQUEST_OK, RCC_FUNCTION_INACTIVE.
+ * - Interface and kernel clock: RCC_REQUEST_OK, RCC_FUNCTION_ACTIVE.
+ */
+void Ut_Rcc_Get_PeriphState_Rtc_KernelClockRequired( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_ACTIVE;
+
+    RCC->APB3ENR = RCC_APB3ENR_RTCAPBEN;
+    RCC->BDCR    = 0u;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSE, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+
+    RCC->BDCR = RCC_BDCR_RTCEN;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSE, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
+}
+
+
+/**
  * \brief   Peripheral functions reject invalid arguments.
  *
  * \details Calls peripheral functions with ID out of range and NULL pointers.

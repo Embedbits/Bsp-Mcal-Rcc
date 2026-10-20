@@ -34,7 +34,7 @@
 #include "Gpio_Port.h"                      /* MCO pin level                  */
 #include "Tim_Port.h"                       /* Timer clocked from RCC         */
 #include "Stm32_pwr.h"                      /* Supply valid flags (PWR SVMCR) */
-#include "Stm32_rcc.h"                      /* LSCO disable (backup domain)   */
+#include "Stm32_rcc.h"                      /* LSCO disable, RTCEN (backup domain) */
 /* ============================= TYPEDEFS =================================== */
 
 /* ======================= FORWARD DECLARATIONS ============================= */
@@ -132,6 +132,53 @@ void It_Rcc_Set_PeriphActive_PeriphClock_StateReadBack( void )
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphInactive( IT_RCC_PERIPH ) );
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( IT_RCC_PERIPH, &state ) );
     TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+}
+
+/**
+ * \brief   RTC kernel clock on target is enabled and the RTC sub-second counter runs.
+ *
+ * \details Enables RTC with LSI clock (RTCSEL is kept in the backup domain over resets),
+ *          reads the state and waits until the RTC sub-second register (RTC_SSR,
+ *          decremented at LSI / 128 = 250 Hz with reset prescalers) changes. RTC registers
+ *          are read directly (no Rtc MCAL module yet), RTC_DR is read after RTC_SSR to
+ *          unlock the calendar shadow registers. Disables RTC and reads the state.
+ *          Bug AB#1561: RCC_BDCR.RTCEN was never set, the RTC counter did not run.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, state active after enabling, RCC_BDCR.RTCEN set.
+ * - RTC_SSR changes before timeout.
+ * - State inactive after disabling, RCC_BDCR.RTCEN cleared.
+ */
+void It_Rcc_Set_PeriphActive_RtcLsi_RtcCounterRuns( void )
+{
+    rcc_FunctionState_t state       = RCC_FUNCTION_INACTIVE;
+    uint32_t            startSubSec = 0u;
+    uint32_t            subSec      = 0u;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_RTC_LSI ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSI, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
+    TEST_ASSERT_BITS_HIGH( RCC_BDCR_RTCEN, RCC->BDCR );
+
+    startSubSec = RTC->SSR;
+    (void)RTC->DR;
+    subSec      = startSubSec;
+
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_WAIT_LOOPS > loopIdx ) &&
+         ( startSubSec == subSec );
+         loopIdx++ )
+    {
+        subSec = RTC->SSR;
+        (void)RTC->DR;
+    }
+
+    TEST_ASSERT_NOT_EQUAL_MESSAGE( startSubSec, subSec, "RTC sub-second counter does not run" );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphInactive( RCC_PERIPH_RTC_LSI ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSI, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_RTCEN, RCC->BDCR );
 }
 
 /**
