@@ -27,6 +27,7 @@
 #include "RegMem.h"                         /* Register memory emulation      */
 #include "Rcc_Port.h"                       /* Module under test              */
 #include "Rcc_ClkMux.h"                     /* Clock MUX internal API (table check) */
+#include "Rcc_ClkSrc.h"                     /* Clock sources internal API (LSE configuration) */
 #include "MockGpio_Port.h"                  /* GPIO module mock (MCO pins)    */
 #include "Stm32_rcc.h"                      /* RCC registers definition       */
 #include "Stm32_pwr.h"                      /* PWR registers definition       */
@@ -61,6 +62,9 @@ static void                 Ut_Rcc_Set_PllConfig    ( rcc_PllConfigStruct_t * co
 
 /** Count of milliseconds in one second */
 #define UT_RCC_MS_IN_SECOND                 ( 1000u )
+
+/** Maximal count of state reads until the HW model sets a ready flag */
+#define UT_RCC_STATE_READ_CNT               ( 10000000u )
 
 /** Interval too long for 24-bit SysTick reload at 64 MHz */
 #define UT_RCC_SYSTICK_TOO_LONG_MS          ( 1000u )
@@ -349,6 +353,9 @@ void setUp( void )
     /* Voltage scale of the reset - VOS3 (VOS low on STM32H7R / H7S) requested and active */
     UT_PWR_VOS_REG    = UT_PWR_VOS_RESET;
     UT_PWR_ACTVOS_REG = UT_PWR_VOS_RESET;
+
+    /* LSE configuration of previous test is replaced by default configuration */
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_ClkSrc_Set_LseConfig( RCC_LSE_TYPE_CRYSTAL, RCC_LSE_DRIVE_LOW ) );
 }
 
 
@@ -388,6 +395,7 @@ void Ut_Rcc_Get_ModuleVersion_ReturnsVersion( void )
  * - Supply configuration of the reset, voltage scale 3 (1 - VOS low on STM32H7R / H7S),
  *   all prescalers 1, PLL outputs S / T not used (STM32H7R / H7S).
  * - HSE frequency 8 MHz, clock outputs not used.
+ * - LSE crystal with lowest drive (reset value, bug AB#1565).
  * - NULL pointer: RCC_REQUEST_ERROR.
  */
 void Ut_Rcc_Get_DefaultConfig_ReturnsHsiWithoutPll( void )
@@ -400,6 +408,8 @@ void Ut_Rcc_Get_DefaultConfig_ReturnsHsiWithoutPll( void )
     TEST_ASSERT_EQUAL( RCC_PWR_SUPPLY_DEFAULT,      config.PowerSupply );
     TEST_ASSERT_EQUAL( UT_RCC_SCALE_RESET,          config.VoltageScaling );
     TEST_ASSERT_EQUAL( RCC_HSE_TYPE_NONE,           config.HSE_ClockType );
+    TEST_ASSERT_EQUAL( RCC_LSE_TYPE_CRYSTAL,        config.LSE_ClockType );
+    TEST_ASSERT_EQUAL( RCC_LSE_DRIVE_LOW,           config.LSE_Drive );
     TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE,       config.CSS_Enable );
     TEST_ASSERT_EQUAL( RCC_SYS_DIVIDER_1,           config.SYS_Divider );
     TEST_ASSERT_EQUAL( RCC_AHB_DIVIDER_1,           config.AHB_Divider );
@@ -858,6 +868,109 @@ void Ut_Rcc_Set_PeriphInactive_Rtc_ClockSelectionKept( void )
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphInactive( RCC_PERIPH_RTC_LSI ) );
     TEST_ASSERT_EQUAL_HEX32( LL_RCC_RTC_CLKSOURCE_LSI, RCC->BDCR & RCC_BDCR_RTCSEL );
+}
+
+
+/**
+ * \brief   RTC peripheral activation releases the backup domain write protection.
+ *
+ * \details PWR_CR1.DBP = 0 (reset state - RCC_BDCR is write protected on HW). HW model
+ *          sets oscillator ready flag. Enables RTC with LSI clock (RTCSEL written through
+ *          the clock multiplexer table, bug AB#1564).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, PWR_CR1.DBP set, RCC_BDCR.RTCSEL = LSI.
+ */
+void Ut_Rcc_Set_PeriphActive_RtcLsi_ReleasesBackupDomainWriteAccess( void )
+{
+    TEST_ASSERT_BITS_LOW( PWR_CR1_DBP, PWR->CR1 );
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_RTC_LSI ) );
+
+    TEST_ASSERT_BITS_HIGH( PWR_CR1_DBP, PWR->CR1 );
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_RTC_CLKSOURCE_LSI, RCC->BDCR & RCC_BDCR_RTCSEL );
+}
+
+
+/**
+ * \brief   Rcc_Set_PeriphActive() enables the RTC kernel clock.
+ *
+ * \details RTC enabled with LSI clock from reset state (bug AB#1562 - RCC_BDCR.RTCEN was
+ *          never written, RTC calendar did not run).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, APB4ENR.RTCAPBEN set, BDCR.RTCEN set, BDCR.RTCSEL = LSI.
+ * - Rcc_Get_PeriphState() reports RCC_FUNCTION_ACTIVE.
+ */
+void Ut_Rcc_Set_PeriphActive_RtcLsi_KernelClockEnabled( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_INACTIVE;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_RTC_LSI ) );
+
+    TEST_ASSERT_BITS_HIGH( RCC_APB4ENR_RTCAPBEN, RCC->APB4ENR );
+    TEST_ASSERT_BITS_HIGH( RCC_BDCR_RTCEN, RCC->BDCR );
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_RTC_CLKSOURCE_LSI, RCC->BDCR & RCC_BDCR_RTCSEL );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSI, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
+}
+
+
+/**
+ * \brief   Rcc_Set_PeriphInactive() disables the RTC kernel clock.
+ *
+ * \details RTC enabled with LSI clock, then disabled (bug AB#1562).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, BDCR.RTCEN and APB4ENR.RTCAPBEN cleared, BDCR.RTCSEL stays LSI.
+ * - Rcc_Get_PeriphState() reports RCC_FUNCTION_INACTIVE.
+ */
+void Ut_Rcc_Set_PeriphInactive_RtcLsi_KernelClockDisabled( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_ACTIVE;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_RTC_LSI ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphInactive( RCC_PERIPH_RTC_LSI ) );
+
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_RTCEN, RCC->BDCR );
+    TEST_ASSERT_BITS_LOW( RCC_APB4ENR_RTCAPBEN, RCC->APB4ENR );
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_RTC_CLKSOURCE_LSI, RCC->BDCR & RCC_BDCR_RTCSEL );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSI, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+}
+
+
+/**
+ * \brief   Rcc_Get_PeriphState() reports RTC inactive without the kernel clock.
+ *
+ * \details APB4ENR.RTCAPBEN = 1 and BDCR.RTCEN = 0 preset (interface clock only), then
+ *          BDCR.RTCEN = 1 preset (bug AB#1562).
+ *
+ * \par Expected results
+ * - Interface clock only: RCC_REQUEST_OK, RCC_FUNCTION_INACTIVE.
+ * - Interface and kernel clock: RCC_REQUEST_OK, RCC_FUNCTION_ACTIVE.
+ */
+void Ut_Rcc_Get_PeriphState_Rtc_KernelClockRequired( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_ACTIVE;
+
+    RCC->APB4ENR = RCC_APB4ENR_RTCAPBEN;
+    RCC->BDCR    = 0u;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSE, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+
+    RCC->BDCR = RCC_BDCR_RTCEN;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSE, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
 }
 
 
@@ -1950,6 +2063,8 @@ void Ut_Rcc_Set_PllConfig_WideVcoLimit_H7rs( void )
  *
  * \details HW model sets ready flags. Enables, reads state, disables and reads state
  *          of every oscillator, then calls the functions with oscillator out of range.
+ *          LSE activation does not wait for the ready flag - the state is read repeatedly
+ *          until the HW model sets the flag.
  *
  * \par Expected results
  * - State active after enabling, inactive after disabling.
@@ -1964,7 +2079,17 @@ void Ut_Rcc_Set_OscActive_AllOscillators_StateReadBack( void )
     for( rcc_OscId_t oscId = RCC_OSC_HSI64; RCC_OSC_CNT > oscId; oscId++ )
     {
         TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscActive( oscId ) );
-        TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( oscId, &state ) );
+
+        state = RCC_FUNCTION_INACTIVE;
+
+        for( uint32_t readIdx = 0u;
+             ( UT_RCC_STATE_READ_CNT > readIdx ) &&
+             ( RCC_FUNCTION_INACTIVE == state  );
+             readIdx++ )
+        {
+            TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( oscId, &state ) );
+        }
+
         TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
 
         TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscInactive( oscId ) );
@@ -2044,6 +2169,310 @@ void Ut_Rcc_Set_OscDiv_InvalidDivider_ReturnsErrorWithoutChange( void )
 
     /* Divider ready flag never set */
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_OscDiv( RCC_OSC_HSI64, 2u ) );
+}
+
+/* ============================ LSE OSCILLATOR ============================== */
+
+/**
+ * \brief   LSE crystal is enabled through the oscillator interface without waiting for start-up.
+ *
+ * \details PWR_CR1.DBP = 0 (RCC_BDCR is write protected on HW), no HW model - LSE ready
+ *          flag is not set. Activates LSE with default configuration (crystal, lowest
+ *          drive) and reads its state (bug AB#1565 - RCC_OSC_LSE was missing). Then sets
+ *          RCC_BDCR.LSERDY (crystal stable) and reads the state again.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK without waiting for LSERDY, PWR_CR1.DBP set, RCC_BDCR.LSEON set,
+ *   LSEBYP (LSEEXT) cleared, LSEDRV lowest, state inactive (not ready yet).
+ * - State active after LSERDY is set.
+ */
+void Ut_Rcc_Set_OscActive_LseCrystal_StartUpNotAwaited( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_ACTIVE;
+
+    TEST_ASSERT_BITS_LOW( PWR_CR1_DBP, PWR->CR1 );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscActive( RCC_OSC_LSE ) );
+
+    TEST_ASSERT_BITS_HIGH( PWR_CR1_DBP, PWR->CR1 );
+    TEST_ASSERT_BITS_HIGH( RCC_BDCR_LSEON, RCC->BDCR );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_LSEBYP | RCC_BDCR_LSERDY, RCC->BDCR );
+#if defined(RCC_BDCR_LSEEXT)
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_LSEEXT, RCC->BDCR );
+#endif
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_LSEDRIVE_LOW, RCC->BDCR & RCC_BDCR_LSEDRV );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( RCC_OSC_LSE, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+
+    RCC->BDCR |= RCC_BDCR_LSERDY;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( RCC_OSC_LSE, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
+}
+
+
+/**
+ * \brief   LSE is deactivated through the oscillator interface.
+ *
+ * \details PWR_CR1.DBP = 0, RCC_BDCR.LSEON = 1 preset. HW model clears the ready flag.
+ *          Deactivates LSE and reads its state.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, PWR_CR1.DBP set, RCC_BDCR.LSEON cleared, state inactive.
+ */
+void Ut_Rcc_Set_OscInactive_Lse_StoppedWithBackupDomainAccess( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_ACTIVE;
+
+    RCC->BDCR = RCC_BDCR_LSEON | RCC_BDCR_LSERDY;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscInactive( RCC_OSC_LSE ) );
+
+    TEST_ASSERT_BITS_HIGH( PWR_CR1_DBP, PWR->CR1 );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_LSEON, RCC->BDCR );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( RCC_OSC_LSE, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+}
+
+
+/**
+ * \brief   Rcc_Init() enables LSE with the configured type and drive.
+ *
+ * \details HW model sets ready flags. Initializes the module with default configuration,
+ *          LSE analog bypass and highest drive, then with LSE digital bypass (lines with
+ *          RCC_BDCR_LSEEXT only).
+ *
+ * \par Expected results
+ * - Analog bypass: RCC_REQUEST_OK, RCC_BDCR.LSEON and LSEBYP set, LSEEXT cleared, LSEDRV highest.
+ * - Digital bypass: RCC_REQUEST_OK, RCC_BDCR.LSEON, LSEBYP and LSEEXT set.
+ */
+void Ut_Rcc_Init_LseBypass_LseEnabledWithConfig( void )
+{
+    rcc_ConfigStruct_t config;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+    UT_PWR_SUPPLY_REG = UT_PWR_SUPPLY_RESET;
+
+    config.LSE_ClockType = RCC_LSE_TYPE_SIG_ANALOG_IN;
+    config.LSE_Drive     = RCC_LSE_DRIVE_HIGH;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
+
+    TEST_ASSERT_BITS_HIGH( RCC_BDCR_LSEON | RCC_BDCR_LSEBYP, RCC->BDCR );
+#if defined(RCC_BDCR_LSEEXT)
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_LSEEXT, RCC->BDCR );
+#endif
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_LSEDRIVE_HIGH, RCC->BDCR & RCC_BDCR_LSEDRV );
+
+#if defined(RCC_BDCR_LSEEXT)
+    config.LSE_ClockType = RCC_LSE_TYPE_SIG_DIGITAL_IN;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
+
+    TEST_ASSERT_BITS_HIGH( RCC_BDCR_LSEON | RCC_BDCR_LSEBYP | RCC_BDCR_LSEEXT, RCC->BDCR );
+#endif
+}
+
+
+/**
+ * \brief   Rcc_Init() without LSE input leaves LSE untouched.
+ *
+ * \details RCC_BDCR.LSEON = 1, LSERDY = 1, LSEDRV medium-high preset (LSE kept running in
+ *          backup domain). HW model sets ready flags. Initializes the module with default
+ *          configuration and LSE type none.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, RCC_BDCR LSE bits unchanged.
+ */
+void Ut_Rcc_Init_LseTypeNone_LseUntouched( void )
+{
+    const uint32_t     bdcrLse  = RCC_BDCR_LSEON | RCC_BDCR_LSERDY | LL_RCC_LSEDRIVE_MEDIUMHIGH;
+    const uint32_t     lseMask  = RCC_BDCR_LSEON | RCC_BDCR_LSERDY | RCC_BDCR_LSEDRV | RCC_BDCR_LSEBYP;
+    rcc_ConfigStruct_t config;
+
+    RCC->BDCR = bdcrLse;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+    UT_PWR_SUPPLY_REG = UT_PWR_SUPPLY_RESET;
+
+    config.LSE_ClockType = RCC_LSE_TYPE_NONE;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
+
+    TEST_ASSERT_EQUAL_HEX32( bdcrLse, RCC->BDCR & lseMask );
+}
+
+
+/**
+ * \brief   Rcc_Init() rejects invalid LSE configuration.
+ *
+ * \details HW model sets ready flags. Initializes the module with LSE type out of range,
+ *          then with LSE drive out of range.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_ERROR for both configurations.
+ */
+void Ut_Rcc_Init_LseConfigOutOfRange_ReturnsError( void )
+{
+    rcc_ConfigStruct_t config;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+    UT_PWR_SUPPLY_REG = UT_PWR_SUPPLY_RESET;
+
+    config.LSE_ClockType = RCC_LSE_TYPE_CNT;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Init( &config ) );
+
+    config.LSE_ClockType = RCC_LSE_TYPE_CRYSTAL;
+    config.LSE_Drive     = RCC_LSE_DRIVE_CNT;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Init( &config ) );
+}
+
+
+/**
+ * \brief   LSE crystal clears the bypass and applies the drive capability.
+ *
+ * \details RCC_BDCR.LSEBYP = 1 (and LSEEXT = 1) preset, LSE stopped. Configures LSE
+ *          crystal with medium-high drive and activates LSE.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, RCC_BDCR.LSEON set, LSEBYP (LSEEXT) cleared, LSEDRV medium-high.
+ */
+void Ut_Rcc_Set_OscActive_LseCrystal_BypassCleared( void )
+{
+    RCC->BDCR = RCC_BDCR_LSEBYP;
+#if defined(RCC_BDCR_LSEEXT)
+    RCC->BDCR |= RCC_BDCR_LSEEXT;
+#endif
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_ClkSrc_Set_LseConfig( RCC_LSE_TYPE_CRYSTAL, RCC_LSE_DRIVE_MEDIUM_HIGH ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscActive( RCC_OSC_LSE ) );
+
+    TEST_ASSERT_BITS_HIGH( RCC_BDCR_LSEON, RCC->BDCR );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_LSEBYP, RCC->BDCR );
+#if defined(RCC_BDCR_LSEEXT)
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_LSEEXT, RCC->BDCR );
+#endif
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_LSEDRIVE_MEDIUMHIGH, RCC->BDCR & RCC_BDCR_LSEDRV );
+}
+
+
+/**
+ * \brief   LSE type and drive lists match the device line.
+ *
+ * \details Checks the count of entries of rcc_LseType_t and rcc_LseDrive_t.
+ *
+ * \par Expected results
+ * - 4 LSE types on lines with RCC_BDCR_LSEEXT (none, crystal, analog / digital bypass),
+ *   3 on the other lines (no digital bypass), 4 drives.
+ */
+void Ut_Rcc_LseLists_DeviceLineEntries( void )
+{
+#if defined(RCC_BDCR_LSEEXT)
+    TEST_ASSERT_EQUAL_UINT32( 4u, (uint32_t)RCC_LSE_TYPE_CNT );
+#else
+    TEST_ASSERT_EQUAL_UINT32( 3u, (uint32_t)RCC_LSE_TYPE_CNT );
+#endif
+    TEST_ASSERT_EQUAL_UINT32( 4u, (uint32_t)RCC_LSE_DRIVE_CNT );
+}
+
+
+/**
+ * \brief   Running LSE with the requested configuration is kept.
+ *
+ * \details RCC_BDCR.LSEON = 1, LSERDY = 1, LSEDRV medium-low preset (LSE kept running in
+ *          backup domain over system reset), no HW model - stopped LSE would never
+ *          report ready flag low. Configures LSE crystal with medium-low drive and
+ *          activates LSE.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, RCC_BDCR unchanged (LSE not restarted).
+ */
+void Ut_Rcc_Set_OscActive_LseRunningSameConfig_LseKept( void )
+{
+    const uint32_t bdcrRunning = RCC_BDCR_LSEON | RCC_BDCR_LSERDY | LL_RCC_LSEDRIVE_MEDIUMLOW;
+
+    RCC->BDCR = bdcrRunning;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_ClkSrc_Set_LseConfig( RCC_LSE_TYPE_CRYSTAL, RCC_LSE_DRIVE_MEDIUM_LOW ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscActive( RCC_OSC_LSE ) );
+
+    TEST_ASSERT_EQUAL_HEX32( bdcrRunning, RCC->BDCR );
+}
+
+
+/**
+ * \brief   Starting LSE with the requested configuration is kept.
+ *
+ * \details RCC_BDCR.LSEON = 1, LSERDY = 0, LSEDRV lowest preset (crystal start-up in
+ *          progress, e.g. LSE enabled by Rcc_Init()). Activates LSE with default configuration.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, RCC_BDCR unchanged (start-up is not restarted).
+ */
+void Ut_Rcc_Set_OscActive_LseStartingSameConfig_LseKept( void )
+{
+    const uint32_t bdcrStarting = RCC_BDCR_LSEON | LL_RCC_LSEDRIVE_LOW;
+
+    RCC->BDCR = bdcrStarting;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscActive( RCC_OSC_LSE ) );
+
+    TEST_ASSERT_EQUAL_HEX32( bdcrStarting, RCC->BDCR );
+}
+
+
+/**
+ * \brief   Running LSE with another configuration is restarted with the requested one.
+ *
+ * \details RCC_BDCR.LSEON = 1, LSERDY = 1, LSEDRV lowest preset. HW model follows LSEON.
+ *          Configures LSE crystal with highest drive and activates LSE.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, RCC_BDCR.LSEON set, LSEDRV highest, LSEBYP cleared.
+ */
+void Ut_Rcc_Set_OscActive_LseRunningOtherConfig_LseRestarted( void )
+{
+    RCC->BDCR = RCC_BDCR_LSEON | RCC_BDCR_LSERDY;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_ClkSrc_Set_LseConfig( RCC_LSE_TYPE_CRYSTAL, RCC_LSE_DRIVE_HIGH ) );
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscActive( RCC_OSC_LSE ) );
+
+    TEST_ASSERT_BITS_HIGH( RCC_BDCR_LSEON, RCC->BDCR );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_LSEBYP, RCC->BDCR );
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_LSEDRIVE_HIGH, RCC->BDCR & RCC_BDCR_LSEDRV );
+}
+
+
+/**
+ * \brief   LSE without input is not activated.
+ *
+ * \details Configures LSE type none, activates LSE. Then calls the configuration with
+ *          type and drive out of range.
+ *
+ * \par Expected results
+ * - Activation: RCC_REQUEST_ERROR, RCC_BDCR.LSEON cleared.
+ * - Configuration out of range: RCC_REQUEST_ERROR.
+ */
+void Ut_Rcc_Set_OscActive_LseTypeNone_ReturnsError( void )
+{
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_ClkSrc_Set_LseConfig( RCC_LSE_TYPE_NONE, RCC_LSE_DRIVE_LOW ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_OscActive( RCC_OSC_LSE ) );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_LSEON, RCC->BDCR );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_ClkSrc_Set_LseConfig( RCC_LSE_TYPE_CNT, RCC_LSE_DRIVE_LOW ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_ClkSrc_Set_LseConfig( RCC_LSE_TYPE_CRYSTAL, RCC_LSE_DRIVE_CNT ) );
 }
 
 /* ============================== RTC CLOCK ================================= */

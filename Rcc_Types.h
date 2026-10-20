@@ -797,23 +797,59 @@ typedef enum
 }   rcc_HseType_t;
 
 
-/** \brief Enumeration of Low Speed External (LSE) input configuration */
+/**
+ * \brief Enumeration of Low Speed External (LSE) input configuration
+ *
+ * Applied to RCC_BDCR (LSEBYP, LSEEXT) when LSE is activated by Rcc_Init() or
+ * Rcc_Set_OscActive( RCC_OSC_LSE ).
+ *
+ * \note  The external clock type in bypass mode (LSEEXT) exists only on the device
+ *        lines with RCC_BDCR_LSEEXT (STM32H7A3 / H7B0 / H7B3, STM32H7R / H7S) - the
+ *        digital bypass is offered only there. On the other lines the bypass sets LSEBYP.
+ * \warning Digital bypass (\ref RCC_LSE_TYPE_SIG_DIGITAL_IN) must not be used with RTC
+ *          clocked by LSE (LL driver: "not to be used if RTC is active").
+ */
 typedef enum
 {
-    RCC_LSE_TYPE_NONE     = 0u , /**< No external clock connected to LSE pin */
-    RCC_LSE_TYPE_CRYSTAL       , /**< External crystal/ceramic resonator     */
-    RCC_LSE_TYPE_SIG_ANALOG_IN , /**< External low voltage swing signal      */
-    RCC_LSE_TYPE_SIG_DIGITAL_IN, /**< External high voltage swing signal     */
+    RCC_LSE_TYPE_NONE     = 0u , /**< No external clock connected to LSE pin (LSE can not be activated) */
+    RCC_LSE_TYPE_CRYSTAL       , /**< External crystal/ceramic resonator                                */
+    RCC_LSE_TYPE_SIG_ANALOG_IN , /**< External low voltage swing signal (bypass, LSEEXT = 0)            */
+#if defined(RCC_BDCR_LSEEXT)
+    RCC_LSE_TYPE_SIG_DIGITAL_IN, /**< External high voltage swing signal (bypass, LSEEXT = 1)           */
+#endif /* RCC_BDCR_LSEEXT */
+    RCC_LSE_TYPE_CNT             /**< Count of LSE input configurations                                 */
 }   rcc_LseType_t;
 
-/** \brief List of all available internal oscillators */
+
+/**
+ * \brief Driving capability of Low Speed External (LSE) crystal oscillator (RCC_BDCR.LSEDRV)
+ *
+ * Selected according to the critical gm of the crystal (datasheet "LSE oscillator
+ * characteristics", AN2867). Ignored in bypass mode.
+ */
 typedef enum
 {
-    RCC_OSC_HSI64 = 0u, /**< 64 MHz High Speed Internal (HSI) oscillator. */
-    RCC_OSC_HSI48,      /**< 48 MHz High Speed Internal (HSI) oscillator. */
-    RCC_OSC_CSI,        /**< 4 MHz Low Power RC (CSI) oscillator. */
-    RCC_OSC_LSI,        /**< 32 kHz Low Speed Internal (LSI) oscillator. */
-    RCC_OSC_CNT         /**< Count of available internal oscillator */
+    RCC_LSE_DRIVE_LOW = 0u     , /**< Lowest drive (LSEDRV = 00, reset value of backup domain) */
+    RCC_LSE_DRIVE_MEDIUM_LOW   , /**< Medium-low drive  (LL_RCC_LSEDRIVE_MEDIUMLOW)            */
+    RCC_LSE_DRIVE_MEDIUM_HIGH  , /**< Medium-high drive (LL_RCC_LSEDRIVE_MEDIUMHIGH)           */
+    RCC_LSE_DRIVE_HIGH         , /**< Highest drive     (LSEDRV = 11)                          */
+    RCC_LSE_DRIVE_CNT            /**< Count of LSE driving capabilities                        */
+}   rcc_LseDrive_t;
+
+
+/** \brief List of all available oscillators (except HSE, configured by \ref rcc_ConfigStruct_t)
+ *
+ * \note LSE is located in backup domain. The backup domain write protection is
+ *       released by the module automatically. LSE input type and driving
+ *       capability are configured by \ref rcc_ConfigStruct_t. */
+typedef enum
+{
+    RCC_OSC_HSI64 = 0u, /**< 64 MHz High Speed Internal (HSI) oscillator.         */
+    RCC_OSC_HSI48,      /**< 48 MHz High Speed Internal (HSI) oscillator.         */
+    RCC_OSC_CSI,        /**< 4 MHz Low Power RC (CSI) oscillator.                 */
+    RCC_OSC_LSI,        /**< 32 kHz Low Speed Internal (LSI) oscillator.          */
+    RCC_OSC_LSE,        /**< 32.768 kHz Low Speed External (LSE) crystal / clock. */
+    RCC_OSC_CNT         /**< Count of available oscillators                       */
 }   rcc_OscId_t;
 
 
@@ -1277,6 +1313,13 @@ typedef struct rcc_ConfigStruct_t
 
     /** Specified frequency of the HSE oscillator. Ignored if HSE is not used */
     rcc_FreqHz_t            HSE_Frequency_Hz;
+
+    /** Specifies LSE clock type. LSE is enabled by Rcc_Init() (start-up not awaited),
+     *  RCC_LSE_TYPE_NONE leaves LSE untouched */
+    rcc_LseType_t           LSE_ClockType;
+
+    /** Specifies driving capability of LSE crystal oscillator. Ignored in bypass mode */
+    rcc_LseDrive_t          LSE_Drive;
 
     /** Specifies clock source of the whole system */
     rcc_SystemClkSrc_t      SystemClockSource;

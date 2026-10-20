@@ -68,16 +68,41 @@ peripheral (eg. SPI1 / SPI2 / SPI3) or it is the RTC / CKPER selection.
 - `rcc_RequestState_t Rcc_Get_PllClk_OutQ(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 - `rcc_RequestState_t Rcc_Get_PllClk_OutR(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 
-### Internal Oscillators
+### Oscillators
+Oscillators except HSE (`rcc_OscId_t`: HSI64, HSI48, CSI, LSI, LSE). HSE is configured by
+`rcc_ConfigStruct_t` (`HSE_ClockType`, `HSE_Frequency_Hz`) and started by `Rcc_Init()`.
 - `rcc_RequestState_t Rcc_Set_OscActive(rcc_OscId_t oscId)`
 - `rcc_RequestState_t Rcc_Set_OscInactive(rcc_OscId_t oscId)`
 - `rcc_RequestState_t Rcc_Get_OscState(rcc_OscId_t oscId, rcc_FunctionState_t * const retState)`
 - `rcc_RequestState_t Rcc_Set_OscDiv(rcc_OscId_t oscId, rcc_OscDiv_t oscDiv)`
 - `rcc_RequestState_t Rcc_Get_OscDiv(rcc_OscId_t oscId, rcc_OscDiv_t * const oscDiv)`
 
+**LSE** is enabled by `Rcc_Init()` (and by `Rcc_Set_OscActive(RCC_OSC_LSE)`) with the input type
+and driving capability of the `Rcc_Init()` configuration. The start-up of the crystal is not
+awaited - the ready state is reported by `Rcc_Get_OscState(RCC_OSC_LSE, ...)`:
+- `LSE_ClockType` (`rcc_LseType_t`): `RCC_LSE_TYPE_CRYSTAL` (default), `RCC_LSE_TYPE_SIG_ANALOG_IN`
+  (bypass, `LSEBYP = 1`, `LSEEXT = 0` where `LSEEXT` exists), `RCC_LSE_TYPE_SIG_DIGITAL_IN` (bypass,
+  `LSEEXT = 1`, only STM32H7A3 / H7B0 / H7B3 and STM32H7R / H7S - lines with `RCC_BDCR_LSEEXT`) or
+  `RCC_LSE_TYPE_NONE` (`Rcc_Init()` leaves LSE untouched, activation returns error).
+- `LSE_Drive` (`rcc_LseDrive_t`): `RCC_LSE_DRIVE_LOW` (default, reset value), `RCC_LSE_DRIVE_MEDIUM_LOW`,
+  `RCC_LSE_DRIVE_MEDIUM_HIGH`, `RCC_LSE_DRIVE_HIGH` - selected according to the crystal (AN2867),
+  ignored in bypass mode.
+
+LSE keeps running over system resets (backup domain). Enabled LSE (running or starting) with the
+requested configuration is kept, otherwise it is stopped, configured (`LSEBYP`, `LSEEXT`, `LSEDRV`)
+and enabled again. The backup domain write protection (`PWR_CR1.DBP`) is released and verified
+before `RCC_BDCR` is written. The digital bypass must not be used with RTC clocked by LSE.
+
 ### RTC Clock
 - `rcc_RequestState_t Rcc_Set_RtcClkSource(rcc_Rtc_ClkSource_t clkSource)`
 - `rcc_RequestState_t Rcc_Get_RtcClkSource(rcc_Rtc_ClkSource_t * const clkSource)`
+
+RTC peripheral IDs (`RCC_PERIPH_RTC_HSE_DIV`, `RCC_PERIPH_RTC_LSE`, `RCC_PERIPH_RTC_LSI`) control the RTC
+interface clock (`RCC_APB4ENR.RTCAPBEN`) and the RTC kernel clock (`RCC_BDCR.RTCEN`):
+`Rcc_Set_PeriphActive()` selects the RTC clock (`RTCSEL`, backup domain write access released by
+`PWR_CR1.DBP`) and enables both clocks, `Rcc_Set_PeriphInactive()` disables the kernel clock first and
+keeps `RTCSEL` (write-once until backup domain reset), `Rcc_Get_PeriphState()` reports the RTC active only
+with both clocks enabled.
 
 ### Clock Bus Configuration
 - `rcc_RequestState_t Rcc_Set_ClkBusDivider(rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv_t clkBusDivider)`

@@ -34,10 +34,10 @@
  *                       Nucleo-144), used by peripheral reset test
  * - PA8 (MCO1), PC9 (MCO2) - clock outputs, the pins output clock during the
  *                       test case (PA8 free / Arduino D10, PC9 free on Nucleo-144)
+ * - LSE crystal (32.768 kHz) of the board, enabled by StartUp (default configuration)
  *
  * \note RTC clock selection (RTCSEL) is write-once until backup domain reset,
  *       which is not available by public API - it is tested by unit tests only.
- *       LSE is not an oscillator of the module interface of STM32H7.
  */
 
 /* ============================= INCLUDES =================================== */
@@ -91,6 +91,10 @@ static void It_Rcc_Check_BusClocks  ( rcc_FreqHz_t ahbClk, rcc_FreqHz_t apb1Clk,
 
 /** LSI frequency */
 #define IT_RCC_LSI_FREQ_HZ                  ( 32000u )
+
+/** Maximal count of LSE state reads - several seconds at the default 64 MHz system clock
+ *  (LSE crystal start-up tSU(LSE) is in range of seconds) */
+#define IT_RCC_LSE_WAIT_LOOPS               ( 40000000u )
 
 /** Count of milliseconds in one second */
 #define IT_RCC_MS_IN_SECOND                 ( 1000u )
@@ -395,6 +399,44 @@ void It_Rcc_Set_OscActive_Lsi_StartsAndStops( void )
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscInactive( RCC_OSC_LSI ) );
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( RCC_OSC_LSI, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+}
+
+
+/**
+ * \brief   LSE crystal enabled by Rcc_Init() becomes ready and is kept by the oscillator interface.
+ *
+ * \details Rcc is initialized by StartUp with default configuration (LSE crystal, lowest
+ *          drive) - LSE is enabled without waiting for the crystal start-up (bug AB#1565 -
+ *          LSE could not be activated). The test waits for the ready state, activates LSE
+ *          through the oscillator interface (running LSE is kept), disables LSE and reads
+ *          the state. The board must have the 32.768 kHz LSE crystal.
+ *
+ * \par Expected results
+ * - State active within the wait of the test.
+ * - Activation of running LSE: RCC_REQUEST_OK, state stays active.
+ * - Deactivation: RCC_REQUEST_OK, state inactive.
+ */
+void It_Rcc_Set_OscActive_LseCrystal_EnabledByInit( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_INACTIVE;
+
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_LSE_WAIT_LOOPS >  loopIdx ) &&
+         ( RCC_FUNCTION_INACTIVE == state   );
+         loopIdx++ )
+    {
+        TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( RCC_OSC_LSE, &state ) );
+    }
+
+    TEST_ASSERT_EQUAL_MESSAGE( RCC_FUNCTION_ACTIVE, state, "LSE crystal not ready" );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscActive( RCC_OSC_LSE ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( RCC_OSC_LSE, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscInactive( RCC_OSC_LSE ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( RCC_OSC_LSE, &state ) );
     TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
 }
 

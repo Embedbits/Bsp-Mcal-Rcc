@@ -18,6 +18,7 @@
  * - SysTick - core clock based time base
  * - MCO2 pin (PC9) - LSI clock output, not connected on the board, read back
  *   by GPIO input data register, no external wiring
+ * - LSE crystal (32.768 kHz) of the board, enabled by StartUp (default configuration)
  *
  * \note LSI accuracy (STM32H7R / STM32H7S datasheet, over temperature / voltage)
  *       and HSI accuracy define tolerance of the frequency measurement.
@@ -80,6 +81,12 @@ static void             It_Rcc_SysTickHandler       ( void );
 
 /** Maximal count of wait loop iterations (timeout ~ seconds) */
 #define IT_RCC_WAIT_LOOPS                   ( 20000000u )
+
+/** Wait of the test for the LSE crystal start-up [ms] (tSU(LSE) in range of seconds) */
+#define IT_RCC_LSE_STARTUP_WAIT_MS          ( 5000u )
+
+/** Maximal count of LSE state reads (backup of the SysTick time base) */
+#define IT_RCC_LSE_WAIT_LOOPS               ( 100000000u )
 
 /* ============================== MACROS ==================================== */
 
@@ -376,6 +383,49 @@ void It_Rcc_Set_OscActive_Lsi_StateReadBack( void )
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscInactive( RCC_OSC_LSI ) );
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( RCC_OSC_LSI, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+}
+
+/**
+ * \brief   LSE crystal enabled by Rcc_Init() becomes ready and is kept by the oscillator interface.
+ *
+ * \details Rcc is initialized by StartUp with default configuration (LSE crystal, lowest
+ *          drive) - LSE is enabled without waiting for the crystal start-up (bug AB#1565 -
+ *          LSE could not be activated). The test waits for the ready state (SysTick time
+ *          base), activates LSE through the oscillator interface (running LSE is kept),
+ *          disables LSE and reads the state. The board must have the 32.768 kHz LSE crystal.
+ *
+ * \par Expected results
+ * - State active within the start-up wait of the test.
+ * - Activation of running LSE: RCC_REQUEST_OK, state stays active.
+ * - Deactivation: RCC_REQUEST_OK, state inactive.
+ */
+void It_Rcc_Set_OscActive_LseCrystal_EnabledByInit( void )
+{
+    rcc_FunctionState_t state     = RCC_FUNCTION_INACTIVE;
+    uint32_t            startTick = 0u;
+
+    It_Rcc_Start_SysTick();
+
+    startTick = itRcc_SysTickCnt;
+
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_LSE_WAIT_LOOPS      >  loopIdx                          ) &&
+         ( IT_RCC_LSE_STARTUP_WAIT_MS > ( itRcc_SysTickCnt - startTick ) ) &&
+         ( RCC_FUNCTION_INACTIVE      == state                            );
+         loopIdx++ )
+    {
+        TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( RCC_OSC_LSE, &state ) );
+    }
+
+    TEST_ASSERT_EQUAL_MESSAGE( RCC_FUNCTION_ACTIVE, state, "LSE crystal not ready" );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscActive( RCC_OSC_LSE ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( RCC_OSC_LSE, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_OscInactive( RCC_OSC_LSE ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_OscState( RCC_OSC_LSE, &state ) );
     TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
 }
 

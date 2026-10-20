@@ -54,6 +54,7 @@
 #include "Rcc_Port.h"                       /* Own port file include          */
 #include "Rcc_Types.h"                      /* Module types definitions       */
 #include "Rcc_Reg.h"                        /* Registry operations include    */
+#include "Rcc_ClkSrc.h"                     /* Backup domain write access     */
 #include "Rcc.h"                            /* Module common header file      */
 /* ========================== SYMBOLIC CONSTANTS ============================ */
 
@@ -964,6 +965,16 @@ rcc_RequestState_t Rcc_ClkMux_Set_ClkActive( rcc_ClkMuxId_t clkMuxId  )
         if( ( actualRegVal == defaultCtrlRegVal ) ||
             ( actualRegVal == ctrlRegVal        )    )
         {
+            if( RCC_REG_BDCR == ctrlRegId )
+            {
+                /* Multiplexer in backup domain (RTCSEL) - result checked by read-back below */
+                (void)Rcc_ClkSrc_Set_BkUpAccess();
+            }
+            else
+            {
+                /* Multiplexer outside of backup domain */
+            }
+
             Rcc_Set_RegVal( ctrlRegId, ctrlRegMask, ctrlRegVal );
 
             for( uint32_t iterationCnt = 0u; RCC_CLKMUX_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
@@ -1017,6 +1028,16 @@ rcc_RequestState_t Rcc_ClkMux_Set_ClkInactive( rcc_ClkMuxId_t clkMuxId  )
 
         rcc_ClkMuxId_t defaultClkMuxId   = rcc_ClkMuxConfig[ clkMuxId ].DefaultClkMuxId;
         uint32_t       defaultCtrlRegVal = Rcc_ClkMux_Get_FieldVal( defaultClkMuxId );
+
+        if( RCC_REG_BDCR == ctrlRegId )
+        {
+            /* Multiplexer in backup domain (RTCSEL) - result checked by read-back below */
+            (void)Rcc_ClkSrc_Set_BkUpAccess();
+        }
+        else
+        {
+            /* Multiplexer outside of backup domain */
+        }
 
         Rcc_Set_RegVal( ctrlRegId, ctrlRegMask, defaultCtrlRegVal );
 

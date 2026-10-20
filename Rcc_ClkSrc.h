@@ -52,6 +52,7 @@ rcc_RequestState_t          Rcc_ClkSrc_Get_CsiDiv122Clk ( rcc_FreqHz_t * const c
 
 /*----------------------- Low Speed Clock configuration ----------------------*/
 
+rcc_RequestState_t          Rcc_ClkSrc_Set_LseConfig    ( rcc_LseType_t lseType, rcc_LseDrive_t lseDrive );
 rcc_RequestState_t          Rcc_ClkSrc_Set_LseActive    ( void );
 rcc_RequestState_t          Rcc_ClkSrc_Set_LseInactive  ( void );
 rcc_RequestState_t          Rcc_ClkSrc_Get_LseState     ( rcc_FunctionState_t * const retState );
@@ -61,6 +62,8 @@ rcc_RequestState_t          Rcc_ClkSrc_Set_LsiActive    ( void );
 rcc_RequestState_t          Rcc_ClkSrc_Set_LsiInactive  ( void );
 rcc_RequestState_t          Rcc_ClkSrc_Get_LsiState     ( rcc_FunctionState_t * const retState );
 rcc_RequestState_t          Rcc_ClkSrc_Get_LsiClk       ( rcc_FreqHz_t * const lsiClk );
+
+rcc_RequestState_t          Rcc_ClkSrc_Set_BkUpAccess   ( void );
 
 /*--------------------------- Derived clock sources --------------------------*/
 
