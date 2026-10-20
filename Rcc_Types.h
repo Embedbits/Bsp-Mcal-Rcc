@@ -707,23 +707,60 @@ typedef enum
 }   rcc_HseType_t;
 
 
-/** \brief Enumeration of Low Speed External (LSE) input configuration */
+/**
+ * \brief Enumeration of Low Speed External (LSE) input configuration
+ *
+ * Applied to RCC_BDCR (LSEBYP, LSEEXT) when LSE is activated by Rcc_Init() or
+ * Rcc_Set_OscActive( RCC_OSC_LSE ).
+ *
+ * \note  Analog (low swing) bypass is not available - device errata ES0561 2.2.16,
+ *        ES0565 2.2.25, ES0621 2.2.11 "Low-speed external clock in analog bypass
+ *        mode might not work properly" (workaround: digital bypass).
+ * \warning Digital bypass (\ref RCC_LSE_TYPE_SIG_DIGITAL_IN) must not be used
+ *          with RTC clocked by LSE (RM0481 "LSE clock") - RTC with LSE requires
+ *          the LSE crystal.
+ */
 typedef enum
 {
-    RCC_LSE_TYPE_NONE     = 0u , /**< No external clock connected to LSE pin */
-    RCC_LSE_TYPE_CRYSTAL       , /**< External crystal/ceramic resonator     */
-    RCC_LSE_TYPE_SIG_ANALOG_IN , /**< External low voltage swing signal      */
-    RCC_LSE_TYPE_SIG_DIGITAL_IN, /**< External high voltage swing signal     */
+    RCC_LSE_TYPE_NONE     = 0u , /**< No external clock connected to LSE pin (LSE can not be activated) */
+    RCC_LSE_TYPE_CRYSTAL       , /**< External crystal/ceramic resonator                                */
+    RCC_LSE_TYPE_SIG_DIGITAL_IN, /**< External high voltage swing signal (bypass, LSEEXT = 1)           */
+    RCC_LSE_TYPE_CNT             /**< Count of LSE input configurations                                 */
 }   rcc_LseType_t;
 
-/** \brief List of all available internal oscillators */
+
+/**
+ * \brief Driving capability of Low Speed External (LSE) crystal oscillator (RCC_BDCR.LSEDRV)
+ *
+ * Selected according to the critical gm of the crystal (datasheet "LSE
+ * oscillator characteristics", AN2867). Ignored in bypass mode.
+ *
+ * \note  Lowest drive (LSEDRV = 00, reset value of backup domain) is not available -
+ *        device errata ES0561 2.2.5, ES0565 2.2.17, ES0621 2.2.8 "LSE low drive mode
+ *        is not functional" (the mode is forbidden).
+ */
 typedef enum
 {
-    RCC_OSC_HSI64 = 0u, /**< 64 MHz High Speed Internal (HSI) oscillator. */
-    RCC_OSC_HSI48,      /**< 48 MHz High Speed Internal (HSI) oscillator. */
-    RCC_OSC_CSI,        /**< 4 MHz Low Power RC (CSI) oscillator. */
-    RCC_OSC_LSI,        /**< 32.768 kHz Low Speed Internal (LSI) oscillator. */
-    RCC_OSC_CNT         /**< Count of available internal oscillator */
+    RCC_LSE_DRIVE_MEDIUM_LOW = 0u, /**< Medium-low drive  (LSEDRV = 01) */
+    RCC_LSE_DRIVE_MEDIUM_HIGH    , /**< Medium-high drive (LSEDRV = 10) */
+    RCC_LSE_DRIVE_HIGH           , /**< Highest drive     (LSEDRV = 11) */
+    RCC_LSE_DRIVE_CNT              /**< Count of LSE driving capabilities */
+}   rcc_LseDrive_t;
+
+
+/** \brief List of all available oscillators (except HSE, configured by \ref rcc_ConfigStruct_t)
+ *
+ * \note LSE and LSI are located in backup domain. The backup domain write
+ *       protection is released by the module automatically. LSE input type and
+ *       driving capability are configured by \ref rcc_ConfigStruct_t. */
+typedef enum
+{
+    RCC_OSC_HSI64 = 0u, /**< 64 MHz High Speed Internal (HSI) oscillator.         */
+    RCC_OSC_HSI48,      /**< 48 MHz High Speed Internal (HSI) oscillator.         */
+    RCC_OSC_CSI,        /**< 4 MHz Low Power RC (CSI) oscillator.                 */
+    RCC_OSC_LSI,        /**< 32 kHz Low Speed Internal (LSI) oscillator.          */
+    RCC_OSC_LSE,        /**< 32.768 kHz Low Speed External (LSE) crystal / clock. */
+    RCC_OSC_CNT         /**< Count of available oscillators                       */
 }   rcc_OscId_t;
 
 
@@ -1118,6 +1155,13 @@ typedef struct rcc_ConfigStruct_t
     /** Specified frequency of the HSE oscillator. Ignored if HSE is not used */
     rcc_FreqHz_t            HSE_Frequency_Hz;
 
+    /** Specifies LSE clock type. LSE is enabled by Rcc_Init() (start-up not awaited),
+     *  RCC_LSE_TYPE_NONE leaves LSE untouched */
+    rcc_LseType_t           LSE_ClockType;
+
+    /** Specifies driving capability of LSE crystal oscillator. Ignored in bypass mode */
+    rcc_LseDrive_t          LSE_Drive;
+
     /** Specifies clock source of the whole system */
     rcc_SystemClkSrc_t      SystemClockSource;
 
@@ -1125,24 +1169,20 @@ typedef struct rcc_ConfigStruct_t
     rcc_PllConfigStruct_t   Pll_Config[ RCC_PLL_CNT ];
 
     /**
-    * \brief Enables or disables Clock Security System (CSS).
+    * \brief Enables or disables Clock Security System (CSS) of HSE.
     *
-    * If the CSS is enabled and a failure of HSE is detected, NMI_ISR function will
-    * be executed. The NMI_ISR function sets HSI as a system clock source and can
-    * call additional user callback.
+    * If the CSS is enabled and a failure of HSE is detected, the system clock is
+    * switched to HSI (or CSI, RCC_CFGR1.STOPWUCK) by hardware, HSE and PLLs clocked
+    * by HSE are disabled, an event is sent to break inputs of advanced-control
+    * timers and NMI is generated. The NMI is repeated until the HSECSSF flag is
+    * cleared (RCC_CICR.HSECSSC), NMI handler is registered by Nvic module
+    * (Nvic_Set_CoreIrq_Handler()).
     *
-    * \warning When HSE failure occurs and the CSS is disabled, MCU switches the
-    *          system clock source automatically! This event cant't be detected
-    *          by software.
-    * \warning When using the CSS, an user defined callback should be added using
-    *          RCC_SetNMI_Handler. Otherwise the HSE failure can't be detected
-    *          by your code and you will not be notified.
-    * \warning Once enabled, the CSS can't be turned off by software on L4 MCU
-    *          family (just by reset).
-    * \note If HSE is set as the clock entry of a PLL, the PLL will be disabled
-    *       by the CSS in case of HSE failure.
-    * \note CSS also sends an event to break inputs of advanced-control timers
-    *       in case of HSE failure.
+    * \note The CSS needs HSE - Rcc_Init() rejects the CSS with RCC_HSE_TYPE_NONE.
+    * \note The clock detector runs while HSE is enabled and ready only (not in Stop
+    *       mode, not while HSE is stopped by a repeated Rcc_Init()).
+    * \warning Once enabled, the CSS can't be turned off by software (just by
+    *          reset or Standby mode).
     */
     rcc_FunctionState_t     CSS_Enable;
 

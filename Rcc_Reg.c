@@ -24,7 +24,12 @@ typedef struct
 
 /* ======================== FORWARD DECLARATIONS ============================ */
 
+static void Rcc_Reg_Set_RegBkUpAccess( rcc_RegId_t regId );
+
 /* ========================== SYMBOLIC CONSTANTS ============================ */
+
+/** \brief Count of read-back iterations of the backup domain write access release */
+#define RCC_REG_BKUP_TIMEOUT_RAW        ( 0x1000u )
 
 /* =============================== MACROS =================================== */
 
@@ -154,7 +159,13 @@ void Rcc_Set_RegBit( rcc_RegId_t regId, uint32_t bitMask )
 {
     if( RCC_REG_CNT > regId )
     {
+        Rcc_Reg_Set_RegBkUpAccess( regId );
+
         *rcc_RegList[regId].RegAddr |= bitMask;
+    }
+    else
+    {
+        /* Invalid register ID, no action required */
     }
 }
 
@@ -169,7 +180,13 @@ void Rcc_Reset_RegBit( rcc_RegId_t regId, uint32_t bitMask )
 {
     if( RCC_REG_CNT > regId )
     {
+        Rcc_Reg_Set_RegBkUpAccess( regId );
+
         *rcc_RegList[regId].RegAddr &= ~bitMask;
+    }
+    else
+    {
+        /* Invalid register ID, no action required */
     }
 }
 
@@ -205,9 +222,15 @@ void Rcc_Set_RegVal( rcc_RegId_t regId, uint32_t regMask, uint32_t regValue )
 {
     if( RCC_REG_CNT > regId )
     {
+        Rcc_Reg_Set_RegBkUpAccess( regId );
+
         /* Set the register value with mask */
         *rcc_RegList[regId].RegAddr = ( ( *rcc_RegList[regId].RegAddr & ~regMask ) |
                                         ( regValue & regMask ) );
+    }
+    else
+    {
+        /* Invalid register ID, no action required */
     }
 }
 
@@ -232,7 +255,73 @@ uint32_t Rcc_Get_RegVal( rcc_RegId_t regId, uint32_t regMask )
     }
 }
 
+
+/**
+ * \brief Releases the backup domain write protection.
+ *
+ * RCC_BDCR (LSEON, LSEBYP, LSION, RTCSEL, RTCEN, LSCOSEL, LSCOEN) is write
+ * protected after every reset until PWR_DBPCR.DBP is set (RM0481). The bit is
+ * set (if not set yet) and read back. The PWR interface of STM32H5 has no clock
+ * enable bit, PWR registers are always accessible.
+ *
+ * \return State of request execution. Returns "OK" if write access to the
+ *         backup domain is released, otherwise returns error.
+ */
+rcc_RequestState_t Rcc_Reg_Set_BkUpAccess( void )
+{
+    rcc_RequestState_t returnState = RCC_REQUEST_ERROR;
+    uint32_t           accessState = LL_PWR_IsEnabledBkUpAccess();
+
+    if( 0u == accessState )
+    {
+        LL_PWR_EnableBkUpAccess();
+
+        for( uint32_t iterationCnt = 0u; RCC_REG_BKUP_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+        {
+            accessState = LL_PWR_IsEnabledBkUpAccess();
+
+            if( 0u != accessState )
+            {
+                returnState = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                /* Write access not released yet, keep return state as error */
+                returnState = RCC_REQUEST_ERROR;
+            }
+        }
+    }
+    else
+    {
+        /* Write access already released */
+        returnState = RCC_REQUEST_OK;
+    }
+
+    return ( returnState );
+}
+
 /* =========================== LOCAL FUNCTIONS ============================== */
+
+/**
+ * \brief Releases backup domain write protection before write to BDCR register.
+ *
+ * Other registers are not affected. Result of the release is not returned - the
+ * callers verify the written value by read-back.
+ *
+ * \param regId [in]: ID of register to be written
+ */
+static void Rcc_Reg_Set_RegBkUpAccess( rcc_RegId_t regId )
+{
+    if( RCC_REG_BDCR == regId )
+    {
+        (void)Rcc_Reg_Set_BkUpAccess();
+    }
+    else
+    {
+        /* Register is not in the backup domain */
+    }
+}
 
 /* =========================== INTERRUPT HANDLERS =========================== */
 

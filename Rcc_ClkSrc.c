@@ -8,11 +8,15 @@
 /* ============================== INCLUDES ================================== */
 #include "Rcc_ClkSrc.h"                     /* Self include                   */
 #include "Rcc_Types.h"                      /* Module types definitions       */
+#include "Rcc_Reg.h"                        /* Registers operations include   */
 #include "Stm32_rcc.h"                      /* RCC module RAL layer           */
 /* ========================== SYMBOLIC CONSTANTS ============================ */
 
 /** Maximal wait time for configuration request confirmation */
 #define RCC_OSC_TIMEOUT_RAW             ( 0x84FCB )
+
+/** RCC_BDCR bits of LSE configuration (writable only with LSE disabled) */
+#define RCC_LSE_CONFIG_MASK             ( RCC_BDCR_LSEDRV | RCC_BDCR_LSEBYP | RCC_BDCR_LSEEXT )
 
 /** Default value of HSI trimming */
 #define RCC_HSI_DEFAULT_TRIM_VALUE      ( 64u )
@@ -20,6 +24,8 @@
 /* ============================== TYPEDEFS ================================== */
 
 /* ======================== FORWARD DECLARATIONS ============================ */
+
+static uint32_t             Rcc_ClkSrc_Get_LseRegConfig ( void );
 
 /* =============================== MACROS =================================== */
 
@@ -29,6 +35,21 @@
 
 /** Local storing of High Speed External (HSE) source value in Hz */
 static rcc_FreqHz_t                 rcc_HseFreqHz = 0u;
+
+/** LSE input type applied at LSE activation (crystal - LSEBYP reset value) */
+static rcc_LseType_t                rcc_LseType   = RCC_LSE_TYPE_CRYSTAL;
+
+/** LSE driving capability applied at LSE activation (medium-low - LSEDRV reset value 00 is
+ *  forbidden by device errata ES0561 2.2.5, ES0565 2.2.17, ES0621 2.2.8) */
+static rcc_LseDrive_t               rcc_LseDrive  = RCC_LSE_DRIVE_MEDIUM_LOW;
+
+/** RCC_BDCR.LSEDRV values of LSE driving capabilities */
+static const uint32_t               rcc_ClkSrc_LseDriveLut[ RCC_LSE_DRIVE_CNT ] =
+{
+    [RCC_LSE_DRIVE_MEDIUM_LOW ] = LL_RCC_LSEDRIVE_MEDIUMLOW ,
+    [RCC_LSE_DRIVE_MEDIUM_HIGH] = LL_RCC_LSEDRIVE_MEDIUMHIGH,
+    [RCC_LSE_DRIVE_HIGH       ] = LL_RCC_LSEDRIVE_HIGH      ,
+};
 
 
 /* ========================= EXPORTED FUNCTIONS ============================= */
@@ -107,7 +128,10 @@ rcc_RequestState_t Rcc_ClkSrc_Set_HseActive( rcc_HseType_t hseType)
             }
             else
             {
-                /* Other clock types do not need extra functionality activation */
+                /* Crystal / ceramic resonator - oscillator without bypass. HSEBYP of
+                 * a previous external clock configuration is cleared while HSE is off,
+                 * HSEEXT is used in bypass mode only */
+                LL_RCC_HSE_DisableBypass();
             }
 
             LL_RCC_HSE_Enable();
@@ -687,32 +711,32 @@ rcc_RequestState_t Rcc_ClkSrc_Get_CsiClk( rcc_FreqHz_t * const clkFreq )
 /*----------------------- Low Speed Clock configuration ----------------------*/
 
 /**
- * \brief Activation of Low Speed Internal (LSE) block
+ * \brief Configuration of Low Speed External (LSE) input type and driving capability
+ *
+ * The configuration is stored and applied to RCC_BDCR (LSEBYP, LSEEXT, LSEDRV) by
+ * \ref Rcc_ClkSrc_Set_LseActive. Running LSE is not changed by this function.
+ *
+ * \param lseType  [in]: Type of LSE input (none, crystal or digital bypass)
+ * \param lseDrive [in]: Driving capability of LSE crystal oscillator
  *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error.
  */
-rcc_RequestState_t Rcc_ClkSrc_Set_LseActive( void )
+rcc_RequestState_t Rcc_ClkSrc_Set_LseConfig( rcc_LseType_t lseType, rcc_LseDrive_t lseDrive )
 {
     rcc_RequestState_t returnState = RCC_REQUEST_ERROR;
-    uint32_t           regValue    = 0u;
 
-    LL_RCC_LSE_Enable();
-
-    for( uint32_t iterationCnt = 0u; RCC_OSC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+    if( ( RCC_LSE_TYPE_CNT  > lseType  ) &&
+        ( RCC_LSE_DRIVE_CNT > lseDrive )    )
     {
-        regValue = LL_RCC_LSE_IsReady();
+        rcc_LseType  = lseType;
+        rcc_LseDrive = lseDrive;
 
-        if( 0u != regValue )
-        {
-            returnState = RCC_REQUEST_OK;
-            break;
-        }
-        else
-        {
-            /* Clock source has not yet been changed, keep return state as error */
-            returnState = RCC_REQUEST_ERROR;
-        }
+        returnState = RCC_REQUEST_OK;
+    }
+    else
+    {
+        returnState = RCC_REQUEST_ERROR;
     }
 
     return ( returnState );
@@ -720,7 +744,92 @@ rcc_RequestState_t Rcc_ClkSrc_Set_LseActive( void )
 
 
 /**
- * \brief De-activation of Low Speed Internal (LSE) block
+ * \brief Activation of Low Speed External (LSE) block
+ *
+ * LSE input type and driving capability of \ref Rcc_ClkSrc_Set_LseConfig are applied
+ * and LSE is enabled. The start-up of the crystal is not awaited - LSE ready state is
+ * reported by \ref Rcc_ClkSrc_Get_LseState.
+ *
+ * LSE located in backup domain keeps running over system resets - enabled LSE (running
+ * or starting) with the requested configuration is kept. Otherwise LSE is disabled first
+ * (LSEBYP, LSEEXT and LSEDRV are writable only with LSE disabled), configured and enabled.
+ * Backup domain write protection is released before RCC_BDCR is written.
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error (no LSE input configured or configuration not applied).
+ */
+rcc_RequestState_t Rcc_ClkSrc_Set_LseActive( void )
+{
+    rcc_RequestState_t returnState = RCC_REQUEST_ERROR;
+
+    if( RCC_LSE_TYPE_NONE != rcc_LseType )
+    {
+        const uint32_t requiredConfig = Rcc_ClkSrc_Get_LseRegConfig();
+        const uint32_t actualConfig   = READ_BIT( RCC->BDCR, RCC_LSE_CONFIG_MASK );
+        const uint32_t enableState    = READ_BIT( RCC->BDCR, RCC_BDCR_LSEON );
+
+        if( ( 0u             != enableState  ) &&
+            ( requiredConfig == actualConfig )    )
+        {
+            /* LSE is enabled with the requested configuration (running or starting) */
+            returnState = RCC_REQUEST_OK;
+        }
+        else
+        {
+            /* Releases the backup domain write access and stops LSE */
+            returnState = Rcc_ClkSrc_Set_LseInactive();
+
+            if( RCC_REQUEST_OK == returnState )
+            {
+                LL_RCC_LSE_SetDriveCapability( rcc_ClkSrc_LseDriveLut[ rcc_LseDrive ] );
+
+                if( RCC_LSE_TYPE_SIG_DIGITAL_IN == rcc_LseType )
+                {
+                    /* External digital signal connected to OSC32_IN */
+                    LL_RCC_LSE_SetExternalClockType( LL_RCC_LSE_DIGITAL_TYPE );
+                    LL_RCC_LSE_EnableBypass();
+                }
+                else
+                {
+                    /* Crystal - LSEEXT is cleared, its reset value is 1 on STM32H543 / H553 */
+                    LL_RCC_LSE_SetExternalClockType( LL_RCC_LSE_ANALOG_TYPE );
+                    LL_RCC_LSE_DisableBypass();
+                }
+
+                /* Start-up of the crystal is not awaited */
+                LL_RCC_LSE_Enable();
+
+                const uint32_t appliedConfig = READ_BIT( RCC->BDCR, RCC_LSE_CONFIG_MASK | RCC_BDCR_LSEON );
+
+                if( ( requiredConfig | RCC_BDCR_LSEON ) == appliedConfig )
+                {
+                    /* LSE is enabled with the requested configuration */
+                    returnState = RCC_REQUEST_OK;
+                }
+                else
+                {
+                    /* Configuration was not applied (backup domain write protected) */
+                    returnState = RCC_REQUEST_ERROR;
+                }
+            }
+            else
+            {
+                /* LSE de-activation failed, keep return state as error */
+            }
+        }
+    }
+    else
+    {
+        /* No LSE input connected */
+        returnState = RCC_REQUEST_ERROR;
+    }
+
+    return ( returnState );
+}
+
+
+/**
+ * \brief De-activation of Low Speed External (LSE) block
  *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error.
@@ -730,22 +839,33 @@ rcc_RequestState_t Rcc_ClkSrc_Set_LseInactive( void )
     rcc_RequestState_t returnState = RCC_REQUEST_ERROR;
     uint32_t           regValue    = 0u;
 
-    LL_RCC_LSE_Disable();
+    /* LSEON is in the write protected backup domain (RCC_BDCR) */
+    returnState = Rcc_Reg_Set_BkUpAccess();
 
-    for( uint32_t iterationCnt = 0u; RCC_OSC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+    if( RCC_REQUEST_OK == returnState )
     {
-        regValue = LL_RCC_LSE_IsReady();
+        LL_RCC_LSE_Disable();
 
-        if( 0u == regValue )
+        for( uint32_t iterationCnt = 0u; RCC_OSC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
         {
-            returnState = RCC_REQUEST_OK;
-            break;
+            regValue = LL_RCC_LSE_IsReady();
+
+            if( 0u == regValue )
+            {
+                returnState = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                /* Clock source has not yet been changed, keep return state as error */
+                returnState = RCC_REQUEST_ERROR;
+            }
         }
-        else
-        {
-            /* Clock source has not yet been changed, keep return state as error */
-            returnState = RCC_REQUEST_ERROR;
-        }
+    }
+    else
+    {
+        /* Backup domain write access not released, keep return state as error */
+        returnState = RCC_REQUEST_ERROR;
     }
 
     return ( returnState );
@@ -753,7 +873,7 @@ rcc_RequestState_t Rcc_ClkSrc_Set_LseInactive( void )
 
 
 /**
- * \brief Reading status of Low Speed Internal (LSE) block
+ * \brief Reading status of Low Speed External (LSE) block
  *
  * \param retState [out] : Pointer to actual status value
  *
@@ -796,18 +916,18 @@ rcc_RequestState_t Rcc_ClkSrc_Get_LseState( rcc_FunctionState_t *retState )
 /**
  * \brief Returns value of Low Speed External (LSE) frequency
  *
- * \param csiClk [out]: Pointer to store frequency of LSE clock in Hz. Must not be NULL.
+ * \param lseClk [out]: Pointer to store frequency of LSE clock in Hz. Must not be NULL.
  *
  * \return State of request execution. Returns "OK" if request was success,
  *        otherwise return error.
  */
-rcc_RequestState_t Rcc_ClkSrc_Get_LseClk( rcc_FreqHz_t * const csiClk )
+rcc_RequestState_t Rcc_ClkSrc_Get_LseClk( rcc_FreqHz_t * const lseClk )
 {
     rcc_RequestState_t returnState = RCC_REQUEST_ERROR;
 
-    if( RCC_NULL_PTR != csiClk )
+    if( RCC_NULL_PTR != lseClk )
     {
-        *csiClk = LSE_VALUE;
+        *lseClk = LSE_VALUE;
 
         returnState = RCC_REQUEST_OK;
     }
@@ -831,22 +951,33 @@ rcc_RequestState_t Rcc_ClkSrc_Set_LsiActive( void )
     rcc_RequestState_t returnState = RCC_REQUEST_ERROR;
     uint32_t           regValue    = 0u;
 
-    LL_RCC_LSI_Enable();
+    /* LSION is in the write protected backup domain (RCC_BDCR) */
+    returnState = Rcc_Reg_Set_BkUpAccess();
 
-    for( uint32_t iterationCnt = 0u; RCC_OSC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+    if( RCC_REQUEST_OK == returnState )
     {
-        regValue = LL_RCC_LSI_IsReady();
+        LL_RCC_LSI_Enable();
 
-        if( 0u != regValue )
+        for( uint32_t iterationCnt = 0u; RCC_OSC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
         {
-            returnState = RCC_REQUEST_OK;
-            break;
+            regValue = LL_RCC_LSI_IsReady();
+
+            if( 0u != regValue )
+            {
+                returnState = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                /* Clock source has not yet been changed, keep return state as error */
+                returnState = RCC_REQUEST_ERROR;
+            }
         }
-        else
-        {
-            /* Clock source has not yet been changed, keep return state as error */
-            returnState = RCC_REQUEST_ERROR;
-        }
+    }
+    else
+    {
+        /* Backup domain write access not released, keep return state as error */
+        returnState = RCC_REQUEST_ERROR;
     }
 
     return ( returnState );
@@ -863,16 +994,25 @@ rcc_RequestState_t Rcc_ClkSrc_Set_LsiInactive( void )
 {
     rcc_RequestState_t returnState = RCC_REQUEST_ERROR;
 
-    LL_RCC_LSI_Disable();
+    /* LSION is in the write protected backup domain (RCC_BDCR) */
+    returnState = Rcc_Reg_Set_BkUpAccess();
 
-    returnState = RCC_REQUEST_OK;
+    if( RCC_REQUEST_OK == returnState )
+    {
+        LL_RCC_LSI_Disable();
+    }
+    else
+    {
+        /* Backup domain write access not released, keep return state as error */
+        returnState = RCC_REQUEST_ERROR;
+    }
 
     return ( returnState );
 }
 
 
 /**
- * \brief Reading status of Low Speed Internal (LSE) block
+ * \brief Reading status of Low Speed Internal (LSI) block
  *
  * \param retState [out] : Pointer to actual status value
  *
@@ -939,6 +1079,28 @@ rcc_RequestState_t Rcc_ClkSrc_Get_LsiClk( rcc_FreqHz_t * const lsiClk )
 }
 
 /* =========================== LOCAL FUNCTIONS ============================== */
+
+/**
+ * \brief Returns RCC_BDCR LSE configuration bits (LSEDRV, LSEBYP, LSEEXT) of the stored
+ *        LSE input type and driving capability.
+ *
+ * \return Value of RCC_BDCR bits masked by \ref RCC_LSE_CONFIG_MASK.
+ */
+static uint32_t Rcc_ClkSrc_Get_LseRegConfig( void )
+{
+    uint32_t regConfig = rcc_ClkSrc_LseDriveLut[ rcc_LseDrive ];
+
+    if( RCC_LSE_TYPE_SIG_DIGITAL_IN == rcc_LseType )
+    {
+        regConfig |= ( RCC_BDCR_LSEBYP | RCC_BDCR_LSEEXT );
+    }
+    else
+    {
+        /* Crystal - oscillator not bypassed, LSEEXT cleared */
+    }
+
+    return ( regConfig );
+}
 
 /* =========================== INTERRUPT HANDLERS =========================== */
 

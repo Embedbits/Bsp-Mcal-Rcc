@@ -1330,22 +1330,33 @@ rcc_RequestState_t Rcc_Pll_Set_RtcClkSource( rcc_Rtc_ClkSource_t clkSource )
     {
         const uint32_t llClkSource = rcc_Pll_RtcClkSrcLut[ clkSource ];
 
-        LL_RCC_SetRTCClockSource( llClkSource );
+        /* RTCSEL is in the write protected backup domain (RCC_BDCR) */
+        retState = Rcc_Reg_Set_BkUpAccess();
 
-        for( uint32_t iterationCnt = 0u; RCC_PLL_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+        if( RCC_REQUEST_OK == retState )
         {
-            uint32_t registerValue = LL_RCC_GetRTCClockSource();
+            LL_RCC_SetRTCClockSource( llClkSource );
 
-            if( registerValue == llClkSource )
+            for( uint32_t iterationCnt = 0u; RCC_PLL_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
             {
-                retState = RCC_REQUEST_OK;
-                break;
+                uint32_t registerValue = LL_RCC_GetRTCClockSource();
+
+                if( registerValue == llClkSource )
+                {
+                    retState = RCC_REQUEST_OK;
+                    break;
+                }
+                else
+                {
+                    /* Clock source has not yet been changed, keep return state as error */
+                    retState = RCC_REQUEST_ERROR;
+                }
             }
-            else
-            {
-                /* Clock source has not yet been changed, keep return state as error */
-                retState = RCC_REQUEST_ERROR;
-            }
+        }
+        else
+        {
+            /* Backup domain write access not released, keep return state as error */
+            retState = RCC_REQUEST_ERROR;
         }
     }
     else

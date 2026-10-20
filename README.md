@@ -12,7 +12,7 @@ It is part of the **MCAL (Microcontroller Abstraction Layer)** and allows safe a
 - Peripheral reset handling
 - Power and sleep state configuration
 - PLL configuration and management
-- Clock sources configuration (HSE, HSI16, HSI48, MSI, LSE, LSI)
+- Clock sources configuration (HSE, HSI64, HSI48, CSI, LSI, LSE - crystal or digital bypass)
 - RTC clock source selection
 - System clock and bus clock dividers
 - Flash latency and prefetch control
@@ -34,10 +34,17 @@ It is part of the **MCAL (Microcontroller Abstraction Layer)** and allows safe a
 - `rcc_RequestState_t Rcc_Set_PeriphInactive(rcc_PeriphId_t periphId)`
 - `rcc_RequestState_t Rcc_Get_PeriphState(rcc_PeriphId_t periphId, rcc_FunctionState_t * const funcState)`
 - `rcc_RequestState_t Rcc_Get_PeriphClk(rcc_PeriphId_t periphId, rcc_FreqHz_t * const periphClk)`
+- `rcc_RequestState_t Rcc_Get_PeriphClkSrc(rcc_PeriphId_t periphId, rcc_PeriphId_t * const periphClkSrc)`
 
-`Rcc_Set_PeriphActive()` starts the internal oscillator (HSI, HSI48, CSI, LSI) of the selected kernel
+`Rcc_Set_PeriphActive()` starts the internal oscillator (HSI64, HSI48, CSI, LSI) of the selected kernel
 clock if it is not running yet (eg. `RCC_PERIPH_RNG_HSI48`). External sources (HSE, LSE) and PLL outputs
 are not started automatically.
+
+RTC peripheral IDs (`RCC_PERIPH_RTC_HSE_DIV32`, `RCC_PERIPH_RTC_LSE`, `RCC_PERIPH_RTC_LSI`) control the
+RTC interface clock (`RCC_APB3ENR.RTCAPBEN`) and the RTC / TAMP kernel clock (`RCC_BDCR.RTCEN`):
+`Rcc_Set_PeriphActive()` selects the RTC clock (`RTCSEL`) and enables both clocks,
+`Rcc_Set_PeriphInactive()` disables the kernel clock first and keeps `RTCSEL` (write-once until
+backup domain reset), `Rcc_Get_PeriphState()` reports the RTC active only with both clocks enabled.
 
 ### Peripheral Reset Management
 - `rcc_RequestState_t Rcc_Set_ResetActive(rcc_PeriphId_t periphId)`
@@ -62,33 +69,42 @@ are not started automatically.
 - `rcc_RequestState_t Rcc_Get_PllClk_OutR(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 
 ### Clock Sources
-- `rcc_RequestState_t Rcc_Set_HseActive(rcc_HseType_t hseType)`
-- `rcc_RequestState_t Rcc_Set_HseInactive(void)`
-- `rcc_RequestState_t Rcc_Get_HseState(rcc_FunctionState_t * const retState)`
-- `rcc_RequestState_t Rcc_Set_HseClk(rcc_FreqHz_t hseFreq)`
-- `rcc_RequestState_t Rcc_Get_HseClk(rcc_FreqHz_t * const hseFreq)`
-- `rcc_RequestState_t Rcc_Set_Hsi16Active(void)`
-- `rcc_RequestState_t Rcc_Set_Hsi16Inactive(void)`
-- `rcc_RequestState_t Rcc_Get_Hsi16State(rcc_FunctionState_t * const retState)`
-- `rcc_RequestState_t Rcc_Get_Hsi16Clk(rcc_FreqHz_t * const hsiClk)`
-- `rcc_RequestState_t Rcc_Set_Hsi48Active(void)`
-- `rcc_RequestState_t Rcc_Set_Hsi48Inactive(void)`
-- `rcc_RequestState_t Rcc_Get_Hsi48State(rcc_FunctionState_t * const retState)`
-- `rcc_RequestState_t Rcc_Get_Hsi48Clk(rcc_FreqHz_t * const hsiClk)`
-- `rcc_RequestState_t Rcc_Set_MsisActive(rcc_MsisOutId_t msisId, rcc_MsisClkFreq_t clkFreq)`
-- `rcc_RequestState_t Rcc_Set_MsisInactive(rcc_MsisOutId_t msisId)`
-- `rcc_RequestState_t Rcc_Get_MsisState(rcc_MsisOutId_t msisId, rcc_FunctionState_t * const retState)`
-- `rcc_RequestState_t Rcc_Get_MsisClk(rcc_MsisOutId_t msisId, rcc_FreqHz_t * const msiClk)`
+Oscillators except HSE (`rcc_OscId_t`: HSI64, HSI48, CSI, LSI, LSE). HSE is configured by
+`rcc_ConfigStruct_t` (`HSE_ClockType`, `HSE_Frequency_Hz`) and started by `Rcc_Init()`.
+- `rcc_RequestState_t Rcc_Set_OscActive(rcc_OscId_t oscId)`
+- `rcc_RequestState_t Rcc_Set_OscInactive(rcc_OscId_t oscId)`
+- `rcc_RequestState_t Rcc_Get_OscState(rcc_OscId_t oscId, rcc_FunctionState_t * const retState)`
+- `rcc_RequestState_t Rcc_Set_OscDiv(rcc_OscId_t oscId, rcc_OscDiv_t oscDiv)`
+- `rcc_RequestState_t Rcc_Get_OscDiv(rcc_OscId_t oscId, rcc_OscDiv_t * const oscDiv)`
 
-### Low-Speed Clock Sources
-- `rcc_RequestState_t Rcc_Set_LseActive(void)`
-- `rcc_RequestState_t Rcc_Set_LseInactive(void)`
-- `rcc_RequestState_t Rcc_Get_LseState(rcc_FunctionState_t * const retState)`
-- `rcc_RequestState_t Rcc_Get_LseClk(rcc_FreqHz_t * const lseClk)`
-- `rcc_RequestState_t Rcc_Set_LsiActive(void)`
-- `rcc_RequestState_t Rcc_Set_LsiInactive(void)`
-- `rcc_RequestState_t Rcc_Get_LsiState(rcc_FunctionState_t * const retState)`
-- `rcc_RequestState_t Rcc_Get_LsiClk(rcc_FreqHz_t * const lsiClk)`
+**HSE clock security system** (`CSS_Enable` of the `Rcc_Init()` configuration, default inactive) is
+enabled by `Rcc_Init()` when HSE is ready; the CSS without HSE (`RCC_HSE_TYPE_NONE`) or an invalid state
+is rejected. Once enabled, the CSS is disabled by a system reset or Standby mode only. A HSE failure
+switches the system clock to HSI (or CSI) by hardware and generates NMI, which is repeated until the
+`HSECSSF` flag is cleared (`RCC_CICR.HSECSSC`) - the NMI handler is registered by the Nvic module.
+HSE stopped by a repeated `Rcc_Init()` disables the clock detector (not detected as a failure).
+
+LSE and LSI are located in the backup domain - the backup domain write protection
+(`PWR_DBPCR.DBP`) is released by the module before `RCC_BDCR` is written.
+
+**LSE** is enabled by `Rcc_Init()` (and by `Rcc_Set_OscActive(RCC_OSC_LSE)`) with the input type
+and driving capability of the `Rcc_Init()` configuration. The start-up of the crystal is not
+awaited - the ready state is reported by `Rcc_Get_OscState(RCC_OSC_LSE, ...)`:
+- `LSE_ClockType` (`rcc_LseType_t`): `RCC_LSE_TYPE_CRYSTAL` (default), `RCC_LSE_TYPE_SIG_DIGITAL_IN`
+  (digital bypass, `LSEBYP = 1`, `LSEEXT = 1`) or `RCC_LSE_TYPE_NONE` (`Rcc_Init()` leaves LSE untouched, activation returns error).
+- `LSE_Drive` (`rcc_LseDrive_t`): `RCC_LSE_DRIVE_MEDIUM_LOW` (default), `RCC_LSE_DRIVE_MEDIUM_HIGH`,
+  `RCC_LSE_DRIVE_HIGH` - selected according to the crystal (AN2867), ignored in bypass mode.
+
+LSE keeps running over system resets (backup domain). Enabled LSE (running or starting) with the
+requested configuration is kept, otherwise it is stopped, configured (`LSEBYP`, `LSEEXT` and
+`LSEDRV` are writable only with LSE stopped) and enabled again.
+
+Device errata (ES0561, ES0565, ES0621): the lowest drive (`LSEDRV = 00`, backup domain reset
+value) is forbidden ("LSE low drive mode is not functional") and the analog bypass ("might not
+work properly") is replaced by the digital bypass - both are not offered. RTC must not use the
+digital bypass (RM0481), RTC with LSE requires the LSE crystal.
+
+### RTC Clock Source
 - `rcc_RequestState_t Rcc_Set_RtcClkSource(rcc_Rtc_ClkSource_t clkSource)`
 - `rcc_RequestState_t Rcc_Get_RtcClkSource(rcc_Rtc_ClkSource_t * const clkSource)`
 
@@ -110,21 +126,9 @@ LSE 32.768 kHz), the CRS clock and the HSI48 oscillator are activated by the fun
 - `rcc_RequestState_t Rcc_Get_Hsi48TrimState(rcc_FunctionState_t * const retState)`
 
 ### Clock Bus Configuration
-- `rcc_RequestState_t Rcc_Set_SysClkSource(rcc_SystemClkSrc_t systemClkSource)`
-- `rcc_RequestState_t Rcc_Get_SysClkSource(rcc_SystemClkSrc_t * const systemClkSource)`
-- `rcc_RequestState_t Rcc_Get_SysClk(rcc_FreqHz_t * const busClk)`
-- `rcc_RequestState_t Rcc_Set_AHBDivider(rcc_AHB_Div_t dividerId)`
-- `rcc_RequestState_t Rcc_Get_AHBDivider(rcc_AHB_Div_t * const dividerId)`
-- `rcc_RequestState_t Rcc_Get_AHBClk(rcc_FreqHz_t * const busClk)`
-- `rcc_RequestState_t Rcc_Set_APB1Divider(rcc_APB1_Div_t dividerId)`
-- `rcc_RequestState_t Rcc_Get_APB1Divider(rcc_APB1_Div_t * const dividerId)`
-- `rcc_RequestState_t Rcc_Get_APB1Clk(rcc_FreqHz_t * const busClk)`
-- `rcc_RequestState_t Rcc_Set_APB2Divider(rcc_APB2_Div_t dividerId)`
-- `rcc_RequestState_t Rcc_Get_APB2Divider(rcc_APB2_Div_t * const dividerId)`
-- `rcc_RequestState_t Rcc_Get_APB2Clk(rcc_FreqHz_t * const busClk)`
-- `rcc_RequestState_t Rcc_Set_APB3Divider(rcc_APB3_Div_t dividerId)`
-- `rcc_RequestState_t Rcc_Get_APB3Divider(rcc_APB3_Div_t * const dividerId)`
-- `rcc_RequestState_t Rcc_Get_APB3Clk(rcc_FreqHz_t * const busClk)`
+- `rcc_RequestState_t Rcc_Set_ClkBusDivider(rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv_t clkBusDivider)`
+- `rcc_RequestState_t Rcc_Get_ClkBusDivider(rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv_t * const clkBusDivider)`
+- `rcc_RequestState_t Rcc_Get_ClkBusClk(rcc_ClkBusId_t clkBusId, rcc_FreqHz_t * const clkBusFreq)`
 
 ### Flash and System Configuration
 - `rcc_RequestState_t Rcc_Set_PwrRange(rcc_ConfigStruct_t * const clockConfig)`
@@ -133,6 +137,16 @@ LSE 32.768 kHz), the CRS clock and the HSI48 oscillator are activated by the fun
 - `rcc_RequestState_t Rcc_Set_FlashPrefetchInactive(void)`
 - `rcc_RequestState_t Rcc_Set_SysTickInterval(rcc_Time_ms_t sysTickInterval)`
 - `rcc_RequestState_t Rcc_Get_SysTickInterval(rcc_Time_ms_t * const sysTickInterval)`
+
+### Clock Outputs (MCO1, MCO2, LSCO)
+- `rcc_RequestState_t Rcc_Set_ClkOutSource(rcc_ClkOut_Id_t outId, rcc_ClkOut_Source_t clkSource)`
+- `rcc_RequestState_t Rcc_Get_ClkOutSource(rcc_ClkOut_Id_t outId, rcc_ClkOut_Source_t * const clkSource)`
+- `rcc_RequestState_t Rcc_Set_ClkOutDivider(rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t clkDivider)`
+- `rcc_RequestState_t Rcc_Get_ClkOutDivider(rcc_ClkOut_Id_t outId, rcc_ClkOut_Div_t * const clkDivider)`
+
+### Reset Source Flags
+- `rcc_RequestState_t Rcc_Get_ResetSource(rcc_ResetSrc_t resetSrc, rcc_FlagState_t * const flagState)`
+- `rcc_RequestState_t Rcc_Set_ResetSourceClear(void)`
 
 ---
 

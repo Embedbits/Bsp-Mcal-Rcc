@@ -103,6 +103,8 @@ uint32_t                    Rcc_Get_RegBit              ( rcc_RegId_t regId, uin
 void                        Rcc_Set_RegVal              ( rcc_RegId_t regId, uint32_t regMask, uint32_t regValue );
 uint32_t                    Rcc_Get_RegVal              ( rcc_RegId_t regId, uint32_t regMask );
 
+rcc_RequestState_t          Rcc_Reg_Set_BkUpAccess      ( void );
+
 #ifdef __cplusplus
 }
 #endif

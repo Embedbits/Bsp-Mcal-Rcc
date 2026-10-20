@@ -193,6 +193,10 @@ typedef struct
 static rcc_RequestState_t Rcc_Get_ExpectedSysClkFrequency( rcc_ConfigStruct_t * const clockConfig, rcc_FreqHz_t *sysClk );
 static rcc_RequestState_t Rcc_Set_ClkSrcOscActive( rcc_ClkSrcId_t clkSrcId );
 static rcc_FunctionState_t Rcc_Get_ClkMuxShared( rcc_PeriphId_t periphId );
+static rcc_FunctionState_t Rcc_Get_RtcKernelClkUsed( rcc_PeriphId_t periphId );
+static rcc_RequestState_t Rcc_Set_RtcKernelClkState( rcc_FunctionState_t clkState );
+static rcc_FunctionState_t Rcc_Get_RtcKernelClkState( void );
+static rcc_RequestState_t Rcc_Set_HseCssState( rcc_FunctionState_t cssState, rcc_HseType_t hseType );
 
 
 static rcc_RequestState_t Rcc_Pll_Get_1_RClk( rcc_FreqHz_t * const clkFreq );
@@ -880,11 +884,7 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
   { .BlockId = RCC_BLOCK_SYSTICK    , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_UNSUPPORTED_FUNCTION , .LpCtrlMask = RCC_UNSUPPORTED_FUNCTION     , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
   { .BlockId = RCC_BLOCK_IWDG       , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_UNSUPPORTED_FUNCTION , .LpCtrlMask = RCC_UNSUPPORTED_FUNCTION     , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
   { .BlockId = RCC_BLOCK_RTC        , .ClkBusId = RCC_CLK_BUS_APB3      , .StateMask = RCC_APB3ENR_RTCAPBEN     , .LpCtrlMask = RCC_APB3LPENR_RTCAPBLPEN     , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
-#if defined(RCC_APB1LRSTR_CECRST)
-  { .BlockId = RCC_BLOCK_CRS        , .ClkBusId = RCC_CLK_BUS_APB1_1    , .StateMask = RCC_APB1LENR_CRSEN       , .LpCtrlMask = RCC_APB1LLPENR_CRSLPEN       , .RstCtrlMask = RCC_APB1LRSTR_CECRST       },
-#else
-  { .BlockId = RCC_BLOCK_CRS        , .ClkBusId = RCC_CLK_BUS_APB1_1    , .StateMask = RCC_APB1LENR_CRSEN       , .LpCtrlMask = RCC_APB1LLPENR_CRSLPEN       , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
-#endif
+  { .BlockId = RCC_BLOCK_CRS        , .ClkBusId = RCC_CLK_BUS_APB1_1    , .StateMask = RCC_APB1LENR_CRSEN       , .LpCtrlMask = RCC_APB1LLPENR_CRSLPEN       , .RstCtrlMask = RCC_APB1LRSTR_CRSRST       },
 
 #if defined(DTS)
   { .BlockId = RCC_BLOCK_DTS        , .ClkBusId = RCC_CLK_BUS_APB1_2    , .StateMask = RCC_APB1HENR_DTSEN       , .LpCtrlMask = RCC_APB1HLPENR_DTSLPEN       , .RstCtrlMask = RCC_APB1HRSTR_DTSRST       },
@@ -1331,6 +1331,37 @@ rcc_RequestState_t Rcc_Init( rcc_ConfigStruct_t * const clockConfig )
 
         if( RCC_REQUEST_OK == retState )
         {
+            /* Clock security system supervises HSE from now on (HSE is ready) */
+            retState = Rcc_Set_HseCssState( clockConfig->CSS_Enable, clockConfig->HSE_ClockType );
+        }
+        else
+        {
+            /* Previous step failed */
+        }
+
+        if( RCC_REQUEST_OK == retState )
+        {
+            retState = Rcc_ClkSrc_Set_LseConfig( clockConfig->LSE_ClockType, clockConfig->LSE_Drive );
+        }
+        else
+        {
+            /* Previous step failed */
+        }
+
+        if( ( RCC_REQUEST_OK    == retState                    ) &&
+            ( RCC_LSE_TYPE_NONE != clockConfig->LSE_ClockType )    )
+        {
+            /* LSE is enabled without waiting for the crystal start-up, running LSE with
+             * the same configuration is kept (LSE in backup domain runs over resets) */
+            retState = Rcc_ClkSrc_Set_LseActive();
+        }
+        else
+        {
+            /* Previous step failed or no LSE input connected */
+        }
+
+        if( RCC_REQUEST_OK == retState )
+        {
             /* A PLL cannot be deactivated by hardware while it drives SYSCLK
              * (e.g. after a previous Rcc_Init() call). Move SYSCLK to HSI,
              * which is always enabled and ready, before any PLL is
@@ -1371,34 +1402,6 @@ rcc_RequestState_t Rcc_Init( rcc_ConfigStruct_t * const clockConfig )
         {
             retState = Rcc_ClkBus_Set_SysClkSource( clockConfig->SystemClockSource );
         }
-
-//        /* Configure RTC clock path */
-//        if( RCC_LSC_SOURCE_LSI == clockConfig->RTC_Source )
-//        {
-//            retState = Rcc_Set_LsiActive();
-//            if( RCC_REQUEST_OK == retState )
-//            {
-//                return ( retState );
-//            }
-//        }
-//        else if( RCC_LSC_SOURCE_LSE == clockConfig->RTC_Source )
-//        {
-//            retState = Rcc_Set_LseActive();
-//            if( RCC_REQUEST_OK == retState )
-//            {
-//                return ( retState );
-//            }
-//        }
-//        else
-//        {
-//            /* No component activation needed */
-//        }
-//
-//        retState = Rcc_Set_RtcClkSource( clockConfig->RTC_Source );
-//        if( RCC_REQUEST_OK == retState )
-//        {
-//            return ( retState );
-//        }
 
         if( RCC_REQUEST_OK == retState )
         {
@@ -1506,6 +1509,8 @@ rcc_RequestState_t Rcc_Get_DefaultConfig( rcc_ConfigStruct_t * const clockConfig
     {
         clockConfig->HSE_ClockType     = RCC_HSE_TYPE_CRYSTAL;
         clockConfig->HSE_Frequency_Hz  = RCC_DEFAULT_HSE_FREQ_HZ;
+        clockConfig->LSE_ClockType     = RCC_LSE_TYPE_CRYSTAL;
+        clockConfig->LSE_Drive         = RCC_LSE_DRIVE_MEDIUM_LOW;
         clockConfig->SystemClockSource = RCC_SYSTEM_CLOCK_SOURCE_PLL;
         clockConfig->CSS_Enable        = RCC_FUNCTION_INACTIVE;
         clockConfig->AHB_Divider       = RCC_AHB_DIVIDER_1;
@@ -1574,6 +1579,9 @@ rcc_RequestState_t Rcc_Get_DefaultConfig( rcc_ConfigStruct_t * const clockConfig
  * (HSI64, HSI48, CSI, LSI) which is not running, the oscillator is started
  * before the clock MUX is switched. External sources (HSE, LSE) and PLL outputs
  * are not started.
+ *
+ * RTC peripheral IDs (RCC_PERIPH_RTC_xxx) enable the RTC interface clock
+ * (RCC_APB3ENR.RTCAPBEN) and the RTC / TAMP kernel clock (RCC_BDCR.RTCEN).
  *
  * \warning Some peripherals have connected clock source. (e.g. USB and RNG, all
  *          I2S's ...)
@@ -1662,6 +1670,19 @@ rcc_RequestState_t Rcc_Set_PeriphActive( rcc_PeriphId_t periphId )
         retState = RCC_REQUEST_ERROR;
     }
 
+    const rcc_FunctionState_t rtcKernelClk = Rcc_Get_RtcKernelClkUsed( periphId );
+
+    if( ( RCC_REQUEST_OK      == retState     ) &&
+        ( RCC_FUNCTION_ACTIVE == rtcKernelClk )    )
+    {
+        /* RTC kernel clock enable (RCC_BDCR.RTCEN) after the RTC clock selection */
+        retState = Rcc_Set_RtcKernelClkState( RCC_FUNCTION_ACTIVE );
+    }
+    else
+    {
+        /* Previous step failed or peripheral without RTC kernel clock enable */
+    }
+
     return ( retState );
 }
 
@@ -1676,6 +1697,8 @@ rcc_RequestState_t Rcc_Set_PeriphActive( rcc_PeriphId_t periphId )
  * with another kernel clock later. RTC / peripheral clock (CKPER) selection is kept
  * (RTCSEL is write-once until backup domain reset, CKPER is shared) and a multiplexer
  * shared with another enabled peripheral block (ADCDACSEL of ADC and DAC) is kept.
+ * RTC peripheral IDs (RCC_PERIPH_RTC_xxx) disable the RTC / TAMP kernel clock
+ * (RCC_BDCR.RTCEN) first, the interface clock is disabled only if it succeeded.
  *
  * \param periphId (in): ID of required peripheral to de-activate clock source
  * \return State of request execution. Returns "OK" if request was success,
@@ -1693,7 +1716,24 @@ rcc_RequestState_t Rcc_Set_PeriphInactive( rcc_PeriphId_t periphId )
         uint32_t        stateMask  = rcc_PeriphBlockConfig[ blockId ].StateMask;
         rcc_RegId_t     stateRegId = rcc_ClkBusConfigStruct[ clkBusId ].EnableRegId;
 
-        if( RCC_UNSUPPORTED_FUNCTION != stateMask )
+        const rcc_FunctionState_t rtcKernelClk = Rcc_Get_RtcKernelClkUsed( periphId );
+
+        if( RCC_FUNCTION_ACTIVE == rtcKernelClk )
+        {
+            /* RTC kernel clock disable (RCC_BDCR.RTCEN) before the RTC interface clock */
+            retState = Rcc_Set_RtcKernelClkState( RCC_FUNCTION_INACTIVE );
+        }
+        else
+        {
+            /* Peripheral without RTC kernel clock enable */
+            retState = RCC_REQUEST_OK;
+        }
+
+        if( RCC_REQUEST_OK != retState )
+        {
+            /* RTC kernel clock disable failed, interface clock is kept */
+        }
+        else if( RCC_UNSUPPORTED_FUNCTION != stateMask )
         {
             Rcc_Reset_RegBit( stateRegId, stateMask );
 
@@ -1746,7 +1786,9 @@ rcc_RequestState_t Rcc_Set_PeriphInactive( rcc_PeriphId_t periphId )
  * \brief Reading state of peripheral reset state
  *
  * Peripherals clocks can activated or deactivated. This function can be used
- * by user to read this activation status.
+ * by user to read this activation status. RTC peripheral IDs (RCC_PERIPH_RTC_xxx)
+ * are reported active only with enabled interface clock (RCC_APB3ENR.RTCAPBEN)
+ * and kernel clock (RCC_BDCR.RTCEN).
  *
  * \param periphId   (in): ID of required peripheral to be inactive in low power mode
  * \param funcState (out): State of peripheral activation
@@ -1786,6 +1828,19 @@ rcc_RequestState_t Rcc_Get_PeriphState( rcc_PeriphId_t periphId, rcc_FunctionSta
             *funcState = RCC_FUNCTION_ACTIVE;
 
             retState = RCC_REQUEST_OK;
+        }
+
+        const rcc_FunctionState_t rtcKernelClk = Rcc_Get_RtcKernelClkUsed( periphId );
+
+        if( ( RCC_FUNCTION_ACTIVE == rtcKernelClk ) &&
+            ( RCC_FUNCTION_ACTIVE == *funcState   )    )
+        {
+            /* RTC is active only with enabled interface and kernel clock */
+            *funcState = Rcc_Get_RtcKernelClkState();
+        }
+        else
+        {
+            /* Peripheral without RTC kernel clock enable or interface clock disabled */
         }
     }
     else
@@ -2993,9 +3048,14 @@ rcc_RequestState_t Rcc_Get_PllClk_OutR( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk 
 /*----------------------- Internal oscillators configuration -----------------*/
 
 /**
- * \brief Activates internal oscillator.
+ * \brief Activates oscillator.
  *
- * \param oscId [in]: Internal oscillator identification
+ * LSE is activated with the input type and driving capability of Rcc_Init()
+ * configuration (\ref rcc_ConfigStruct_t::LSE_ClockType, \ref rcc_ConfigStruct_t::LSE_Drive),
+ * enabled LSE with the same configuration is kept (LSE is located in backup domain).
+ * LSE start-up is not awaited - ready state is reported by Rcc_Get_OscState().
+ *
+ * \param oscId [in]: Oscillator identification
  *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error.
@@ -3010,6 +3070,7 @@ rcc_RequestState_t Rcc_Set_OscActive( rcc_OscId_t oscId )
         case RCC_OSC_HSI48: retState = Rcc_ClkSrc_Set_Hsi48Active(); break;
         case RCC_OSC_CSI:   retState = Rcc_ClkSrc_Set_CsiActive();   break;
         case RCC_OSC_LSI:   retState = Rcc_ClkSrc_Set_LsiActive();   break;
+        case RCC_OSC_LSE:   retState = Rcc_ClkSrc_Set_LseActive();   break;
         default:            retState = RCC_REQUEST_ERROR;            break;
     }
 
@@ -3018,11 +3079,11 @@ rcc_RequestState_t Rcc_Set_OscActive( rcc_OscId_t oscId )
 
 
 /**
- * \brief Deactivates internal oscillator.
+ * \brief Deactivates oscillator.
  *
- * \warning Oscillator used as system clock or PLL source must not be deactivated.
+ * \warning Oscillator used as system clock, PLL source or RTC clock must not be deactivated.
  *
- * \param oscId [in]: Internal oscillator identification
+ * \param oscId [in]: Oscillator identification
  *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error.
@@ -3037,6 +3098,7 @@ rcc_RequestState_t Rcc_Set_OscInactive( rcc_OscId_t oscId )
         case RCC_OSC_HSI48: retState = Rcc_ClkSrc_Set_Hsi48Inactive(); break;
         case RCC_OSC_CSI:   retState = Rcc_ClkSrc_Set_CsiInactive();   break;
         case RCC_OSC_LSI:   retState = Rcc_ClkSrc_Set_LsiInactive();   break;
+        case RCC_OSC_LSE:   retState = Rcc_ClkSrc_Set_LseInactive();   break;
         default:            retState = RCC_REQUEST_ERROR;              break;
     }
 
@@ -3045,9 +3107,9 @@ rcc_RequestState_t Rcc_Set_OscInactive( rcc_OscId_t oscId )
 
 
 /**
- * \brief Reads activation state of internal oscillator.
+ * \brief Reads activation state of oscillator.
  *
- * \param oscId     [in]: Internal oscillator identification
+ * \param oscId     [in]: Oscillator identification
  * \param retState [out]: Activation state (oscillator ready)
  *
  * \return State of request execution. Returns "OK" if request was success,
@@ -3063,6 +3125,7 @@ rcc_RequestState_t Rcc_Get_OscState( rcc_OscId_t oscId, rcc_FunctionState_t * co
         case RCC_OSC_HSI48: reqState = Rcc_ClkSrc_Get_Hsi48State( retState ); break;
         case RCC_OSC_CSI:   reqState = Rcc_ClkSrc_Get_CsiState( retState );   break;
         case RCC_OSC_LSI:   reqState = Rcc_ClkSrc_Get_LsiState( retState );   break;
+        case RCC_OSC_LSE:   reqState = Rcc_ClkSrc_Get_LseState( retState );   break;
         default:            reqState = RCC_REQUEST_ERROR;                     break;
     }
 
@@ -3824,6 +3887,166 @@ static rcc_FunctionState_t Rcc_Get_ClkMuxShared( rcc_PeriphId_t periphId )
     }
 
     return ( sharedState );
+}
+
+
+/**
+ * \brief Checks if the peripheral uses the RTC / TAMP kernel clock enable (RCC_BDCR.RTCEN).
+ *
+ * Only RTC peripheral IDs (RCC_PERIPH_RTC_xxx) control the RTC kernel clock. Other
+ * peripherals of the RTC block (CKPER selection RCC_PERIPH_LPCLK_xxx) do not.
+ *
+ * \param periphId [in]: ID of the peripheral
+ *
+ * \return Returns RCC_FUNCTION_ACTIVE for RTC peripheral IDs, otherwise returns
+ *         RCC_FUNCTION_INACTIVE.
+ */
+static rcc_FunctionState_t Rcc_Get_RtcKernelClkUsed( rcc_PeriphId_t periphId )
+{
+    rcc_FunctionState_t usedState = RCC_FUNCTION_INACTIVE;
+
+    if( ( RCC_PERIPH_RTC_HSE_DIV32 == periphId ) ||
+        ( RCC_PERIPH_RTC_LSE       == periphId ) ||
+        ( RCC_PERIPH_RTC_LSI       == periphId )    )
+    {
+        usedState = RCC_FUNCTION_ACTIVE;
+    }
+    else
+    {
+        /* Peripheral without RTC kernel clock enable */
+    }
+
+    return ( usedState );
+}
+
+
+/**
+ * \brief Enables or disables the RTC / TAMP kernel clock (RCC_BDCR.RTCEN).
+ *
+ * RCC_BDCR is in the write protected backup domain, the write access is released by
+ * the register write function. Written value is verified by read-back.
+ *
+ * \param clkState [in]: Required state of the RTC kernel clock
+ *
+ * \return Returns "OK" if RCC_BDCR.RTCEN reached the required state, otherwise
+ *         returns error.
+ */
+static rcc_RequestState_t Rcc_Set_RtcKernelClkState( rcc_FunctionState_t clkState )
+{
+    rcc_RequestState_t retState      = RCC_REQUEST_ERROR;
+    uint32_t           requiredValue = 0u;
+    volatile uint32_t  regValue      = 0u;
+
+    if( RCC_FUNCTION_ACTIVE == clkState )
+    {
+        Rcc_Set_RegBit( RCC_REG_BDCR, RCC_BDCR_RTCEN );
+        requiredValue = RCC_BDCR_RTCEN;
+    }
+    else
+    {
+        Rcc_Reset_RegBit( RCC_REG_BDCR, RCC_BDCR_RTCEN );
+        requiredValue = 0u;
+    }
+
+    for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+    {
+        regValue = Rcc_Get_RegBit( RCC_REG_BDCR, RCC_BDCR_RTCEN );
+
+        if( requiredValue == regValue )
+        {
+            retState = RCC_REQUEST_OK;
+            break;
+        }
+        else
+        {
+            retState = RCC_REQUEST_ERROR;
+        }
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Reads the state of the RTC / TAMP kernel clock (RCC_BDCR.RTCEN).
+ *
+ * \return Returns RCC_FUNCTION_ACTIVE if RCC_BDCR.RTCEN is set, otherwise returns
+ *         RCC_FUNCTION_INACTIVE.
+ */
+static rcc_FunctionState_t Rcc_Get_RtcKernelClkState( void )
+{
+    rcc_FunctionState_t clkState = RCC_FUNCTION_INACTIVE;
+    const uint32_t      regValue = Rcc_Get_RegBit( RCC_REG_BDCR, RCC_BDCR_RTCEN );
+
+    if( 0u == regValue )
+    {
+        clkState = RCC_FUNCTION_INACTIVE;
+    }
+    else
+    {
+        clkState = RCC_FUNCTION_ACTIVE;
+    }
+
+    return ( clkState );
+}
+
+
+/**
+ * \brief Enables the clock security system (CSS) of HSE (RCC_CR.HSECSSON).
+ *
+ * The CSS supervises HSE, required CSS without HSE is rejected. HSECSSON is "set only",
+ * CSS enabled by a previous configuration is disabled by a system reset or Standby mode
+ * only. The clock detector runs while HSE is enabled and ready - HSE stopped by software
+ * (repeated Rcc_Init()) disables the detector and is not detected as a failure (RM0481
+ * 11.4.10, RM0492 10.4.10, RM0517 11.4.10). Written value is verified by read-back.
+ *
+ * \param cssState [in]: Required state of the clock security system
+ * \param hseType  [in]: Configured HSE input type
+ *
+ * \return Returns "OK" if the CSS is enabled as required or it is not required,
+ *         otherwise returns error.
+ */
+static rcc_RequestState_t Rcc_Set_HseCssState( rcc_FunctionState_t cssState, rcc_HseType_t hseType )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+    uint32_t           regValue = 0u;
+
+    if( RCC_FUNCTION_ACTIVE == cssState )
+    {
+        if( RCC_HSE_TYPE_NONE != hseType )
+        {
+            LL_RCC_HSE_EnableCSS();
+
+            regValue = Rcc_Get_RegBit( RCC_REG_CR, RCC_CR_HSECSSON );
+
+            if( 0u != regValue )
+            {
+                retState = RCC_REQUEST_OK;
+            }
+            else
+            {
+                /* Clock security system was not enabled */
+                retState = RCC_REQUEST_ERROR;
+            }
+        }
+        else
+        {
+            /* Clock security system needs HSE */
+            retState = RCC_REQUEST_ERROR;
+        }
+    }
+    else if( RCC_FUNCTION_INACTIVE == cssState )
+    {
+        /* Clock security system is not required (can be disabled by reset only) */
+        retState = RCC_REQUEST_OK;
+    }
+    else
+    {
+        /* Invalid state of the clock security system */
+        retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
 }
 
 

@@ -47,6 +47,7 @@ rcc_RequestState_t          Rcc_ClkSrc_Get_CsiClk       ( rcc_FreqHz_t * const c
 
 /*----------------------- Low Speed Clock configuration ----------------------*/
 
+rcc_RequestState_t          Rcc_ClkSrc_Set_LseConfig    ( rcc_LseType_t lseType, rcc_LseDrive_t lseDrive );
 rcc_RequestState_t          Rcc_ClkSrc_Set_LseActive    ( void );
 rcc_RequestState_t          Rcc_ClkSrc_Set_LseInactive  ( void );
 rcc_RequestState_t          Rcc_ClkSrc_Get_LseState     ( rcc_FunctionState_t * const retState );
