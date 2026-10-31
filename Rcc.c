@@ -81,6 +81,21 @@
 /** Threshold frequency of SCLK in Hz, when wait state shall be incremented */
 #define RCC_FLASH_WAIT_STATE_THRESHOLD_HZ       ( 16000000u )
 
+/** Flash wait states valid for every SYSCLK frequency and voltage scale (maximum of the recommended wait states),
+ *  set before SYSCLK is moved to HSI so the old and the new clock configuration are both served */
+#define RCC_FLASH_LATENCY_SWITCH                ( RCC_FLASH_LATENCY_5_WS )
+
+/** ICACHE state returned by LL_ICACHE_IsEnabled() for a disabled cache */
+#define RCC_ICACHE_STATE_DISABLED               ( 0u )
+
+/** Flash programming delay (FLASH_ACR.WRHIGHFREQ) for 0 - 1 wait states (RM0481 Table 48) */
+#define RCC_FLASH_PROG_DELAY_0_1_WS             ( 0u )
+
+/** Flash programming delay (FLASH_ACR.WRHIGHFREQ) for 2 - 3 wait states (RM0481 Table 48, reset value) */
+#define RCC_FLASH_PROG_DELAY_2_3_WS             ( FLASH_ACR_WRHIGHFREQ_0 )
+
+/** Flash programming delay (FLASH_ACR.WRHIGHFREQ) for 4 and more wait states (RM0481 Table 48) */
+#define RCC_FLASH_PROG_DELAY_4_5_WS             ( FLASH_ACR_WRHIGHFREQ_1 )
 
 #define RCC_UNSUPPORTED_FUNCTION                ( 0xFF )
 
@@ -91,8 +106,31 @@
 /** Value of RSR register bits in cleared state */
 #define RCC_RSR_BITS_CLEARED                    ( 0u )
 
-/** Default HSE frequency used by \ref Rcc_Get_DefaultConfig */
+#if defined(RCC_BOARD_HSE_TYPE)
+/** HSE input type used by \ref Rcc_Get_DefaultConfig - HSE of the board (board define RCC_BOARD_HSE_TYPE,
+ *  eg. RCC_HSE_TYPE_CRYSTAL) */
+#define RCC_DEFAULT_HSE_TYPE                    ( RCC_BOARD_HSE_TYPE )
+#else
+/** HSE input type used by \ref Rcc_Get_DefaultConfig - HSE is not started (board without RCC_BOARD_HSE_TYPE) */
+#define RCC_DEFAULT_HSE_TYPE                    ( RCC_HSE_TYPE_NONE )
+#endif /* RCC_BOARD_HSE_TYPE */
+
+#if defined(RCC_BOARD_HSE_FREQ_HZ)
+/** HSE frequency used by \ref Rcc_Get_DefaultConfig - HSE of the board (board define RCC_BOARD_HSE_FREQ_HZ) */
+#define RCC_DEFAULT_HSE_FREQ_HZ                 ( RCC_BOARD_HSE_FREQ_HZ )
+#else
+/** Default HSE frequency used by \ref Rcc_Get_DefaultConfig (ST-LINK MCO of Nucleo boards) */
 #define RCC_DEFAULT_HSE_FREQ_HZ                 ( 8000000u )
+#endif /* RCC_BOARD_HSE_FREQ_HZ */
+
+#if defined(RCC_BOARD_LSE_TYPE)
+/** LSE input type used by \ref Rcc_Get_DefaultConfig - LSE of the board (board define RCC_BOARD_LSE_TYPE,
+ *  eg. RCC_LSE_TYPE_CRYSTAL) */
+#define RCC_DEFAULT_LSE_TYPE                    ( RCC_BOARD_LSE_TYPE )
+#else
+/** LSE input type used by \ref Rcc_Get_DefaultConfig - LSE is not started (board without RCC_BOARD_LSE_TYPE) */
+#define RCC_DEFAULT_LSE_TYPE                    ( RCC_LSE_TYPE_NONE )
+#endif /* RCC_BOARD_LSE_TYPE */
 
 /** Default PLL input divider - HSI 64 MHz (or 32 MHz after reset divider) / 4
  *  gives PLL reference frequency within 1 - 16 MHz input range */
@@ -197,6 +235,10 @@ static rcc_FunctionState_t Rcc_Get_RtcKernelClkUsed( rcc_PeriphId_t periphId );
 static rcc_RequestState_t Rcc_Set_RtcKernelClkState( rcc_FunctionState_t clkState );
 static rcc_FunctionState_t Rcc_Get_RtcKernelClkState( void );
 static rcc_RequestState_t Rcc_Set_HseCssState( rcc_FunctionState_t cssState, rcc_HseType_t hseType );
+static rcc_RequestState_t Rcc_Set_FlashLatencySwitch( void );
+static rcc_RequestState_t Rcc_Set_FlashProgDelay( void );
+static rcc_RequestState_t Rcc_Set_AhbDivider( rcc_ClkBusDiv_t clkBusDivider );
+static rcc_RequestState_t Rcc_Set_FlashLatencyHclk( rcc_FreqHz_t hclkFreq );
 
 
 static rcc_RequestState_t Rcc_Pll_Get_1_RClk( rcc_FreqHz_t * const clkFreq );
@@ -300,6 +342,7 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
   { .PeriphId = RCC_PERIPH_RTC_HSE_DIV32     , .ClkSrcId = RCC_CLK_SRC_APB3CLK , .BlockId = RCC_BLOCK_RTC      , .ClkMuxId = RCC_CLK_MUX_RTC_HSE_DIV32     },
   { .PeriphId = RCC_PERIPH_RTC_LSE           , .ClkSrcId = RCC_CLK_SRC_LSECLK  , .BlockId = RCC_BLOCK_RTC      , .ClkMuxId = RCC_CLK_MUX_RTC_LSE           },
   { .PeriphId = RCC_PERIPH_RTC_LSI           , .ClkSrcId = RCC_CLK_SRC_LSICLK  , .BlockId = RCC_BLOCK_RTC      , .ClkMuxId = RCC_CLK_MUX_RTC_LSI           },
+  { .PeriphId = RCC_PERIPH_RTC_APB           , .ClkSrcId = RCC_CLK_SRC_APB3CLK , .BlockId = RCC_BLOCK_RTC      , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 
   { .PeriphId = RCC_PERIPH_CRS               , .ClkSrcId = RCC_CLK_SRC_APB2CLK , .BlockId = RCC_BLOCK_CRS      , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 
@@ -330,6 +373,12 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
 #if defined(RAMCFG_SRAM3)
   { .PeriphId = RCC_PERIPH_SRAM3             , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_SRAM3    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* RAMCFG_SRAM3 */
+#if defined(RAMCFG_SRAM4)
+  { .PeriphId = RCC_PERIPH_SRAM4             , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_SRAM4    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* RAMCFG_SRAM4 */
+#if defined(RAMCFG_SRAM5)
+  { .PeriphId = RCC_PERIPH_SRAM5             , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_SRAM5    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* RAMCFG_SRAM5 */
 
 #if defined(GPDMA1)
   { .PeriphId = RCC_PERIPH_GPDMA1            , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_GPDMA1   , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
@@ -747,6 +796,15 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
   { .PeriphId = RCC_PERIPH_OCTOSPI1_PLL2R    , .ClkSrcId = RCC_CLK_SRC_PLL2RCLK, .BlockId = RCC_BLOCK_OCTOSPI1 , .ClkMuxId = RCC_CLK_MUX_OCTOSPI1_PLL2R    },
   { .PeriphId = RCC_PERIPH_OCTOSPI1_LPCLK    , .ClkSrcId = RCC_CLK_SRC_CNT     , .BlockId = RCC_BLOCK_OCTOSPI1 , .ClkMuxId = RCC_CLK_MUX_OCTOSPI1_LPCLK    },
 #endif /* OCTOSPI1 */
+#if defined(OCTOSPI2)
+  { .PeriphId = RCC_PERIPH_OCTOSPI2_HCLK     , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_OCTOSPI2 , .ClkMuxId = RCC_CLK_MUX_OCTOSPI2_HCLK     },
+  { .PeriphId = RCC_PERIPH_OCTOSPI2_PLL1Q    , .ClkSrcId = RCC_CLK_SRC_PLL1QCLK, .BlockId = RCC_BLOCK_OCTOSPI2 , .ClkMuxId = RCC_CLK_MUX_OCTOSPI2_PLL1Q    },
+  { .PeriphId = RCC_PERIPH_OCTOSPI2_PLL2R    , .ClkSrcId = RCC_CLK_SRC_PLL2RCLK, .BlockId = RCC_BLOCK_OCTOSPI2 , .ClkMuxId = RCC_CLK_MUX_OCTOSPI2_PLL2R    },
+  { .PeriphId = RCC_PERIPH_OCTOSPI2_LPCLK    , .ClkSrcId = RCC_CLK_SRC_CNT     , .BlockId = RCC_BLOCK_OCTOSPI2 , .ClkMuxId = RCC_CLK_MUX_OCTOSPI2_LPCLK    },
+#endif /* OCTOSPI2 */
+#if defined(OCTOSPIM)
+  { .PeriphId = RCC_PERIPH_OCTOSPIM          , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_OCTOSPIM , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* OCTOSPIM */
 
 #if defined(USB_DRD_FS)
   { .PeriphId = RCC_PERIPH_USB_PLL1Q         , .ClkSrcId = RCC_CLK_SRC_PLL1QCLK, .BlockId = RCC_BLOCK_USB      , .ClkMuxId = RCC_CLK_MUX_USB_PLL1Q         },
@@ -767,6 +825,25 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
   { .PeriphId = RCC_PERIPH_ETH_TX            , .ClkSrcId = RCC_CLK_SRC_PLL1QCLK, .BlockId = RCC_BLOCK_ETH_TX   , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
   { .PeriphId = RCC_PERIPH_ETH_RX            , .ClkSrcId = RCC_CLK_SRC_PLL1QCLK, .BlockId = RCC_BLOCK_ETH_RX   , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* ETH */
+
+#if defined(RCC_AHB1ENR_ETHCKEN)
+  { .PeriphId = RCC_PERIPH_ETH_CLK_HSE       , .ClkSrcId = RCC_CLK_SRC_HSECLK  , .BlockId = RCC_BLOCK_ETH_CLK  , .ClkMuxId = RCC_CLK_MUX_ETH_CLK_HSE       },
+  { .PeriphId = RCC_PERIPH_ETH_CLK_PLL1Q     , .ClkSrcId = RCC_CLK_SRC_PLL1QCLK, .BlockId = RCC_BLOCK_ETH_CLK  , .ClkMuxId = RCC_CLK_MUX_ETH_CLK_PLL1Q     },
+#endif /* RCC_AHB1ENR_ETHCKEN */
+
+#if defined(RCC_CCIPR5_ETHPTPCLKSEL)
+  { .PeriphId = RCC_PERIPH_ETH_PTP_HCLK      , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_ETH      , .ClkMuxId = RCC_CLK_MUX_ETH_PTP_HCLK      },
+  { .PeriphId = RCC_PERIPH_ETH_PTP_PLL1R     , .ClkSrcId = RCC_CLK_SRC_PLL1RCLK, .BlockId = RCC_BLOCK_ETH      , .ClkMuxId = RCC_CLK_MUX_ETH_PTP_PLL1R     },
+  { .PeriphId = RCC_PERIPH_ETH_PTP_PLL1Q     , .ClkSrcId = RCC_CLK_SRC_PLL1QCLK, .BlockId = RCC_BLOCK_ETH      , .ClkMuxId = RCC_CLK_MUX_ETH_PTP_PLL1Q     },
+#if defined(RCC_CR_PLL3ON)
+  { .PeriphId = RCC_PERIPH_ETH_PTP_PLL3P     , .ClkSrcId = RCC_CLK_SRC_PLL3PCLK, .BlockId = RCC_BLOCK_ETH      , .ClkMuxId = RCC_CLK_MUX_ETH_PTP_PLL3P     },
+#endif /* RCC_CR_PLL3ON */
+#endif /* RCC_CCIPR5_ETHPTPCLKSEL */
+
+#if defined(RCC_CCIPR5_ETHREFCLKSEL)
+  { .PeriphId = RCC_PERIPH_ETH_REF_RMII_PAD  , .ClkSrcId = RCC_CLK_SRC_CNT     , .BlockId = RCC_BLOCK_ETH      , .ClkMuxId = RCC_CLK_MUX_ETH_REF_RMII_PAD  },
+  { .PeriphId = RCC_PERIPH_ETH_REF_CLK_FB    , .ClkSrcId = RCC_CLK_SRC_CNT     , .BlockId = RCC_BLOCK_ETH      , .ClkMuxId = RCC_CLK_MUX_ETH_REF_CLK_FB    },
+#endif /* RCC_CCIPR5_ETHREFCLKSEL */
 
   /*------------------------------- Multimedia -------------------------------*/
 
@@ -795,6 +872,36 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
   { .PeriphId = RCC_PERIPH_CEC_LSI           , .ClkSrcId = RCC_CLK_SRC_LSICLK  , .BlockId = RCC_BLOCK_CEC      , .ClkMuxId = RCC_CLK_MUX_CEC_LSI           },
 #endif /* CEC */
 
+#if defined(JPEG)
+  { .PeriphId = RCC_PERIPH_JPEG              , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_JPEG     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* JPEG */
+
+#if defined(LTDC)
+  /* No extra RCC_CR_PLL3ON guard here: LTDC exists only on H5E4/H5E5/H5F4/H5F5, and all four always have PLL3 */
+  { .PeriphId = RCC_PERIPH_LTDC_PLL3R        , .ClkSrcId = RCC_CLK_SRC_PLL3RCLK, .BlockId = RCC_BLOCK_LTDC     , .ClkMuxId = RCC_CLK_MUX_LTDC_PLL3R        },
+  { .PeriphId = RCC_PERIPH_LTDC_PLL2R        , .ClkSrcId = RCC_CLK_SRC_PLL2RCLK, .BlockId = RCC_BLOCK_LTDC     , .ClkMuxId = RCC_CLK_MUX_LTDC_PLL2R        },
+#endif /* LTDC */
+
+#if defined(GFXTIM)
+  { .PeriphId = RCC_PERIPH_GFXTIM            , .ClkSrcId = RCC_CLK_SRC_APB2CLK , .BlockId = RCC_BLOCK_GFXTIM   , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* GFXTIM */
+
+#if defined(ADF1)
+  { .PeriphId = RCC_PERIPH_ADF1_PLL1Q        , .ClkSrcId = RCC_CLK_SRC_PLL1QCLK, .BlockId = RCC_BLOCK_ADF1     , .ClkMuxId = RCC_CLK_MUX_ADF1_PLL1Q        },
+  { .PeriphId = RCC_PERIPH_ADF1_PLL2P        , .ClkSrcId = RCC_CLK_SRC_PLL2PCLK, .BlockId = RCC_BLOCK_ADF1     , .ClkMuxId = RCC_CLK_MUX_ADF1_PLL2P        },
+  { .PeriphId = RCC_PERIPH_ADF1_PLL3P        , .ClkSrcId = RCC_CLK_SRC_PLL3PCLK, .BlockId = RCC_BLOCK_ADF1     , .ClkMuxId = RCC_CLK_MUX_ADF1_PLL3P        },
+  { .PeriphId = RCC_PERIPH_ADF1_CKIN         , .ClkSrcId = RCC_CLK_SRC_CNT     , .BlockId = RCC_BLOCK_ADF1     , .ClkMuxId = RCC_CLK_MUX_ADF1_CKIN         },
+  { .PeriphId = RCC_PERIPH_ADF1_LPCLK        , .ClkSrcId = RCC_CLK_SRC_CNT     , .BlockId = RCC_BLOCK_ADF1     , .ClkMuxId = RCC_CLK_MUX_ADF1_LPCLK        },
+#endif /* ADF1 */
+
+#if defined(MDF1)
+  { .PeriphId = RCC_PERIPH_MDF1_PLL1Q        , .ClkSrcId = RCC_CLK_SRC_PLL1QCLK, .BlockId = RCC_BLOCK_MDF1     , .ClkMuxId = RCC_CLK_MUX_MDF1_PLL1Q        },
+  { .PeriphId = RCC_PERIPH_MDF1_PLL2P        , .ClkSrcId = RCC_CLK_SRC_PLL2PCLK, .BlockId = RCC_BLOCK_MDF1     , .ClkMuxId = RCC_CLK_MUX_MDF1_PLL2P        },
+  { .PeriphId = RCC_PERIPH_MDF1_PLL3P        , .ClkSrcId = RCC_CLK_SRC_PLL3PCLK, .BlockId = RCC_BLOCK_MDF1     , .ClkMuxId = RCC_CLK_MUX_MDF1_PLL3P        },
+  { .PeriphId = RCC_PERIPH_MDF1_CKIN         , .ClkSrcId = RCC_CLK_SRC_CNT     , .BlockId = RCC_BLOCK_MDF1     , .ClkMuxId = RCC_CLK_MUX_MDF1_CKIN         },
+  { .PeriphId = RCC_PERIPH_MDF1_LPCLK        , .ClkSrcId = RCC_CLK_SRC_CNT     , .BlockId = RCC_BLOCK_MDF1     , .ClkMuxId = RCC_CLK_MUX_MDF1_LPCLK        },
+#endif /* MDF1 */
+
   /*--------------------------------- Analog ---------------------------------*/
 
 #if defined(VREFBUF)
@@ -822,11 +929,23 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
   { .PeriphId = RCC_PERIPH_DAC_SAH_LSI       , .ClkSrcId = RCC_CLK_SRC_LSICLK  , .BlockId = RCC_BLOCK_DAC      , .ClkMuxId = RCC_CLK_MUX_DAC_SAH_LSI       },
 #endif /* DAC1 */
 
+#if defined(COMP1)
+  { .PeriphId = RCC_PERIPH_COMP              , .ClkSrcId = RCC_CLK_SRC_APB1CLK , .BlockId = RCC_BLOCK_COMP     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* COMP1 */
+
+#if defined(OPAMP1)
+  { .PeriphId = RCC_PERIPH_OPAMP             , .ClkSrcId = RCC_CLK_SRC_APB1CLK , .BlockId = RCC_BLOCK_OPAMP    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* OPAMP1 */
+
   /*-------------------------------- Security --------------------------------*/
 
 #if defined(AES)
   { .PeriphId = RCC_PERIPH_AES               , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_AES      , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* AES */
+
+#if defined(CCB)
+  { .PeriphId = RCC_PERIPH_CCB               , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_CCB      , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* CCB */
 
 #if defined(GTZC_TZSC1)
   { .PeriphId = RCC_PERIPH_GTZC1             , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_GTZC1    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
@@ -839,6 +958,9 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
 #if defined(OTFDEC1)
   { .PeriphId = RCC_PERIPH_OTFDEC1           , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_OTFDEC1  , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* OTFDEC1 */
+#if defined(OTFDEC2)
+  { .PeriphId = RCC_PERIPH_OTFDEC2           , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_OTFDEC2  , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+#endif /* OTFDEC2 */
 
 #if defined(PKA)
   { .PeriphId = RCC_PERIPH_PKA               , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_PKA      , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
@@ -868,6 +990,17 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
 #if defined(FMAC)
   { .PeriphId = RCC_PERIPH_FMAC              , .ClkSrcId = RCC_CLK_SRC_AHBCLK  , .BlockId = RCC_BLOCK_FMAC     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* FMAC */
+
+#if defined(PLAY1)
+  { .PeriphId = RCC_PERIPH_PLAY1_PCLK3       , .ClkSrcId = RCC_CLK_SRC_APB3CLK , .BlockId = RCC_BLOCK_PLAY1    , .ClkMuxId = RCC_CLK_MUX_PLAY1_PCLK3       },
+  { .PeriphId = RCC_PERIPH_PLAY1_PLL2P       , .ClkSrcId = RCC_CLK_SRC_PLL2PCLK, .BlockId = RCC_BLOCK_PLAY1    , .ClkMuxId = RCC_CLK_MUX_PLAY1_PLL2P       },
+#if defined(RCC_CR_PLL3ON)
+  { .PeriphId = RCC_PERIPH_PLAY1_PLL3R       , .ClkSrcId = RCC_CLK_SRC_PLL3RCLK, .BlockId = RCC_BLOCK_PLAY1    , .ClkMuxId = RCC_CLK_MUX_PLAY1_PLL3R       },
+#endif /* RCC_CR_PLL3ON */
+  { .PeriphId = RCC_PERIPH_PLAY1_LSE         , .ClkSrcId = RCC_CLK_SRC_LSECLK  , .BlockId = RCC_BLOCK_PLAY1    , .ClkMuxId = RCC_CLK_MUX_PLAY1_LSE         },
+  { .PeriphId = RCC_PERIPH_PLAY1_LSI         , .ClkSrcId = RCC_CLK_SRC_LSICLK  , .BlockId = RCC_BLOCK_PLAY1    , .ClkMuxId = RCC_CLK_MUX_PLAY1_LSI         },
+  { .PeriphId = RCC_PERIPH_PLAY1_CLKP        , .ClkSrcId = RCC_CLK_SRC_CNT     , .BlockId = RCC_BLOCK_PLAY1    , .ClkMuxId = RCC_CLK_MUX_PLAY1_CLKP        },
+#endif /* PLAY1 */
 };
 
 _Static_assert( (sizeof(rcc_ConfigStruct) / sizeof(rcc_PeriphConfigStruct_t)) == RCC_PERIPH_ID_CNT, "Rcc: rcc_ConfigStruct has incorrect size." );
@@ -909,6 +1042,12 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
 #if defined(RAMCFG_SRAM3)
   { .BlockId = RCC_BLOCK_SRAM3      , .ClkBusId = RCC_CLK_BUS_AHB2      , .StateMask = RCC_AHB2ENR_SRAM3EN      , .LpCtrlMask = RCC_AHB2LPENR_SRAM3LPEN      , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
 #endif /* RAMCFG_SRAM3 */
+#if defined(RAMCFG_SRAM4)
+  { .BlockId = RCC_BLOCK_SRAM4      , .ClkBusId = RCC_CLK_BUS_AHB2      , .StateMask = RCC_AHB2ENR_SRAM4EN      , .LpCtrlMask = RCC_AHB2LPENR_SRAM4LPEN      , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
+#endif /* RAMCFG_SRAM4 */
+#if defined(RAMCFG_SRAM5)
+  { .BlockId = RCC_BLOCK_SRAM5      , .ClkBusId = RCC_CLK_BUS_AHB2      , .StateMask = RCC_AHB2ENR_SRAM5EN      , .LpCtrlMask = RCC_AHB2LPENR_SRAM5LPEN      , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
+#endif /* RAMCFG_SRAM5 */
 
 #if defined(GPDMA1)
   { .BlockId = RCC_BLOCK_GPDMA1     , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_GPDMA1EN     , .LpCtrlMask = RCC_AHB1LPENR_GPDMA1LPEN     , .RstCtrlMask = RCC_AHB1RSTR_GPDMA1RST     },
@@ -1133,6 +1272,12 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
 #if defined(OCTOSPI1)
   { .BlockId = RCC_BLOCK_OCTOSPI1   , .ClkBusId = RCC_CLK_BUS_AHB4      , .StateMask = RCC_AHB4ENR_OCTOSPI1EN   , .LpCtrlMask = RCC_AHB4LPENR_OCTOSPI1LPEN   , .RstCtrlMask = RCC_AHB4RSTR_OCTOSPI1RST   },
 #endif /* OCTOSPI1 */
+#if defined(OCTOSPI2)
+  { .BlockId = RCC_BLOCK_OCTOSPI2   , .ClkBusId = RCC_CLK_BUS_AHB4      , .StateMask = RCC_AHB4ENR_OCTOSPI2EN   , .LpCtrlMask = RCC_AHB4LPENR_OCTOSPI2LPEN   , .RstCtrlMask = RCC_AHB4RSTR_OCTOSPI2RST   },
+#endif /* OCTOSPI2 */
+#if defined(OCTOSPIM)
+  { .BlockId = RCC_BLOCK_OCTOSPIM   , .ClkBusId = RCC_CLK_BUS_AHB4      , .StateMask = RCC_AHB4ENR_OCTOSPIMEN   , .LpCtrlMask = RCC_AHB4LPENR_OCTOSPIMLPEN   , .RstCtrlMask = RCC_AHB4RSTR_OCTOSPIMRST   },
+#endif /* OCTOSPIM */
 
 #if defined(USB_DRD_FS)
   { .BlockId = RCC_BLOCK_USB        , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB2ENR_USBEN        , .LpCtrlMask = RCC_APB2LPENR_USBLPEN        , .RstCtrlMask = RCC_APB2RSTR_USBRST        },
@@ -1147,6 +1292,10 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
   { .BlockId = RCC_BLOCK_ETH_TX     , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_ETHTXEN      , .LpCtrlMask = RCC_AHB1LPENR_ETHTXLPEN      , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
   { .BlockId = RCC_BLOCK_ETH_RX     , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_ETHRXEN      , .LpCtrlMask = RCC_AHB1LPENR_ETHRXLPEN      , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
 #endif /* ETH */
+
+#if defined(RCC_AHB1ENR_ETHCKEN)
+  { .BlockId = RCC_BLOCK_ETH_CLK    , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_ETHCKEN      , .LpCtrlMask = RCC_AHB1LPENR_ETHCKLPEN      , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
+#endif /* RCC_AHB1ENR_ETHCKEN */
 
   /*------------------------------- Multimedia -------------------------------*/
 
@@ -1165,6 +1314,26 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
   { .BlockId = RCC_BLOCK_CEC        , .ClkBusId = RCC_CLK_BUS_APB1_1     , .StateMask = RCC_APB1LENR_CECEN      , .LpCtrlMask = RCC_APB1LLPENR_CECLPEN       , .RstCtrlMask = RCC_APB1LRSTR_CECRST       },
 #endif /* CEC */
 
+#if defined(JPEG)
+  { .BlockId = RCC_BLOCK_JPEG       , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_JPEGEN       , .LpCtrlMask = RCC_AHB1LPENR_JPEGLPEN       , .RstCtrlMask = RCC_AHB1RSTR_JPEGRST       },
+#endif /* JPEG */
+
+#if defined(LTDC)
+  { .BlockId = RCC_BLOCK_LTDC       , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB2ENR_LTDCEN       , .LpCtrlMask = RCC_APB2LPENR_LTDCLPEN       , .RstCtrlMask = RCC_APB2RSTR_LTDCRST       },
+#endif /* LTDC */
+
+#if defined(GFXTIM)
+  { .BlockId = RCC_BLOCK_GFXTIM     , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB2ENR_GFXTIMEN     , .LpCtrlMask = RCC_APB2LPENR_GFXTIMLPEN     , .RstCtrlMask = RCC_APB2RSTR_GFXTIMRST     },
+#endif /* GFXTIM */
+
+#if defined(ADF1)
+  { .BlockId = RCC_BLOCK_ADF1       , .ClkBusId = RCC_CLK_BUS_AHB2      , .StateMask = RCC_AHB2ENR_ADF1EN       , .LpCtrlMask = RCC_AHB2LPENR_ADF1LPEN       , .RstCtrlMask = RCC_AHB2RSTR_ADF1RST       },
+#endif /* ADF1 */
+
+#if defined(MDF1)
+  { .BlockId = RCC_BLOCK_MDF1       , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_MDF1EN       , .LpCtrlMask = RCC_AHB1LPENR_MDF1LPEN       , .RstCtrlMask = RCC_AHB1RSTR_MDF1RST       },
+#endif /* MDF1 */
+
   /*--------------------------------- Analog ---------------------------------*/
 
 #if defined(VREFBUF)
@@ -1179,11 +1348,23 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
   { .BlockId = RCC_BLOCK_DAC        , .ClkBusId = RCC_CLK_BUS_AHB2      , .StateMask = RCC_AHB2ENR_DAC1EN       , .LpCtrlMask = RCC_AHB2LPENR_DAC1LPEN       , .RstCtrlMask = RCC_AHB2RSTR_DAC1RST       },
 #endif /* DAC1 */
 
+#if defined(COMP1)
+  { .BlockId = RCC_BLOCK_COMP       , .ClkBusId = RCC_CLK_BUS_APB1_1    , .StateMask = RCC_APB1LENR_COMPEN      , .LpCtrlMask = RCC_APB1LLPENR_COMPLPEN      , .RstCtrlMask = RCC_APB1LRSTR_COMPRST      },
+#endif /* COMP1 */
+
+#if defined(OPAMP1)
+  { .BlockId = RCC_BLOCK_OPAMP      , .ClkBusId = RCC_CLK_BUS_APB1_1    , .StateMask = RCC_APB1LENR_OPAMPEN     , .LpCtrlMask = RCC_APB1LLPENR_OPAMPLPEN     , .RstCtrlMask = RCC_APB1LRSTR_OPAMPRST     },
+#endif /* OPAMP1 */
+
   /*-------------------------------- Security --------------------------------*/
 
 #if defined(AES)
   { .BlockId = RCC_BLOCK_AES        , .ClkBusId = RCC_CLK_BUS_AHB2      , .StateMask = RCC_AHB2ENR_AESEN        , .LpCtrlMask = RCC_AHB2LPENR_AESLPEN        , .RstCtrlMask = RCC_AHB2RSTR_AESRST        },
 #endif /* AES */
+
+#if defined(CCB)
+  { .BlockId = RCC_BLOCK_CCB        , .ClkBusId = RCC_CLK_BUS_AHB2      , .StateMask = RCC_AHB2ENR_CCBEN        , .LpCtrlMask = RCC_AHB2LPENR_CCBLPEN        , .RstCtrlMask = RCC_AHB2RSTR_CCBRST        },
+#endif /* CCB */
 
 #if defined(GTZC_TZSC1)
   { .BlockId = RCC_BLOCK_GTZC1      , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_TZSC1EN      , .LpCtrlMask = RCC_AHB1LPENR_TZSC1LPEN      , .RstCtrlMask = RCC_UNSUPPORTED_FUNCTION   },
@@ -1196,6 +1377,9 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
 #if defined(OTFDEC1)
   { .BlockId = RCC_BLOCK_OTFDEC1    , .ClkBusId = RCC_CLK_BUS_AHB4      , .StateMask = RCC_AHB4ENR_OTFDEC1EN    , .LpCtrlMask = RCC_AHB4LPENR_OTFDEC1LPEN    , .RstCtrlMask = RCC_AHB4RSTR_OTFDEC1RST    },
 #endif /* OTFDEC1 */
+#if defined(OTFDEC2)
+  { .BlockId = RCC_BLOCK_OTFDEC2    , .ClkBusId = RCC_CLK_BUS_AHB4      , .StateMask = RCC_AHB4ENR_OTFDEC2EN    , .LpCtrlMask = RCC_AHB4LPENR_OTFDEC2LPEN    , .RstCtrlMask = RCC_AHB4RSTR_OTFDEC2RST    },
+#endif /* OTFDEC2 */
 
 #if defined(PKA)
   { .BlockId = RCC_BLOCK_PKA        , .ClkBusId = RCC_CLK_BUS_AHB2      , .StateMask = RCC_AHB2ENR_PKAEN        , .LpCtrlMask = RCC_AHB2LPENR_PKALPEN        , .RstCtrlMask = RCC_AHB2RSTR_PKARST        },
@@ -1222,6 +1406,10 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
 #if defined(FMAC)
   { .BlockId = RCC_BLOCK_FMAC       , .ClkBusId = RCC_CLK_BUS_AHB1      , .StateMask = RCC_AHB1ENR_FMACEN       , .LpCtrlMask = RCC_AHB1LPENR_FMACLPEN       , .RstCtrlMask = RCC_AHB1RSTR_FMACRST       },
 #endif /* FMAC */
+
+#if defined(PLAY1)
+  { .BlockId = RCC_BLOCK_PLAY1      , .ClkBusId = RCC_CLK_BUS_APB3      , .StateMask = (RCC_APB3ENR_PLAY1EN | RCC_APB3ENR_PLAY1APBEN) , .LpCtrlMask = RCC_APB3LPENR_PLAY1LPEN      , .RstCtrlMask = RCC_APB3RSTR_PLAY1RST      },
+#endif /* PLAY1 */
 };
 
 _Static_assert( (sizeof(rcc_PeriphBlockConfig) / sizeof(rcc_BlockConfigStruct_t)) == RCC_BLOCK_LIST_CNT, "Rcc: rcc_PeriphBlockConfig has incorrect size." );
@@ -1301,17 +1489,65 @@ rcc_RequestState_t Rcc_Init( rcc_ConfigStruct_t * const clockConfig )
 
         if( RCC_REQUEST_OK == retState )
         {
-            retState = Rcc_Set_PwrRange( clockConfig );
+            /* Flash wait states valid for every clock frequency and voltage scale
+             * while the clock configuration is switched (the old clock is still
+             * running, e.g. after a previous Rcc_Init() call) */
+            retState = Rcc_Set_FlashLatencySwitch();
+        }
+        else
+        {
+            /* Previous step failed */
         }
 
         if( RCC_REQUEST_OK == retState )
         {
-            retState = Rcc_Set_FlashLatency( clockConfig );
+            /* A PLL cannot be deactivated by hardware while it drives SYSCLK
+             * (e.g. after a previous Rcc_Init() call). Move SYSCLK to HSI,
+             * which is always enabled and ready, before the voltage scale and
+             * the flash wait states are lowered to the new configuration and
+             * before any PLL is reconfigured below, so Rcc_Pll_Set_Config() can
+             * always turn the targeted PLL off first. */
+            retState = Rcc_ClkBus_Set_SysClkSource( RCC_SYSTEM_CLOCK_SOURCE_HSI );
+        }
+        else
+        {
+            /* Previous step failed */
         }
 
-        LL_ICACHE_SetMode( LL_ICACHE_1WAY );
+        if( RCC_REQUEST_OK == retState )
+        {
+            retState = Rcc_Set_PwrRange( clockConfig );
+        }
+        else
+        {
+            /* Previous step failed */
+        }
 
-        LL_ICACHE_Enable();
+        if( RCC_REQUEST_OK == retState )
+        {
+            /* Rejects a frequency over the limit of the voltage scale before any PLL is started */
+            retState = Rcc_Set_FlashLatency( clockConfig );
+        }
+        else
+        {
+            /* Previous step failed */
+        }
+
+        /* ICACHE 2-way set associative (reset value; the 1-way mode is the low-power option,
+         * RM0481 8.4.4). WAYSEL is writable only while the cache is disabled - a repeated
+         * Rcc_Init() keeps the running cache as it is. */
+        const uint32_t icacheState = LL_ICACHE_IsEnabled();
+
+        if( RCC_ICACHE_STATE_DISABLED == icacheState )
+        {
+            LL_ICACHE_SetMode( LL_ICACHE_2WAYS );
+
+            LL_ICACHE_Enable();
+        }
+        else
+        {
+            /* Running cache is kept */
+        }
 
 #if defined (DCACHE1)
         LL_DCACHE_SetReadBurstType( DCACHE1, LL_DCACHE_READ_BURST_INCR );
@@ -1358,16 +1594,6 @@ rcc_RequestState_t Rcc_Init( rcc_ConfigStruct_t * const clockConfig )
         else
         {
             /* Previous step failed or no LSE input connected */
-        }
-
-        if( RCC_REQUEST_OK == retState )
-        {
-            /* A PLL cannot be deactivated by hardware while it drives SYSCLK
-             * (e.g. after a previous Rcc_Init() call). Move SYSCLK to HSI,
-             * which is always enabled and ready, before any PLL is
-             * reconfigured below, so Rcc_Pll_Set_Config() can always turn
-             * the targeted PLL off first. */
-            retState = Rcc_ClkBus_Set_SysClkSource( RCC_SYSTEM_CLOCK_SOURCE_HSI );
         }
 
         for( rcc_PllId_t pllId = RCC_PLL_1; RCC_PLL_CNT > pllId; pllId++ )
@@ -1417,16 +1643,15 @@ rcc_RequestState_t Rcc_Init( rcc_ConfigStruct_t * const clockConfig )
 
             if( RCC_REQUEST_OK == retState )
             {
-                const ErrorStatus latencyState = LL_SetFlashLatency( hclkFreq );
+                retState = Rcc_Set_FlashLatencyHclk( hclkFreq );
 
-                if( SUCCESS == latencyState )
+                if( RCC_REQUEST_OK == retState )
                 {
                     retState = Rcc_Set_SysTickInterval( clockConfig->SysTickInterval );
                 }
                 else
                 {
-                    /* Flash latency configuration failed */
-                    retState = RCC_REQUEST_ERROR;
+                    /* Previous step failed */
                 }
             }
             else
@@ -1496,6 +1721,13 @@ void Rcc_Task( void )
 /**
  * \brief Clock configuration structure default value initialization
  *
+ * The default configuration is valid for every STM32H5 board: system clock from
+ * PLL1 clocked by HSI. External oscillators are board specific and an enabled
+ * oscillator takes over its pins (RM0481 13.3.12; LSEON of the backup domain is
+ * kept over resets), so HSE and LSE are started only for a board which gives
+ * them by the board defines RCC_BOARD_HSE_TYPE / RCC_BOARD_HSE_FREQ_HZ and
+ * RCC_BOARD_LSE_TYPE (\ref RCC_DEFAULT_HSE_TYPE, \ref RCC_DEFAULT_LSE_TYPE).
+ *
  * \param clockConfig [out]: Pointer to clock configuration structure.
  *
  * \return State of request execution. Returns "OK" if request was success,
@@ -1507,9 +1739,9 @@ rcc_RequestState_t Rcc_Get_DefaultConfig( rcc_ConfigStruct_t * const clockConfig
 
     if( RCC_NULL_PTR != clockConfig )
     {
-        clockConfig->HSE_ClockType     = RCC_HSE_TYPE_CRYSTAL;
+        clockConfig->HSE_ClockType     = RCC_DEFAULT_HSE_TYPE;
         clockConfig->HSE_Frequency_Hz  = RCC_DEFAULT_HSE_FREQ_HZ;
-        clockConfig->LSE_ClockType     = RCC_LSE_TYPE_CRYSTAL;
+        clockConfig->LSE_ClockType     = RCC_DEFAULT_LSE_TYPE;
         clockConfig->LSE_Drive         = RCC_LSE_DRIVE_MEDIUM_LOW;
         clockConfig->SystemClockSource = RCC_SYSTEM_CLOCK_SOURCE_PLL;
         clockConfig->CSS_Enable        = RCC_FUNCTION_INACTIVE;
@@ -1580,8 +1812,11 @@ rcc_RequestState_t Rcc_Get_DefaultConfig( rcc_ConfigStruct_t * const clockConfig
  * before the clock MUX is switched. External sources (HSE, LSE) and PLL outputs
  * are not started.
  *
- * RTC peripheral IDs (RCC_PERIPH_RTC_xxx) enable the RTC interface clock
+ * RTC peripheral IDs (RCC_PERIPH_RTC_HSE_DIV32, _LSE, _LSI) enable the RTC interface clock
  * (RCC_APB3ENR.RTCAPBEN) and the RTC / TAMP kernel clock (RCC_BDCR.RTCEN).
+ * RCC_PERIPH_RTC_APB enables the RTC / TAMP register interface clock alone: it neither
+ * selects the RTC clock (RCC_BDCR.RTCSEL) nor sets RCC_BDCR.RTCEN, so a module which only
+ * accesses the registers (TAMP backup registers) can request it.
  *
  * \warning Some peripherals have connected clock source. (e.g. USB and RNG, all
  *          I2S's ...)
@@ -1699,6 +1934,8 @@ rcc_RequestState_t Rcc_Set_PeriphActive( rcc_PeriphId_t periphId )
  * shared with another enabled peripheral block (ADCDACSEL of ADC and DAC) is kept.
  * RTC peripheral IDs (RCC_PERIPH_RTC_xxx) disable the RTC / TAMP kernel clock
  * (RCC_BDCR.RTCEN) first, the interface clock is disabled only if it succeeded.
+ * RCC_PERIPH_RTC_APB disables the RTC / TAMP register interface clock only (shared with
+ * the RTC, the RTC kernel clock is not touched).
  *
  * \param periphId (in): ID of required peripheral to de-activate clock source
  * \return State of request execution. Returns "OK" if request was success,
@@ -2310,12 +2547,12 @@ rcc_RequestState_t Rcc_Set_ClkBusDivider( rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv
     if( ( RCC_CLK_BUS_AHB1 == clkBusId ) ||
         ( RCC_CLK_BUS_AHB2 == clkBusId )    )
     {
-        retState = Rcc_ClkBus_Set_AHBDivider( clkBusDivider );
+        retState = Rcc_Set_AhbDivider( clkBusDivider );
     }
 #if defined(AHB4PERIPH_BASE)
     else if( RCC_CLK_BUS_AHB4 == clkBusId )
     {
-        retState = Rcc_ClkBus_Set_AHBDivider( clkBusDivider );
+        retState = Rcc_Set_AhbDivider( clkBusDivider );
     }
 #endif
     else if( ( RCC_CLK_BUS_APB1_1 == clkBusId ) ||
@@ -2516,6 +2753,7 @@ rcc_RequestState_t Rcc_Set_PwrRange( rcc_ConfigStruct_t * const clockConfig )
  *
  * The flash wait state is dependent on expected core frequency (SYSCLK). The
  * purpose of this functionality is to delay between accessing FLASH memory.
+ * The programming delay (WRHIGHFREQ) of the wait states is set with them.
  * The range of wait states can be seen below:
  *
  * \cond INTERNAL
@@ -2722,10 +2960,263 @@ rcc_RequestState_t Rcc_Set_FlashLatency( rcc_ConfigStruct_t * const clockConfig 
                 retState = RCC_REQUEST_ERROR;
             }
         }
+
+        if( RCC_REQUEST_OK == retState )
+        {
+            retState = Rcc_Set_FlashProgDelay();
+        }
+        else
+        {
+            /* Wait states not applied */
+        }
     }
     else
     {
         retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Raises the flash wait states to the value valid for every clock frequency and voltage scale.
+ *
+ * Used before SYSCLK is moved to HSI by \ref Rcc_Init, so the flash is read with
+ * enough wait states by the old clock, by the transition and by the new clock.
+ * Higher actual wait states are kept.
+ *
+ * \return State of request execution. Returns "OK" if the wait states are valid
+ *         for the transition, otherwise return error.
+ */
+static rcc_RequestState_t Rcc_Set_FlashLatencySwitch( void )
+{
+    rcc_RequestState_t retState      = RCC_REQUEST_OK;
+    const uint32_t     actualLatency = Rcc_Get_RegVal( RCC_REG_FLASH_ACR, FLASH_ACR_LATENCY_Msk );
+
+    if( RCC_FLASH_LATENCY_SWITCH > actualLatency )
+    {
+        Rcc_Set_RegVal( RCC_REG_FLASH_ACR, FLASH_ACR_LATENCY_Msk, RCC_FLASH_LATENCY_SWITCH );
+
+        retState = RCC_REQUEST_ERROR;
+
+        for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+        {
+            const uint32_t regValue = Rcc_Get_RegVal( RCC_REG_FLASH_ACR, FLASH_ACR_LATENCY_Msk );
+
+            if( RCC_FLASH_LATENCY_SWITCH == regValue )
+            {
+                retState = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                /* Latency has not yet been applied, keep return state as error */
+            }
+        }
+
+        if( RCC_REQUEST_OK == retState )
+        {
+            retState = Rcc_Set_FlashProgDelay();
+        }
+        else
+        {
+            /* Wait states not applied */
+        }
+    }
+    else
+    {
+        /* Actual wait states are valid for every clock */
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Sets the flash wait states and the programming delay for a processor clock (HCLK).
+ *
+ * The wait states are selected from HCLK and the actual voltage scale by LL_SetFlashLatency(), which
+ * reads the value back. The programming delay follows the wait states.
+ *
+ * \param hclkFreq [in]: Processor clock (HCLK) frequency in Hz the flash has to be read with
+ *
+ * \return State of request execution. Returns "OK" if the wait states and the programming delay are
+ *         applied, otherwise return error.
+ */
+static rcc_RequestState_t Rcc_Set_FlashLatencyHclk( rcc_FreqHz_t hclkFreq )
+{
+    rcc_RequestState_t retState     = RCC_REQUEST_ERROR;
+    const ErrorStatus  latencyState = LL_SetFlashLatency( hclkFreq );
+
+    if( SUCCESS == latencyState )
+    {
+        /* Programming delay for the wait states set by LL_SetFlashLatency() */
+        retState = Rcc_Set_FlashProgDelay();
+    }
+    else
+    {
+        /* Flash latency configuration failed */
+        retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Configures AHB divider, keeps flash wait states, SystemCoreClock and SysTick interval consistent.
+ *
+ * HCLK changes with the AHB divider. When HCLK grows, the flash wait states (and the programming delay)
+ * for the new HCLK are set before the divider is written; when HCLK falls, they are lowered after the
+ * divider is written. If the divider write fails after the wait states were raised, the higher wait
+ * states are kept (safe for the unchanged HCLK). After the divider is applied SystemCoreClock is
+ * refreshed and the SysTick interval, if SysTick is running, is configured again for the new HCLK.
+ * When the divider is not applied or HCLK is not available, SystemCoreClock and SysTick stay unchanged.
+ *
+ * \param clkBusDivider [in]: Required AHB divider
+ *
+ * \return State of request execution. Returns "OK" if the divider was applied and the dependent
+ *         settings were updated, otherwise return error.
+ */
+static rcc_RequestState_t Rcc_Set_AhbDivider( rcc_ClkBusDiv_t clkBusDivider )
+{
+    rcc_RequestState_t retState        = RCC_REQUEST_ERROR;
+    rcc_FreqHz_t       sysClkFreq      = 0u;
+    rcc_FreqHz_t       oldHclkFreq     = 0u;
+    rcc_Time_ms_t      sysTickInterval = 0u;
+
+    const rcc_RequestState_t sysClkState   = Rcc_ClkBus_Get_SysClk( &sysClkFreq );
+    const rcc_RequestState_t oldHclkState  = Rcc_ClkBus_Get_AHBClk( &oldHclkFreq );
+    const rcc_RequestState_t intervalState = Rcc_Get_SysTickInterval( &sysTickInterval );
+    const uint32_t           sysTickEnable = SysTick->CTRL & SysTick_CTRL_ENABLE_Msk;
+
+    if( ( RCC_REQUEST_OK == sysClkState  ) &&
+        ( RCC_REQUEST_OK == oldHclkState )    )
+    {
+        const rcc_FreqHz_t newHclkFreq = __LL_RCC_CALC_HCLK_FREQ( sysClkFreq, clkBusDivider );
+
+        retState = RCC_REQUEST_OK;
+
+        if( newHclkFreq > oldHclkFreq )
+        {
+            /* Faster flash access first, so the flash is never read too fast */
+            retState = Rcc_Set_FlashLatencyHclk( newHclkFreq );
+        }
+        else
+        {
+            /* HCLK is not raised - wait states are not raised */
+        }
+
+        if( RCC_REQUEST_OK == retState )
+        {
+            /* If this write fails after the wait states were raised, the higher wait states stay (safe) */
+            retState = Rcc_ClkBus_Set_AHBDivider( clkBusDivider );
+        }
+        else
+        {
+            /* Wait states not raised - divider not written */
+        }
+
+        if( ( RCC_REQUEST_OK == retState ) &&
+            ( newHclkFreq     < oldHclkFreq ) )
+        {
+            /* Slower flash access only after HCLK fell; failure keeps the higher wait states (safe) */
+            retState = Rcc_Set_FlashLatencyHclk( newHclkFreq );
+        }
+        else
+        {
+            /* HCLK is not lowered or the divider is not applied */
+        }
+
+        if( RCC_REQUEST_OK == retState )
+        {
+            rcc_FreqHz_t             hclkFreq = 0u;
+            const rcc_RequestState_t clkState = Rcc_ClkBus_Get_AHBClk( &hclkFreq );
+
+            if( RCC_REQUEST_OK == clkState )
+            {
+                LL_SetSystemCoreClock( hclkFreq );
+            }
+            else
+            {
+                /* Processor clock is not available - SystemCoreClock not changed */
+                retState = RCC_REQUEST_ERROR;
+            }
+
+            if( ( RCC_REQUEST_OK == retState     ) &&
+                ( 0u             != sysTickEnable ) &&
+                ( RCC_REQUEST_OK == intervalState ) &&
+                ( 0u              < sysTickInterval ) )
+            {
+                /* SysTick runs from HCLK - same interval needs a new reload value */
+                retState = Rcc_Set_SysTickInterval( sysTickInterval );
+            }
+            else
+            {
+                /* SysTick is not configured (or HCLK unknown) - left alone */
+            }
+        }
+        else
+        {
+            /* Divider or wait states not applied - dependent settings are not refreshed */
+        }
+    }
+    else
+    {
+        /* HCLK is not known - wait states for the new HCLK cannot be selected, divider not written */
+        retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Sets the flash programming delay (FLASH_ACR.WRHIGHFREQ) for the actual flash wait states.
+ *
+ * RM0481 Table 48: 0 - 1 wait states -> 00, 2 - 3 wait states -> 01, 4 - 5 wait states -> 10
+ * in all voltage scaling ranges (the reset value 01 is too short above 168 MHz in VOS0). The
+ * delay is used by flash program and erase operations, read accesses use LATENCY. Called
+ * whenever Rcc writes the wait states.
+ *
+ * \return State of request execution. Returns "OK" if the delay is applied, otherwise
+ *         return error.
+ */
+static rcc_RequestState_t Rcc_Set_FlashProgDelay( void )
+{
+    rcc_RequestState_t retState  = RCC_REQUEST_ERROR;
+    const uint32_t     latency   = Rcc_Get_RegVal( RCC_REG_FLASH_ACR, FLASH_ACR_LATENCY_Msk );
+    uint32_t           progDelay = RCC_FLASH_PROG_DELAY_0_1_WS;
+
+    if( RCC_FLASH_LATENCY_4_WS <= latency )
+    {
+        progDelay = RCC_FLASH_PROG_DELAY_4_5_WS;
+    }
+    else if( RCC_FLASH_LATENCY_2_WS <= latency )
+    {
+        progDelay = RCC_FLASH_PROG_DELAY_2_3_WS;
+    }
+    else
+    {
+        /* 0 - 1 wait states: shortest programming delay */
+    }
+
+    Rcc_Set_RegVal( RCC_REG_FLASH_ACR, FLASH_ACR_WRHIGHFREQ_Msk, progDelay );
+
+    for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+    {
+        const uint32_t regValue = Rcc_Get_RegVal( RCC_REG_FLASH_ACR, FLASH_ACR_WRHIGHFREQ_Msk );
+
+        if( progDelay == regValue )
+        {
+            retState = RCC_REQUEST_OK;
+            break;
+        }
+        else
+        {
+            /* Programming delay has not yet been applied, keep return state as error */
+        }
     }
 
     return ( retState );
@@ -3609,6 +4100,63 @@ rcc_RequestState_t Rcc_Set_RtcClkSource( rcc_Rtc_ClkSource_t clkSource )
 rcc_RequestState_t Rcc_Get_RtcClkSource( rcc_Rtc_ClkSource_t * const clkSource )
 {
     return ( Rcc_Pll_Get_RtcClkSource( clkSource ) );
+}
+
+
+/**
+ * \brief Resets the backup domain: RCC_BDCR.VSWRST is set and cleared (the backup domain write protection
+ *        is released by the register write function).
+ *
+ * The LSE oscillator, the RTC, the TAMP backup registers, the backup SRAM and RCC_BDCR return to their
+ * reset values (RM0481 / RM0492 "Backup domain reset"): the RTC clock source (RCC_BDCR.RTCSEL, written
+ * once per backup domain life) can be selected again, the RTC kernel clock and the LSE are stopped.
+ *
+ * \warning The hardware also erases the SRAM2 at the backup domain reset (RM0492 "SRAM2 ... erased by
+ *          hardware in case of a Backup domain reset"). With the stack in the SRAM2 (the default linker
+ *          script of STM32H503 places the stack at the end of the RAM = end of the SRAM2) the return
+ *          addresses are lost and the clear of VSWRST is never reached: the reset stays pending and is
+ *          repeated at every later release of the backup domain write access. The request is therefore
+ *          refused when the stack of the caller lies in the SRAM2. Data of the application in the SRAM2
+ *          are lost by the reset.
+ *
+ * \return State of request execution. Returns "OK" if RCC_BDCR.VSWRST read back set and then cleared,
+ *         otherwise returns error (also when the stack lies in the SRAM2, nothing is written then).
+ */
+rcc_RequestState_t Rcc_Set_BackupDomainReset( void )
+{
+    rcc_RequestState_t retState     = RCC_REQUEST_ERROR;
+    uint32_t           resetSet     = 0u;
+    uint32_t           resetCleared = RCC_BDCR_VSWRST;
+    volatile uint32_t  stackMarker  = 0u;
+    const uintptr_t    stackAddr    = (uintptr_t)&stackMarker;
+
+    if( ( SRAM2_BASE                  <= stackAddr ) &&
+        ( ( SRAM2_BASE + SRAM2_SIZE ) >  stackAddr )    )
+    {
+        /* The stack lies in the SRAM2, which the backup domain reset erases: refused */
+        retState = RCC_REQUEST_ERROR;
+    }
+    else
+    {
+        Rcc_Set_RegBit( RCC_REG_BDCR, RCC_BDCR_VSWRST );
+        resetSet = Rcc_Get_RegBit( RCC_REG_BDCR, RCC_BDCR_VSWRST );
+
+        Rcc_Reset_RegBit( RCC_REG_BDCR, RCC_BDCR_VSWRST );
+        resetCleared = Rcc_Get_RegBit( RCC_REG_BDCR, RCC_BDCR_VSWRST );
+
+        if( ( RCC_BDCR_VSWRST == resetSet     ) &&
+            ( 0u              == resetCleared )    )
+        {
+            retState = RCC_REQUEST_OK;
+        }
+        else
+        {
+            /* The reset bit did not follow the writes, the backup domain stays write protected */
+            retState = RCC_REQUEST_ERROR;
+        }
+    }
+
+    return ( retState );
 }
 
 

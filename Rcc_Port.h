@@ -96,6 +96,7 @@ rcc_RequestState_t          Rcc_Get_Hsi48TrimState      ( rcc_FunctionState_t * 
 
 rcc_RequestState_t          Rcc_Set_RtcClkSource        ( rcc_Rtc_ClkSource_t clkSource );
 rcc_RequestState_t          Rcc_Get_RtcClkSource        ( rcc_Rtc_ClkSource_t * const clkSource );
+rcc_RequestState_t          Rcc_Set_BackupDomainReset   ( void );
 
 /*------------------------- Clock buses configuration ------------------------*/
 

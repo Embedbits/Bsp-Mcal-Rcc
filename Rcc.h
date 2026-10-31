@@ -54,6 +54,12 @@ typedef enum rcc_BlockList_t
 #if defined(RAMCFG_SRAM3)
     RCC_BLOCK_SRAM3        , /**< SRAM3 Clock Enable */
 #endif /* RAMCFG_SRAM3 */
+#if defined(RAMCFG_SRAM4)
+    RCC_BLOCK_SRAM4        , /**< SRAM4 Clock Enable */
+#endif /* RAMCFG_SRAM4 */
+#if defined(RAMCFG_SRAM5)
+    RCC_BLOCK_SRAM5        , /**< SRAM5 Clock Enable */
+#endif /* RAMCFG_SRAM5 */
 
 #if defined(GPDMA1)
     RCC_BLOCK_GPDMA1       , /**< GPDMA1 Clock Enable */
@@ -282,6 +288,14 @@ typedef enum rcc_BlockList_t
     RCC_BLOCK_OCTOSPI1     , /**< Octal SPI 1 (OCTOSPI) */
 #endif /* OCTOSPI1 */
 
+#if defined(OCTOSPI2)
+    RCC_BLOCK_OCTOSPI2     , /**< Octal SPI 2 (OCTOSPI) */
+#endif /* OCTOSPI2 */
+
+#if defined(OCTOSPIM)
+    RCC_BLOCK_OCTOSPIM     , /**< Octal SPI I/O manager (OCTOSPIM) */
+#endif /* OCTOSPIM */
+
 
 #if defined(USB_DRD_FS)
     RCC_BLOCK_USB          , /**< USB Full Speed (12Mbps) */
@@ -296,6 +310,10 @@ typedef enum rcc_BlockList_t
     RCC_BLOCK_ETH_TX       , /**< Ethernet TX */
     RCC_BLOCK_ETH_RX       , /**< Ethernet RX */
 #endif /* ETH */
+
+#if defined(RCC_AHB1ENR_ETHCKEN)
+    RCC_BLOCK_ETH_CLK      , /**< Ethernet ETH_CLK pad clock enable */
+#endif /* RCC_AHB1ENR_ETHCKEN */
 
     /*------------------------------ Multimedia ------------------------------*/
 
@@ -314,6 +332,26 @@ typedef enum rcc_BlockList_t
     RCC_BLOCK_CEC          , /**< Consumer Electronics Control (CEC) */
 #endif /* CEC */
 
+#if defined(JPEG)
+    RCC_BLOCK_JPEG         , /**< JPEG codec (JPEG) */
+#endif /* JPEG */
+
+#if defined(LTDC)
+    RCC_BLOCK_LTDC         , /**< LCD-TFT Display Controller (LTDC) */
+#endif /* LTDC */
+
+#if defined(GFXTIM)
+    RCC_BLOCK_GFXTIM       , /**< Graphic timer (GFXTIM) */
+#endif /* GFXTIM */
+
+#if defined(ADF1)
+    RCC_BLOCK_ADF1         , /**< Analog Digital Filter 1 (ADF1) */
+#endif /* ADF1 */
+
+#if defined(MDF1)
+    RCC_BLOCK_MDF1         , /**< Multi-Function Digital Filter 1 (MDF1) */
+#endif /* MDF1 */
+
     /*-------------------------------- Analog --------------------------------*/
 
 #if defined(VREFBUF)
@@ -328,11 +366,23 @@ typedef enum rcc_BlockList_t
     RCC_BLOCK_DAC          , /**< DAC */
 #endif /* DAC1 */
 
+#if defined(COMP1)
+    RCC_BLOCK_COMP         , /**< Comparators (COMP) */
+#endif /* COMP1 */
+
+#if defined(OPAMP1)
+    RCC_BLOCK_OPAMP        , /**< Operational amplifiers (OPAMP) */
+#endif /* OPAMP1 */
+
     /*------------------------------- Security -------------------------------*/
 
 #if defined(AES)
     RCC_BLOCK_AES          , /**< Advanced Encryption Standard (AES) HW accelerator */
 #endif /* AES */
+
+#if defined(CCB)
+    RCC_BLOCK_CCB          , /**< Coupling and chaining bridge (CCB) */
+#endif /* CCB */
 
 #if defined(GTZC_TZSC1)
     RCC_BLOCK_GTZC1        , /**< Global Trust Zone Controller 1 (GTZC) */
@@ -345,6 +395,9 @@ typedef enum rcc_BlockList_t
 #if defined(OTFDEC1)
     RCC_BLOCK_OTFDEC1      , /**< On-the-fly Decryption Engine 1 (OTFDEC) Clock Enable */
 #endif /* OTFDEC1 */
+#if defined(OTFDEC2)
+    RCC_BLOCK_OTFDEC2      , /**< On-the-fly Decryption Engine 2 (OTFDEC) Clock Enable */
+#endif /* OTFDEC2 */
 
 #if defined(PKA)
     RCC_BLOCK_PKA          , /**< Public Key Accelerator (PKA) Clock Enable */
@@ -371,6 +424,10 @@ typedef enum rcc_BlockList_t
 #if defined(FMAC)
     RCC_BLOCK_FMAC         , /**< Filter Math (FMAC) accelerator Clock Enable */
 #endif /* FMAC */
+
+#if defined(PLAY1)
+    RCC_BLOCK_PLAY1        , /**< Playback engine 1 (PLAY1) */
+#endif /* PLAY1 */
 
     RCC_BLOCK_LIST_CNT
 }   rcc_BlockList_t;

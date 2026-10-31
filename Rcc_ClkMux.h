@@ -26,6 +26,12 @@
  * - RNG
  * - ADC (ADC1, ADC2, ADC3)
  * - DAC (DAC1, DAC2)
+ * - OCTOSPI2
+ * - Ethernet (ETH_CLK, ETH PTP, ETH RMII reference)
+ * - LTDC
+ * - ADF1
+ * - MDF1
+ * - PLAY1
  *
  */
 
@@ -401,6 +407,13 @@ typedef enum
     RCC_CLK_MUX_OCTOSPI1_LPCLK        , /**< Octal SPI 1 (OCTOSPI) clock enable with Low-Power Clock Domain (PER) as clock source */
 #endif /* OCTOSPI1 */
 
+#if defined(OCTOSPI2)
+    RCC_CLK_MUX_OCTOSPI2_HCLK         , /**< Octal SPI 2 (OCTOSPI) clock enable with HCLK clock as clock source for QSPI 2 */
+    RCC_CLK_MUX_OCTOSPI2_PLL1Q        , /**< Octal SPI 2 (OCTOSPI) clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source for QSPI 2 */
+    RCC_CLK_MUX_OCTOSPI2_PLL2R        , /**< Octal SPI 2 (OCTOSPI) clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source for QSPI 2 */
+    RCC_CLK_MUX_OCTOSPI2_LPCLK        , /**< Octal SPI 2 (OCTOSPI) clock enable with Low-Power Clock Domain (PER) as clock source */
+#endif /* OCTOSPI2 */
+
 #if defined(USB_DRD_FS)
     RCC_CLK_MUX_USB_NONE              , /**< USB Full Speed (12Mbps) clock disable */
     RCC_CLK_MUX_USB_PLL1Q             , /**< USB Full Speed (12Mbps) clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
@@ -411,6 +424,25 @@ typedef enum
 #endif
     RCC_CLK_MUX_USB_HSI48             , /**< USB Full Speed (12Mbps) clock enable with 48MHz High Speed Internal (HSE48) as clock source */
 #endif /* USB_OTG_HS */
+
+#if defined(RCC_AHB1ENR_ETHCKEN)
+    RCC_CLK_MUX_ETH_CLK_HSE           , /**< Ethernet ETH_CLK pad clock enable with High Speed External oscillator (HSE) as clock source */
+    RCC_CLK_MUX_ETH_CLK_PLL1Q         , /**< Ethernet ETH_CLK pad clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
+#endif /* RCC_AHB1ENR_ETHCKEN */
+
+#if defined(RCC_CCIPR5_ETHPTPCLKSEL)
+    RCC_CLK_MUX_ETH_PTP_HCLK          , /**< Ethernet PTP clock enable with HCLK clock as clock source */
+    RCC_CLK_MUX_ETH_PTP_PLL1R         , /**< Ethernet PTP clock enable with Phase Locked Loop 1 output R (PLL1R) as clock source */
+    RCC_CLK_MUX_ETH_PTP_PLL1Q         , /**< Ethernet PTP clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
+    RCC_CLK_MUX_ETH_PTP_PLL3P         , /**< Ethernet PTP clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+#endif /* RCC_CR_PLL3ON */
+#endif /* RCC_CCIPR5_ETHPTPCLKSEL */
+
+#if defined(RCC_CCIPR5_ETHREFCLKSEL)
+    RCC_CLK_MUX_ETH_REF_RMII_PAD      , /**< Ethernet RMII reference clock enable with the ETH_RMII_REF_CLK pad as clock source */
+    RCC_CLK_MUX_ETH_REF_CLK_FB        , /**< Ethernet RMII reference clock enable with the internal eth_clk_fb loopback as clock source */
+#endif /* RCC_CCIPR5_ETHREFCLKSEL */
 
     /*------------------------------ Multimedia ------------------------------*/
 
@@ -439,6 +471,28 @@ typedef enum
     RCC_CLK_MUX_CEC_LSI               , /**< Consumer Electronics Control (CEC) clock enable with Low Speed Internal oscillator (LSI) as clock source */
 #endif /* CEC */
 
+#if defined(LTDC)
+    /* No extra RCC_CR_PLL3ON guard here: LTDC exists only on H5E4/H5E5/H5F4/H5F5, and all four always have PLL3 */
+    RCC_CLK_MUX_LTDC_PLL3R            , /**< LCD-TFT Display Controller (LTDC) clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+    RCC_CLK_MUX_LTDC_PLL2R            , /**< LCD-TFT Display Controller (LTDC) clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source */
+#endif /* LTDC */
+
+#if defined(ADF1)
+    RCC_CLK_MUX_ADF1_PLL1Q            , /**< Analog Digital Filter 1 (ADF1) clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
+    RCC_CLK_MUX_ADF1_PLL2P            , /**< Analog Digital Filter 1 (ADF1) clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+    RCC_CLK_MUX_ADF1_PLL3P            , /**< Analog Digital Filter 1 (ADF1) clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+    RCC_CLK_MUX_ADF1_CKIN             , /**< Analog Digital Filter 1 (ADF1) clock enable with clock input through pin (AUDIOCLK) as clock source */
+    RCC_CLK_MUX_ADF1_LPCLK            , /**< Analog Digital Filter 1 (ADF1) clock enable with Low-Power Clock Domain (PER) as clock source */
+#endif /* ADF1 */
+
+#if defined(MDF1)
+    RCC_CLK_MUX_MDF1_PLL1Q            , /**< Multi-Function Digital Filter 1 (MDF1) clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
+    RCC_CLK_MUX_MDF1_PLL2P            , /**< Multi-Function Digital Filter 1 (MDF1) clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+    RCC_CLK_MUX_MDF1_PLL3P            , /**< Multi-Function Digital Filter 1 (MDF1) clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+    RCC_CLK_MUX_MDF1_CKIN             , /**< Multi-Function Digital Filter 1 (MDF1) clock enable with clock input through pin (AUDIOCLK) as clock source */
+    RCC_CLK_MUX_MDF1_LPCLK            , /**< Multi-Function Digital Filter 1 (MDF1) clock enable with Low-Power Clock Domain (PER) as clock source */
+#endif /* MDF1 */
+
     /*-------------------------------- Analog --------------------------------*/
 
 #if defined(ADC1) || defined(ADC2) || defined(DAC1)
@@ -463,6 +517,19 @@ typedef enum
     RCC_CLK_MUX_RNG_LSE               , /**< Random Number Generator (RNG) clock enable with Low Speed External oscillator (LSE) used as clock source */
     RCC_CLK_MUX_RNG_LSI               , /**< Random Number Generator (RNG) clock enable with Low Speed Internal oscillator (LSI) used as clock source */
 #endif /* RNG */
+
+    /*------------------------------- Computing -------------------------------*/
+
+#if defined(PLAY1)
+    RCC_CLK_MUX_PLAY1_PCLK3           , /**< Playback engine 1 (PLAY1) clock enable with APB3 (PCLK3) as clock source */
+    RCC_CLK_MUX_PLAY1_PLL2P           , /**< Playback engine 1 (PLAY1) clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+#if defined(RCC_CR_PLL3ON)
+    RCC_CLK_MUX_PLAY1_PLL3R           , /**< Playback engine 1 (PLAY1) clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#endif /* RCC_CR_PLL3ON */
+    RCC_CLK_MUX_PLAY1_LSE             , /**< Playback engine 1 (PLAY1) clock enable with Low Speed External oscillator (LSE) as clock source */
+    RCC_CLK_MUX_PLAY1_LSI             , /**< Playback engine 1 (PLAY1) clock enable with Low Speed Internal oscillator (LSI) as clock source */
+    RCC_CLK_MUX_PLAY1_CLKP            , /**< Playback engine 1 (PLAY1) clock enable with Low-Power Clock Domain (PER) as clock source */
+#endif /* PLAY1 */
 
     RCC_CLK_MUX_LIST_CNT
 }   rcc_ClkMuxId_t;

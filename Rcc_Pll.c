@@ -32,14 +32,14 @@
 /** PLL reference frequency - maximum of range 4 (8 - 16 MHz) */
 #define RCC_PLL_REF_RANGE4_MAX_HZ       ( 16000000u )
 
-/** Medium VCO range (PLLxVCOSEL = 1) minimum frequency */
+/** Medium VCO range (PLLxVCOSEL = 1, reference 1 - 2 MHz) minimum frequency (DS14258 Table 49) */
 #define RCC_PLL_VCO_MEDIUM_MIN_HZ       ( 150000000u )
-/** Medium VCO range (PLLxVCOSEL = 1) maximum frequency */
+/** Medium VCO range (PLLxVCOSEL = 1, reference 1 - 2 MHz) maximum frequency (DS14258 Table 49) */
 #define RCC_PLL_VCO_MEDIUM_MAX_HZ       ( 420000000u )
-/** Wide VCO range (PLLxVCOSEL = 0) minimum frequency */
-#define RCC_PLL_VCO_WIDE_MIN_HZ         ( 192000000u )
-/** Wide VCO range (PLLxVCOSEL = 0) maximum frequency */
-#define RCC_PLL_VCO_WIDE_MAX_HZ         ( 836000000u )
+/** Wide VCO range (PLLxVCOSEL = 0, reference 2 - 16 MHz) minimum frequency (RM0481 PLLxVCOSEL, DS14258 Table 48) */
+#define RCC_PLL_VCO_WIDE_MIN_HZ         ( 128000000u )
+/** Wide VCO range (PLLxVCOSEL = 0, reference 2 - 16 MHz) maximum frequency (RM0481 PLLxVCOSEL, DS14258 Table 48) */
+#define RCC_PLL_VCO_WIDE_MAX_HZ         ( 560000000u )
 
 /** DIVM value 0 is handled as divider 1 */
 #define RCC_PLL_M_DIV_MIN               ( 1u )
@@ -591,19 +591,23 @@ rcc_RequestState_t Rcc_Pll_Set_Config( rcc_PllId_t pllId, rcc_PllConfigStruct_t 
 
                 if( RCC_REQUEST_OK == retState )
                 {
-                    if( ( RCC_PLL_VCO_MEDIUM_MIN_HZ <= vcoFreqHz ) &&
+                    /* VCO range depends on the reference frequency too (DS14258 Tables 48 / 49):
+                     * medium VCO needs a 1 - 2 MHz reference, wide VCO a 2 - 16 MHz reference */
+                    if( ( RCC_PLL_REF_RANGE1_MAX_HZ >= refFreqHz ) &&
+                        ( RCC_PLL_VCO_MEDIUM_MIN_HZ <= vcoFreqHz ) &&
                         ( RCC_PLL_VCO_MEDIUM_MAX_HZ >= vcoFreqHz )    )
                     {
                         regValue = LL_RCC_PLLVCORANGE_MEDIUM;
                     }
-                    else if( ( RCC_PLL_VCO_WIDE_MIN_HZ <= vcoFreqHz ) &&
-                             ( RCC_PLL_VCO_WIDE_MAX_HZ >= vcoFreqHz )    )
+                    else if( ( RCC_PLL_REF_RANGE1_MAX_HZ <= refFreqHz ) &&
+                             ( RCC_PLL_VCO_WIDE_MIN_HZ   <= vcoFreqHz ) &&
+                             ( RCC_PLL_VCO_WIDE_MAX_HZ   >= vcoFreqHz )    )
                     {
                         regValue = LL_RCC_PLLVCORANGE_WIDE;
                     }
                     else
                     {
-                        /* VCO frequency out of both VCO ranges */
+                        /* VCO frequency out of the VCO range of the reference frequency */
                         retState = RCC_REQUEST_ERROR;
                     }
                 }

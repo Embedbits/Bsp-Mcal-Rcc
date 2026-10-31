@@ -29,6 +29,13 @@ It is part of the **MCAL (Microcontroller Abstraction Layer)** and allows safe a
 - `void Rcc_Task(void)`
 - `rcc_RequestState_t Rcc_Get_DefaultConfig(rcc_ConfigStruct_t * const clockConfig)`
 
+**Order of `Rcc_Init()`** (also when repeated while a PLL drives SYSCLK): the flash wait states are raised
+to the value valid for every frequency and voltage scale (5 wait states, a higher value is kept), SYSCLK is
+moved to HSI, then the voltage scale and the flash wait states of the new configuration are written (a
+frequency over the limit of the voltage scale is rejected here, SYSCLK stays on HSI), then HSE, LSE and
+the PLLs are configured, the bus dividers are set and SYSCLK is switched to the configured source. The
+final wait states follow the AHB clock after the switch.
+
 ### Peripheral Clock Management
 - `rcc_RequestState_t Rcc_Set_PeriphActive(rcc_PeriphId_t periphId)`
 - `rcc_RequestState_t Rcc_Set_PeriphInactive(rcc_PeriphId_t periphId)`
@@ -45,6 +52,11 @@ RTC interface clock (`RCC_APB3ENR.RTCAPBEN`) and the RTC / TAMP kernel clock (`R
 `Rcc_Set_PeriphActive()` selects the RTC clock (`RTCSEL`) and enables both clocks,
 `Rcc_Set_PeriphInactive()` disables the kernel clock first and keeps `RTCSEL` (write-once until
 backup domain reset), `Rcc_Get_PeriphState()` reports the RTC active only with both clocks enabled.
+
+`RCC_PERIPH_RTC_APB` enables the RTC / TAMP register interface clock (`RCC_APB3ENR.RTCAPBEN`) alone, without
+the RTC clock selection and without `RCC_BDCR.RTCEN`. It is meant for modules that only access the RTC / TAMP
+registers (eg. TAMP backup registers); the interface clock is shared with the RTC, so such a module does not
+disable it.
 
 ### Peripheral Reset Management
 - `rcc_RequestState_t Rcc_Set_ResetActive(rcc_PeriphId_t periphId)`
@@ -71,6 +83,14 @@ backup domain reset), `Rcc_Get_PeriphState()` reports the RTC active only with b
 ### Clock Sources
 Oscillators except HSE (`rcc_OscId_t`: HSI64, HSI48, CSI, LSI, LSE). HSE is configured by
 `rcc_ConfigStruct_t` (`HSE_ClockType`, `HSE_Frequency_Hz`) and started by `Rcc_Init()`.
+
+`Rcc_Get_DefaultConfig()` (used by StartUp) starts neither HSE nor LSE (`RCC_HSE_TYPE_NONE`,
+`RCC_LSE_TYPE_NONE`, system clock from PLL1 clocked by HSI): external oscillators are board specific and an
+enabled oscillator takes over its pins - the GPIO configuration of the pins has no effect (RM0481 13.3.12),
+for LSE (PC14 / PC15) even over resets, LSEON is in the backup domain. A board with a crystal or an external
+clock gives it by the board defines (defines of the board in `ItBoards.json` / the inventory of the IT agents):
+`RCC_BOARD_HSE_TYPE` (eg. `RCC_HSE_TYPE_CRYSTAL`), `RCC_BOARD_HSE_FREQ_HZ` (default 8 MHz) and
+`RCC_BOARD_LSE_TYPE` (eg. `RCC_LSE_TYPE_CRYSTAL`).
 - `rcc_RequestState_t Rcc_Set_OscActive(rcc_OscId_t oscId)`
 - `rcc_RequestState_t Rcc_Set_OscInactive(rcc_OscId_t oscId)`
 - `rcc_RequestState_t Rcc_Get_OscState(rcc_OscId_t oscId, rcc_FunctionState_t * const retState)`
@@ -90,7 +110,7 @@ LSE and LSI are located in the backup domain - the backup domain write protectio
 **LSE** is enabled by `Rcc_Init()` (and by `Rcc_Set_OscActive(RCC_OSC_LSE)`) with the input type
 and driving capability of the `Rcc_Init()` configuration. The start-up of the crystal is not
 awaited - the ready state is reported by `Rcc_Get_OscState(RCC_OSC_LSE, ...)`:
-- `LSE_ClockType` (`rcc_LseType_t`): `RCC_LSE_TYPE_CRYSTAL` (default), `RCC_LSE_TYPE_SIG_DIGITAL_IN`
+- `LSE_ClockType` (`rcc_LseType_t`): `RCC_LSE_TYPE_CRYSTAL`, `RCC_LSE_TYPE_SIG_DIGITAL_IN`
   (digital bypass, `LSEBYP = 1`, `LSEEXT = 1`) or `RCC_LSE_TYPE_NONE` (`Rcc_Init()` leaves LSE untouched, activation returns error).
 - `LSE_Drive` (`rcc_LseDrive_t`): `RCC_LSE_DRIVE_MEDIUM_LOW` (default), `RCC_LSE_DRIVE_MEDIUM_HIGH`,
   `RCC_LSE_DRIVE_HIGH` - selected according to the crystal (AN2867), ignored in bypass mode.
@@ -107,6 +127,13 @@ digital bypass (RM0481), RTC with LSE requires the LSE crystal.
 ### RTC Clock Source
 - `rcc_RequestState_t Rcc_Set_RtcClkSource(rcc_Rtc_ClkSource_t clkSource)`
 - `rcc_RequestState_t Rcc_Get_RtcClkSource(rcc_Rtc_ClkSource_t * const clkSource)`
+- `rcc_RequestState_t Rcc_Set_BackupDomainReset(void)` - backup domain reset (`RCC_BDCR.VSWRST` set
+  and cleared): the LSE, the RTC, the backup registers, the backup SRAM and `RCC_BDCR` return to their
+  reset values, so `RTCSEL` (written once per backup domain life) can be selected again. The hardware
+  also erases the SRAM2 (RM0492): the request is refused (error, nothing written) when the stack of the
+  caller lies in the SRAM2 (STM32H503 with the default linker script: the stack is at the end of the
+  SRAM2), otherwise the lost return addresses would leave `VSWRST` set and the reset would repeat at
+  every later release of the backup domain write access; data of the application in the SRAM2 are lost
 
 ### Power Supply Validity
 Supplies of isolated domains validated by software (PWR register access is part of the RCC module,
@@ -126,6 +153,8 @@ LSE 32.768 kHz), the CRS clock and the HSI48 oscillator are activated by the fun
 - `rcc_RequestState_t Rcc_Get_Hsi48TrimState(rcc_FunctionState_t * const retState)`
 
 ### Clock Bus Configuration
+SystemCoreClock follows every HCLK change made by the module (Rcc_Init, Rcc_Set_OscDiv, AHB divider of Rcc_Set_ClkBusDivider).
+Rcc_Set_ClkBusDivider for AHB keeps flash latency, SystemCoreClock and the SysTick interval consistent.
 - `rcc_RequestState_t Rcc_Set_ClkBusDivider(rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv_t clkBusDivider)`
 - `rcc_RequestState_t Rcc_Get_ClkBusDivider(rcc_ClkBusId_t clkBusId, rcc_ClkBusDiv_t * const clkBusDivider)`
 - `rcc_RequestState_t Rcc_Get_ClkBusClk(rcc_ClkBusId_t clkBusId, rcc_FreqHz_t * const clkBusFreq)`

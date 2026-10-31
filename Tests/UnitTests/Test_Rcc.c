@@ -37,11 +37,36 @@ typedef struct
     uint32_t            EnableBit;  /**< Clock enable bit mask        */
 }   utRcc_PeriphEnable_t;
 
+/** Register field watched by the monitor of the order of register writes (\ref UtRcc_HwModelOrder) */
+typedef enum
+{
+    UT_RCC_ORDER_FIELD_SYSCLK_SW = 0u,  /**< RCC_CFGR1.SW - requested system clock source */
+    UT_RCC_ORDER_FIELD_VOS,             /**< PWR_VOSCR.VOS - voltage scale                */
+    UT_RCC_ORDER_FIELD_LATENCY,         /**< FLASH_ACR.LATENCY - flash wait states        */
+    UT_RCC_ORDER_FIELD_HPRE,            /**< RCC_CFGR2.HPRE - AHB divider                 */
+    UT_RCC_ORDER_FIELD_CNT              /**< Count of watched fields                      */
+}   utRcc_OrderField_t;
+
+/** Change of a watched register field recorded by the monitor of the order of register writes */
+typedef struct
+{
+    utRcc_OrderField_t Field;       /**< Changed field                                       */
+    uint32_t           Old;         /**< Value of the field before the change                */
+    uint32_t           Value;       /**< Value of the field after the change                 */
+    uint32_t           SysClkSw;    /**< Requested system clock source (CFGR1.SW) at that time */
+}   utRcc_OrderRecord_t;
+
 /* ======================= FORWARD DECLARATIONS ============================= */
 
 static void                 Ut_Rcc_HwModel          ( void );
 static void                 Ut_Rcc_Mirror           ( volatile uint32_t *reg, uint32_t onMask, uint32_t rdyMask );
 static void                 Ut_Rcc_Set_SysClkHsi    ( void );
+static void                 UtRcc_HwModelOrder      ( void );
+static void                 UtRcc_HwModelHpreStuck  ( void );
+static void                 UtRcc_HwModelAhbOrder   ( void );
+static void                 UtRcc_HwModelLatencyStuck( void );
+static void                 UtRcc_Log_Change        ( utRcc_OrderField_t field, uint32_t value );
+static void                 UtRcc_Clear_OrderLog    ( void );
 
 /* ========================= SYMBOLIC CONSTANTS ============================= */
 
@@ -72,10 +97,61 @@ static void                 Ut_Rcc_Set_SysClkHsi    ( void );
 /** Default PLL output divider */
 #define UT_RCC_DEFAULT_PLL_DIV              ( 2u )
 
+/** PLL input divider giving a 1.6 MHz reference (medium VCO reference range 1 - 2 MHz) from HSI 64 MHz */
+#define UT_RCC_PLL_M_REF_1M6                ( 40u )
+
+/** PLL input divider giving an 8 MHz reference (wide VCO reference range 2 - 16 MHz) from HSI 64 MHz */
+#define UT_RCC_PLL_M_REF_8M                 ( 8u )
+
+/** PLL multiplier: 1.6 MHz reference x 200 = 320 MHz VCO (inside the medium VCO range) */
+#define UT_RCC_PLL_N_VCO_320M               ( 200u )
+
+/** PLL multiplier: 1.6 MHz reference x 300 = 480 MHz VCO (above the medium VCO range) */
+#define UT_RCC_PLL_N_VCO_480M               ( 300u )
+
+/** PLL multiplier: 8 MHz reference x 20 = 160 MHz VCO (inside both VCO ranges) */
+#define UT_RCC_PLL_N_VCO_160M               ( 20u )
+
+/** PLL multiplier: 8 MHz reference x 75 = 600 MHz VCO (above the wide VCO range of STM32H5) */
+#define UT_RCC_PLL_N_VCO_600M               ( 75u )
+
+/** Flash programming delay WRHIGHFREQ = 00 (0 - 1 wait states, RM0481 Table 48) */
+#define UT_RCC_PROG_DELAY_00                ( 0u )
+
 /** Function state out of the rcc_FunctionState_t list */
 #define UT_RCC_FUNCTION_STATE_INVALID       ( (rcc_FunctionState_t)( RCC_FUNCTION_ACTIVE + 1u ) )
 
+/** Count of changes of the AHB divider test: wait states and AHB divider */
+#define UT_RCC_ORDER_AHB_CNT                ( 2u )
+
+/** Divider 2 of the AHB divider tests */
+#define UT_RCC_AHB_DIV_2                    ( 2u )
+
+/** Divider 4 of the AHB divider tests */
+#define UT_RCC_AHB_DIV_4                    ( 4u )
+
+/** Sentinel value of SystemCoreClock (must stay unchanged) */
+#define UT_RCC_SENTINEL                     ( 12345u )
+
+/** Count of records of the monitor of the order of register writes */
+#define UT_RCC_ORDER_LOG_SIZE               ( 16u )
+
+/** Count of leading records of a repeated Rcc_Init(): flash wait states raised, SYSCLK moved to HSI */
+#define UT_RCC_ORDER_TRANSITION_CNT         ( 2u )
+
+/** Failure message of a lowered voltage scale or flash wait states while the old SYSCLK source runs */
+#define UT_RCC_ORDER_LOWERED_MSG            ( "Voltage scale / flash wait states lowered before SYSCLK moved to HSI" )
+
 /* ========================== LOCAL VARIABLES =============================== */
+
+/** Changes of the watched register fields in the order they were written (\ref UtRcc_HwModelOrder) */
+static utRcc_OrderRecord_t utRcc_OrderLog[ UT_RCC_ORDER_LOG_SIZE ];
+
+/** Count of valid records of \ref utRcc_OrderLog */
+static uint32_t            utRcc_OrderLogCnt = 0u;
+
+/** Last seen value of every watched register field */
+static uint32_t            utRcc_OrderLast[ UT_RCC_ORDER_FIELD_CNT ];
 
 /** Sample of peripherals from every clock bus with their enable bit */
 static const utRcc_PeriphEnable_t utRcc_PeriphEnableLut[] =
@@ -132,8 +208,9 @@ void Ut_Rcc_Get_ModuleVersion_ReturnsVersion( void )
  *
  * \par Expected results
  * - RCC_REQUEST_OK, system clock from PLL1, PLL1 source HSI, M = 4, N = 20.
- * - HSE frequency 8 MHz, MCO1 output not used.
- * - LSE crystal with medium-low drive (bug AB#1560, lowest drive is forbidden by errata).
+ * - HSE not used (frequency 8 MHz preset), MCO1 output not used.
+ * - LSE not used (bug AB#2115 - external oscillators are board specific, given by board
+ *   defines), medium-low drive preset (bug AB#1560, lowest drive is forbidden by errata).
  * - NULL pointer: RCC_REQUEST_ERROR.
  */
 void Ut_Rcc_Get_DefaultConfig_ReturnsPll1FromHsi( void )
@@ -146,9 +223,10 @@ void Ut_Rcc_Get_DefaultConfig_ReturnsPll1FromHsi( void )
     TEST_ASSERT_EQUAL( RCC_PLL_SRC_HSI,             config.Pll_Config[ RCC_PLL_1 ].Pll_Source );
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_DEFAULT_PLL_M, config.Pll_Config[ RCC_PLL_1 ].M_Divider );
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_DEFAULT_PLL_N, config.Pll_Config[ RCC_PLL_1 ].N_Multiplier );
+    TEST_ASSERT_EQUAL( RCC_HSE_TYPE_NONE,           config.HSE_ClockType );
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_HSE_DEFAULT_HZ, config.HSE_Frequency_Hz );
     TEST_ASSERT_EQUAL( RCC_CLK_SOURCE_NONE,         config.McoConfig[ RCC_CLK_OUT_MCO1 ].ClockSource );
-    TEST_ASSERT_EQUAL( RCC_LSE_TYPE_CRYSTAL,        config.LSE_ClockType );
+    TEST_ASSERT_EQUAL( RCC_LSE_TYPE_NONE,           config.LSE_ClockType );
     TEST_ASSERT_EQUAL( RCC_LSE_DRIVE_MEDIUM_LOW,    config.LSE_Drive );
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_DefaultConfig( NULL ) );
@@ -650,6 +728,42 @@ void Ut_Rcc_Set_PeriphActive_LpClk_RtcKernelClockNotChanged( void )
 
 
 /**
+ * \brief   RCC_PERIPH_RTC_APB enables the RTC / TAMP register interface clock alone.
+ *
+ * \details Activation from reset state, state read-back and deactivation with BDCR.RTCEN
+ *          preset (the RTC kernel clock and the RTC clock selection belong to the RTC IDs).
+ *
+ * \par Expected results
+ * - Activation: RCC_REQUEST_OK, APB3ENR.RTCAPBEN set, BDCR.RTCEN and BDCR.RTCSEL stay cleared.
+ * - Rcc_Get_PeriphState() reports RCC_FUNCTION_ACTIVE without the RTC kernel clock.
+ * - Deactivation: RCC_REQUEST_OK, APB3ENR.RTCAPBEN cleared, BDCR.RTCEN stays set.
+ */
+void Ut_Rcc_Set_PeriphActive_RtcApb_InterfaceClockOnly( void )
+{
+    rcc_FunctionState_t state = RCC_FUNCTION_INACTIVE;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_RTC_APB ) );
+    TEST_ASSERT_BITS_HIGH( RCC_APB3ENR_RTCAPBEN, RCC->APB3ENR );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_RTCEN, RCC->BDCR );
+    TEST_ASSERT_EQUAL_HEX32( 0u, RCC->BDCR & RCC_BDCR_RTCSEL );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_APB, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
+
+    (void)__atomic_or_fetch( &RCC->BDCR, RCC_BDCR_RTCEN, __ATOMIC_SEQ_CST );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphInactive( RCC_PERIPH_RTC_APB ) );
+    TEST_ASSERT_BITS_LOW( RCC_APB3ENR_RTCAPBEN, RCC->APB3ENR );
+    TEST_ASSERT_BITS_HIGH( RCC_BDCR_RTCEN, RCC->BDCR );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_APB, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+}
+
+
+/**
  * \brief   Peripheral functions reject invalid arguments.
  *
  * \details Calls enable, disable, state, reset and sleep functions with peripheral
@@ -792,6 +906,209 @@ void Ut_Rcc_Set_ClkBusDivider_WritesPrescalers( void )
     TEST_ASSERT_EQUAL_HEX32( LL_RCC_APB1_DIV_4,   LL_RCC_GetAPB1Prescaler() );
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_CNT, RCC_AHB_DIVIDER_2 ) );
+}
+
+
+/**
+ * \brief   Rcc_Set_ClkBusDivider() refreshes SystemCoreClock for the AHB buses.
+ *
+ * \details System clock HSI 64 MHz, SystemCoreClock preset to a different value. Sets AHB divider 2
+ *          through AHB1, then divider 4 through AHB2, reads SystemCoreClock after each call.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, SystemCoreClock = 32 MHz (HCLK = HSI / 2), then 16 MHz (HSI / 4).
+ */
+void Ut_Rcc_Set_ClkBusDivider_AhbDivider_RefreshesSystemCoreClock( void )
+{
+    Ut_Rcc_Set_SysClkHsi();
+    SystemCoreClock = 12345u;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_AHB1, RCC_AHB_DIVIDER_2 ) );
+    TEST_ASSERT_EQUAL_UINT32( UT_RCC_HSI_HZ / 2u, SystemCoreClock );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_AHB2, RCC_AHB_DIVIDER_4 ) );
+    TEST_ASSERT_EQUAL_UINT32( UT_RCC_HSI_HZ / 4u, SystemCoreClock );
+}
+
+
+/**
+ * \brief   Rcc_Set_ClkBusDivider() keeps SystemCoreClock when the AHB divider is not applied.
+ *
+ * \details System clock HSI 64 MHz, SystemCoreClock preset to a sentinel value. The HW model
+ *          clears the AHB prescaler after every write, so the read back never matches. The test is
+ *          ignored where the HW model does not follow every write (REGMEM_MODEL_MODE_THREAD).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_ERROR, SystemCoreClock keeps the sentinel value.
+ */
+void Ut_Rcc_Set_ClkBusDivider_AhbDividerNotApplied_KeepsSystemCoreClock( void )
+{
+    Ut_Rcc_Set_SysClkHsi();
+    SystemCoreClock = 12345u;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( UtRcc_HwModelHpreStuck ) );
+
+    if( REGMEM_MODEL_MODE_SYNC != RegMem_Get_ModelMode() )
+    {
+        TEST_IGNORE_MESSAGE( "Failing AHB divider write is emulated in the synchronous HW model mode only" );
+    }
+    else
+    {
+        TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_AHB1, RCC_AHB_DIVIDER_2 ) );
+        TEST_ASSERT_EQUAL_UINT32( 12345u, SystemCoreClock );
+    }
+}
+
+
+/**
+ * \brief   Rcc_Set_ClkBusDivider() raises the flash wait states before the AHB divider when HCLK grows.
+ *
+ * \details System clock HSI 64 MHz, AHB divider 4 (HCLK 16 MHz, 0 wait states, voltage scale 3), SysTick not
+ *          configured. Sets AHB divider 1 (HCLK 64 MHz). The HW model records the order of the writes of
+ *          FLASH_ACR.LATENCY and RCC_CFGR2.HPRE. The test is ignored where the HW model does not follow
+ *          every write (REGMEM_MODEL_MODE_THREAD).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, two recorded changes: the wait states first (3 WS for 64 MHz), then HPRE = /1.
+ * - SystemCoreClock = 64 MHz, SysTick stays unconfigured (LOAD = 0).
+ */
+void Ut_Rcc_Set_ClkBusDivider_AhbHclkRaised_LatencyBeforeDivider( void )
+{
+    Ut_Rcc_Set_SysClkHsi();
+    LL_RCC_SetAHBPrescaler( LL_RCC_SYSCLK_DIV_4 );
+    SystemCoreClock = UT_RCC_HSI_HZ / UT_RCC_AHB_DIV_4;
+
+    UtRcc_Clear_OrderLog();
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( UtRcc_HwModelAhbOrder ) );
+
+    const regMem_ModelMode_t modelMode = RegMem_Get_ModelMode();
+
+    if( REGMEM_MODEL_MODE_SYNC != modelMode )
+    {
+        TEST_IGNORE_MESSAGE( "Order of register writes is observed in the synchronous HW model mode only" );
+    }
+    else
+    {
+        TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_AHB1, RCC_AHB_DIVIDER_1 ) );
+
+        TEST_ASSERT_EQUAL_UINT32( UT_RCC_ORDER_AHB_CNT, utRcc_OrderLogCnt );
+        TEST_ASSERT_EQUAL( UT_RCC_ORDER_FIELD_LATENCY, utRcc_OrderLog[ 0u ].Field );
+        TEST_ASSERT_EQUAL_HEX32( LL_FLASH_LATENCY_3, utRcc_OrderLog[ 0u ].Value );
+        TEST_ASSERT_EQUAL( UT_RCC_ORDER_FIELD_HPRE, utRcc_OrderLog[ 1u ].Field );
+        TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYSCLK_DIV_1, utRcc_OrderLog[ 1u ].Value );
+
+        TEST_ASSERT_EQUAL_UINT32( UT_RCC_HSI_HZ, SystemCoreClock );
+        TEST_ASSERT_EQUAL_HEX32( 0u, SysTick->LOAD );
+    }
+}
+
+
+/**
+ * \brief   Rcc_Set_ClkBusDivider() lowers the flash wait states after the AHB divider when HCLK falls.
+ *
+ * \details System clock HSI 64 MHz, AHB divider 1 (HCLK 64 MHz, 3 wait states, voltage scale 3), SysTick not
+ *          configured. Sets AHB divider 4 (HCLK 16 MHz). The HW model records the order of the writes of
+ *          FLASH_ACR.LATENCY and RCC_CFGR2.HPRE. The test is ignored where the HW model does not follow
+ *          every write (REGMEM_MODEL_MODE_THREAD).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, two recorded changes: HPRE = /4 first, then the wait states (0 WS for 16 MHz).
+ * - SystemCoreClock = 16 MHz, SysTick stays unconfigured (LOAD = 0).
+ */
+void Ut_Rcc_Set_ClkBusDivider_AhbHclkLowered_DividerBeforeLatency( void )
+{
+    Ut_Rcc_Set_SysClkHsi();
+    LL_FLASH_SetLatency( LL_FLASH_LATENCY_3 );
+    SystemCoreClock = UT_RCC_HSI_HZ;
+
+    UtRcc_Clear_OrderLog();
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( UtRcc_HwModelAhbOrder ) );
+
+    const regMem_ModelMode_t modelMode = RegMem_Get_ModelMode();
+
+    if( REGMEM_MODEL_MODE_SYNC != modelMode )
+    {
+        TEST_IGNORE_MESSAGE( "Order of register writes is observed in the synchronous HW model mode only" );
+    }
+    else
+    {
+        TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_AHB1, RCC_AHB_DIVIDER_4 ) );
+
+        TEST_ASSERT_EQUAL_UINT32( UT_RCC_ORDER_AHB_CNT, utRcc_OrderLogCnt );
+        TEST_ASSERT_EQUAL( UT_RCC_ORDER_FIELD_HPRE, utRcc_OrderLog[ 0u ].Field );
+        TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYSCLK_DIV_4, utRcc_OrderLog[ 0u ].Value );
+        TEST_ASSERT_EQUAL( UT_RCC_ORDER_FIELD_LATENCY, utRcc_OrderLog[ 1u ].Field );
+        TEST_ASSERT_EQUAL_HEX32( LL_FLASH_LATENCY_0, utRcc_OrderLog[ 1u ].Value );
+
+        TEST_ASSERT_EQUAL_UINT32( UT_RCC_HSI_HZ / UT_RCC_AHB_DIV_4, SystemCoreClock );
+        TEST_ASSERT_EQUAL_HEX32( 0u, SysTick->LOAD );
+    }
+}
+
+
+/**
+ * \brief   Rcc_Set_ClkBusDivider() keeps the SysTick interval when the AHB divider changes.
+ *
+ * \details System clock HSI 64 MHz, SysTick interval 1 ms. Sets AHB divider 2, then divider 1.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, SysTick LOAD = 31999 (HCLK 32 MHz), then 63999 (HCLK 64 MHz), counter still enabled.
+ * - The interval read back is 1 ms after both changes.
+ */
+void Ut_Rcc_Set_ClkBusDivider_AhbDivider_KeepsSysTickInterval( void )
+{
+    rcc_Time_ms_t interval = 0u;
+
+    Ut_Rcc_Set_SysClkHsi();
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_SysTickInterval( 1u ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_AHB1, RCC_AHB_DIVIDER_2 ) );
+    TEST_ASSERT_EQUAL_UINT32( ( UT_RCC_HSI_HZ / UT_RCC_AHB_DIV_2 / UT_RCC_MS_IN_SECOND ) - 1u, SysTick->LOAD );
+    TEST_ASSERT_BITS_HIGH( SysTick_CTRL_ENABLE_Msk | SysTick_CTRL_TICKINT_Msk, SysTick->CTRL );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_SysTickInterval( &interval ) );
+    TEST_ASSERT_EQUAL_UINT32( 1u, interval );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_AHB1, RCC_AHB_DIVIDER_1 ) );
+    TEST_ASSERT_EQUAL_UINT32( ( UT_RCC_HSI_HZ / UT_RCC_MS_IN_SECOND ) - 1u, SysTick->LOAD );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_SysTickInterval( &interval ) );
+    TEST_ASSERT_EQUAL_UINT32( 1u, interval );
+}
+
+
+/**
+ * \brief   Rcc_Set_ClkBusDivider() does not write the AHB divider when the flash wait states are not applied.
+ *
+ * \details System clock HSI 64 MHz, AHB divider 4, SystemCoreClock preset to a sentinel value. The HW model
+ *          clears FLASH_ACR.LATENCY after every write, so the raise of the wait states for the AHB divider 1
+ *          never reads back. The test is ignored where the HW model does not follow every write
+ *          (REGMEM_MODEL_MODE_THREAD).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_ERROR, HPRE still /4 (divider not written), SystemCoreClock keeps the sentinel value.
+ */
+void Ut_Rcc_Set_ClkBusDivider_AhbLatencyNotApplied_DividerNotWritten( void )
+{
+    Ut_Rcc_Set_SysClkHsi();
+    LL_RCC_SetAHBPrescaler( LL_RCC_SYSCLK_DIV_4 );
+    SystemCoreClock = UT_RCC_SENTINEL;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( UtRcc_HwModelLatencyStuck ) );
+
+    const regMem_ModelMode_t modelMode = RegMem_Get_ModelMode();
+
+    if( REGMEM_MODEL_MODE_SYNC != modelMode )
+    {
+        TEST_IGNORE_MESSAGE( "Failing wait states write is emulated in the synchronous HW model mode only" );
+    }
+    else
+    {
+        TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_AHB1, RCC_AHB_DIVIDER_1 ) );
+        TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYSCLK_DIV_4, LL_RCC_GetAHBPrescaler() );
+        TEST_ASSERT_EQUAL_UINT32( UT_RCC_SENTINEL, SystemCoreClock );
+    }
 }
 
 
@@ -1184,6 +1501,8 @@ void Ut_Rcc_Set_FlashLatency_PllUsesPDivider( void )
  * \par Expected results
  * - Limit of band n: RCC_REQUEST_OK, n wait states.
  * - Limit + 1 Hz: RCC_REQUEST_OK, n + 1 wait states, behind the last band RCC_REQUEST_ERROR.
+ * - Programming delay WRHIGHFREQ 00 / 01 / 10 for 0 - 1 / 2 - 3 / 4 - 5 wait states (RM0481
+ *   Table 48, bug AB#2111 - WRHIGHFREQ was never written).
  */
 void Ut_Rcc_Set_FlashLatency_AllScales_BandLimits( void )
 {
@@ -1203,6 +1522,13 @@ void Ut_Rcc_Set_FlashLatency_AllScales_BandLimits( void )
     {
         LL_FLASH_LATENCY_0, LL_FLASH_LATENCY_1, LL_FLASH_LATENCY_2, LL_FLASH_LATENCY_3, LL_FLASH_LATENCY_4, LL_FLASH_LATENCY_5
     };
+    /* Programming delay (WRHIGHFREQ) of the wait states, RM0481 Table 48 */
+    const uint32_t progDelayLut[ 6u ] =
+    {
+        UT_RCC_PROG_DELAY_00,   UT_RCC_PROG_DELAY_00,
+        FLASH_ACR_WRHIGHFREQ_0, FLASH_ACR_WRHIGHFREQ_0,
+        FLASH_ACR_WRHIGHFREQ_1, FLASH_ACR_WRHIGHFREQ_1
+    };
     rcc_ConfigStruct_t config;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
@@ -1217,6 +1543,9 @@ void Ut_Rcc_Set_FlashLatency_AllScales_BandLimits( void )
             config.HSE_Frequency_Hz = scaleLut[ scaleIdx ].Limit[ band ];
             TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_FlashLatency( &config ) );
             TEST_ASSERT_EQUAL_HEX32_MESSAGE( latencyLut[ band ], LL_FLASH_GetLatency(), "Upper limit of the band" );
+            TEST_ASSERT_EQUAL_HEX32_MESSAGE( progDelayLut[ band ],
+                                             FLASH->ACR & FLASH_ACR_WRHIGHFREQ,
+                                             "Programming delay, upper limit of the band" );
 
             config.HSE_Frequency_Hz = scaleLut[ scaleIdx ].Limit[ band ] + 1u;
 
@@ -1224,6 +1553,9 @@ void Ut_Rcc_Set_FlashLatency_AllScales_BandLimits( void )
             {
                 TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_FlashLatency( &config ) );
                 TEST_ASSERT_EQUAL_HEX32_MESSAGE( latencyLut[ band + 1u ], LL_FLASH_GetLatency(), "Limit + 1 Hz" );
+                TEST_ASSERT_EQUAL_HEX32_MESSAGE( progDelayLut[ band + 1u ],
+                                                 FLASH->ACR & FLASH_ACR_WRHIGHFREQ,
+                                                 "Programming delay, limit + 1 Hz" );
             }
             else
             {
@@ -1243,7 +1575,8 @@ void Ut_Rcc_Set_FlashLatency_AllScales_BandLimits( void )
  *
  * \par Expected results
  * - RCC_REQUEST_OK, source HSI, M = 4, N = 20, P = 2.
- * - Input range 8 - 16 MHz, VCO range medium, PLL1ON set.
+ * - Input range 8 - 16 MHz, VCO range wide (medium VCO needs a 1 - 2 MHz reference, bug AB#2109),
+ *   PLL1ON set.
  * - P output 160 MHz.
  */
 void Ut_Rcc_Set_PllConfig_DefaultPll1_ConfiguresAndEnables( void )
@@ -1261,7 +1594,8 @@ void Ut_Rcc_Set_PllConfig_DefaultPll1_ConfiguresAndEnables( void )
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_DEFAULT_PLL_N,   LL_RCC_PLL1_GetN() );
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_DEFAULT_PLL_DIV, LL_RCC_PLL1_GetP() );
     TEST_ASSERT_EQUAL_UINT32( LL_RCC_PLLINPUTRANGE_8_16, ( RCC->PLL1CFGR & RCC_PLL1CFGR_PLL1RGE ) >> RCC_PLL1CFGR_PLL1RGE_Pos );
-    TEST_ASSERT_EQUAL_UINT32( LL_RCC_PLLVCORANGE_MEDIUM, ( RCC->PLL1CFGR & RCC_PLL1CFGR_PLL1VCOSEL ) >> RCC_PLL1CFGR_PLL1VCOSEL_Pos );
+    TEST_ASSERT_EQUAL_UINT32( LL_RCC_PLLVCORANGE_WIDE,
+                              ( RCC->PLL1CFGR & RCC_PLL1CFGR_PLL1VCOSEL ) >> RCC_PLL1CFGR_PLL1VCOSEL_Pos );
     TEST_ASSERT_BITS_HIGH( RCC_CR_PLL1ON, RCC->CR );
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutP( RCC_PLL_1, &pllClk ) );
@@ -1319,6 +1653,53 @@ void Ut_Rcc_Set_PllConfig_ReferenceOutOfRange_ReturnsErrorWithoutEnable( void )
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
     config.Pll_Config[ RCC_PLL_1 ].M_Divider = 1u;  /* 64 MHz reference - above 16 MHz input range */
 
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+    TEST_ASSERT_BITS_LOW( RCC_CR_PLL1ON, RCC->CR );
+}
+
+
+/**
+ * \brief   Rcc_Set_PllConfig() selects the VCO range by the reference and the VCO frequency.
+ *
+ * \details HW model sets ready flags. PLL1 from HSI (64 MHz in the emulated registers) is
+ *          configured with different M / N values (bug AB#2109 - the medium VCO range was
+ *          selected by the VCO frequency only, wide limits 192 - 836 MHz). DS14258 Tables 48 / 49:
+ *          medium VCO 150 - 420 MHz with a 1 - 2 MHz reference, wide VCO 128 - 560 MHz with a
+ *          2 - 16 MHz reference.
+ *
+ * \par Expected results
+ * - Reference 1.6 MHz, VCO 320 MHz: RCC_REQUEST_OK, medium VCO range.
+ * - Reference 8 MHz, VCO 160 MHz (inside the medium VCO limits too): RCC_REQUEST_OK, wide VCO range.
+ * - Reference 8 MHz, VCO 600 MHz (above the wide range): RCC_REQUEST_ERROR, PLL1 is not enabled.
+ * - Reference 1.6 MHz, VCO 480 MHz (above the medium range, reference too low for the wide
+ *   range): RCC_REQUEST_ERROR, PLL1 is not enabled.
+ */
+void Ut_Rcc_Set_PllConfig_VcoRangeFromReferenceAndVco( void )
+{
+    rcc_ConfigStruct_t config;
+    uint32_t           vcoRange = 0u;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    config.Pll_Config[ RCC_PLL_1 ].M_Divider    = UT_RCC_PLL_M_REF_1M6;
+    config.Pll_Config[ RCC_PLL_1 ].N_Multiplier = UT_RCC_PLL_N_VCO_320M;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+    vcoRange = ( RCC->PLL1CFGR & RCC_PLL1CFGR_PLL1VCOSEL ) >> RCC_PLL1CFGR_PLL1VCOSEL_Pos;
+    TEST_ASSERT_EQUAL_UINT32( LL_RCC_PLLVCORANGE_MEDIUM, vcoRange );
+
+    config.Pll_Config[ RCC_PLL_1 ].M_Divider    = UT_RCC_PLL_M_REF_8M;
+    config.Pll_Config[ RCC_PLL_1 ].N_Multiplier = UT_RCC_PLL_N_VCO_160M;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+    vcoRange = ( RCC->PLL1CFGR & RCC_PLL1CFGR_PLL1VCOSEL ) >> RCC_PLL1CFGR_PLL1VCOSEL_Pos;
+    TEST_ASSERT_EQUAL_UINT32( LL_RCC_PLLVCORANGE_WIDE, vcoRange );
+
+    config.Pll_Config[ RCC_PLL_1 ].N_Multiplier = UT_RCC_PLL_N_VCO_600M;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+    TEST_ASSERT_BITS_LOW( RCC_CR_PLL1ON, RCC->CR );
+
+    config.Pll_Config[ RCC_PLL_1 ].M_Divider    = UT_RCC_PLL_M_REF_1M6;
+    config.Pll_Config[ RCC_PLL_1 ].N_Multiplier = UT_RCC_PLL_N_VCO_480M;
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
     TEST_ASSERT_BITS_LOW( RCC_CR_PLL1ON, RCC->CR );
 }
@@ -2036,6 +2417,26 @@ void Ut_Rcc_Set_RtcClkSource_Lse_SourceReadBack( void )
     TEST_ASSERT_EQUAL( RCC_RTC_CLK_SOURCE_LSE, source );
 }
 
+
+/**
+ * \brief   Backup domain reset pulses RCC_BDCR.VSWRST with the write access released.
+ *
+ * \details PWR_DBPCR.DBP = 0 (reset state - RCC_BDCR is write protected on HW). Resets the
+ *          backup domain.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, PWR_DBPCR.DBP set, RCC_BDCR.VSWRST cleared at the end.
+ */
+void Ut_Rcc_Set_BackupDomainReset_WriteAccess_ResetBitCleared( void )
+{
+    TEST_ASSERT_BITS_LOW( PWR_DBPCR_DBP, PWR->DBPCR );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_BackupDomainReset() );
+
+    TEST_ASSERT_BITS_HIGH( PWR_DBPCR_DBP, PWR->DBPCR );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_VSWRST, RCC->BDCR );
+}
+
 /* ====================== BACKUP DOMAIN WRITE ACCESS ======================== */
 
 /**
@@ -2363,8 +2764,9 @@ void Ut_Rcc_Set_ResetSourceClear_FlagsStay_ReturnsErrorAndReleasesRmvf( void )
  *          default configuration (GPIO mock ignored).
  *
  * \par Expected results
- * - RCC_REQUEST_OK, SWS = PLL1, HSE and PLL1 enabled.
- * - Flash prefetch enabled, latency 3 wait states, ICACHE enabled.
+ * - RCC_REQUEST_OK, SWS = PLL1, PLL1 enabled, HSE and LSE not enabled (bug AB#2115).
+ * - Flash prefetch enabled, latency 3 wait states, programming delay 01 (bug AB#2111), ICACHE enabled
+ *   in the 2-way mode (bug AB#2112).
  * - SystemCoreClock = AHB1 = 160 MHz, SysTick interval 1 ms.
  */
 void Ut_Rcc_Init_DefaultConfig_SysClkFromPll1( void )
@@ -2381,10 +2783,14 @@ void Ut_Rcc_Init_DefaultConfig_SysClkFromPll1( void )
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
 
     TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYS_CLKSOURCE_STATUS_PLL1, RCC->CFGR1 & RCC_CFGR1_SWS );
-    TEST_ASSERT_BITS_HIGH( RCC_CR_HSEON | RCC_CR_PLL1ON, RCC->CR );
+    TEST_ASSERT_BITS_HIGH( RCC_CR_PLL1ON, RCC->CR );
+    TEST_ASSERT_BITS_LOW( RCC_CR_HSEON, RCC->CR );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_LSEON, RCC->BDCR );
     TEST_ASSERT_BITS_HIGH( FLASH_ACR_PRFTEN, FLASH->ACR );
     TEST_ASSERT_EQUAL_HEX32( LL_FLASH_LATENCY_3, LL_FLASH_GetLatency() );
+    TEST_ASSERT_EQUAL_HEX32( FLASH_ACR_WRHIGHFREQ_0, FLASH->ACR & FLASH_ACR_WRHIGHFREQ );
     TEST_ASSERT_EQUAL_UINT32( 1u, LL_ICACHE_IsEnabled() );
+    TEST_ASSERT_EQUAL_HEX32( LL_ICACHE_2WAYS, LL_ICACHE_GetMode() );
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_PLL1P_DEFAULT_HZ, SystemCoreClock );
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_ClkBusClk( RCC_CLK_BUS_AHB1, &freq ) );
@@ -2396,10 +2802,40 @@ void Ut_Rcc_Init_DefaultConfig_SysClkFromPll1( void )
 
 
 /**
+ * \brief   Rcc_Init() keeps an enabled ICACHE as it is.
+ *
+ * \details HW model sets ready flags and switch status. ICACHE is enabled in the 1-way
+ *          mode before Rcc_Init() with default configuration (bug AB#2112 - Rcc_Init()
+ *          wrote WAYSEL also while the cache was enabled; RM0481 8.4.4: WAYSEL is writable
+ *          only with EN = 0).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, ICACHE stays enabled in the 1-way mode.
+ */
+void Ut_Rcc_Init_IcacheEnabled_KeptAsIs( void )
+{
+    rcc_ConfigStruct_t config;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    Gpio_Init_IgnoreAndReturn( GPIO_REQUEST_OK );  /* MCO pins, see ClkOut defect test */
+
+    LL_ICACHE_SetMode( LL_ICACHE_1WAY );
+    LL_ICACHE_Enable();
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
+
+    TEST_ASSERT_EQUAL_UINT32( 1u, LL_ICACHE_IsEnabled() );
+    TEST_ASSERT_EQUAL_HEX32( LL_ICACHE_1WAY, LL_ICACHE_GetMode() );
+}
+
+
+/**
  * \brief   Rcc_Init() stops when oscillator does not start.
  *
  * \details Regulator ready flag preset, without HW model (no oscillator becomes ready).
- *          Initializes the module with default configuration.
+ *          Initializes the module with default configuration and HSE crystal.
  *
  * \par Expected results
  * - RCC_REQUEST_ERROR, system clock is not switched, PLL1 is not enabled.
@@ -2409,6 +2845,7 @@ void Ut_Rcc_Init_HseNotStarting_ReturnsErrorBeforeSysClkSwitch( void )
     rcc_ConfigStruct_t config;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    config.HSE_ClockType = RCC_HSE_TYPE_CRYSTAL;
 
     /* Voltage scaling ready, but no oscillator ever becomes ready */
     PWR->VOSSR = PWR_VOSSR_VOSRDY;
@@ -2463,7 +2900,7 @@ void Ut_Rcc_Init_HseType_BypassConfigured( void )
  *
  * \details HW model sets ready flags (GPIO mock ignored; bug AB#978 - CSS_Enable of the
  *          configuration was ignored, HSECSSON was never set).
- *          1. Default configuration (CSS inactive).
+ *          1. Default configuration with HSE crystal (CSS inactive).
  *          2. CSS enabled, HSE not used.
  *          3. CSS enabled, HSE crystal.
  *          4. Rcc_Init() repeated with the same configuration.
@@ -2483,6 +2920,7 @@ void Ut_Rcc_Init_CssEnabled_RequiresHse( void )
 
     Gpio_Init_IgnoreAndReturn( GPIO_REQUEST_OK );  /* MCO pins, see ClkOut defect test */
 
+    config.HSE_ClockType = RCC_HSE_TYPE_CRYSTAL;
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
     TEST_ASSERT_BITS_HIGH( RCC_CR_HSEON, RCC->CR );
     TEST_ASSERT_BITS_LOW( RCC_CR_HSECSSON, RCC->CR );
@@ -2524,6 +2962,143 @@ void Ut_Rcc_Init_CssStateOutOfRange_ReturnsError( void )
 
     TEST_ASSERT_BITS_LOW( RCC_CR_HSECSSON, RCC->CR );
     TEST_ASSERT_BITS_LOW( RCC_CFGR1_SW, RCC->CFGR1 );
+}
+
+
+/**
+ * \brief   Rcc_Init() repeated while PLL1 drives SYSCLK moves SYSCLK to HSI before it lowers
+ *          the voltage scale and the flash wait states.
+ *
+ * \details HW model with the monitor of the order of register writes (RCC_CFGR1.SW, PWR_VOSCR.VOS,
+ *          FLASH_ACR.LATENCY). Rcc_Init() with default configuration (PLL1 160 MHz, voltage scale 0,
+ *          3 wait states), then Rcc_Init() repeated with HSE 8 MHz as SYSCLK at voltage scale 3
+ *          (0 wait states). The old clock must never run with the lowered voltage scale or
+ *          wait states (STM32H5 Rcc bug: the voltage scale and the wait states were lowered before
+ *          SYSCLK was moved to HSI). The test is ignored where the HW model does not follow every
+ *          write (REGMEM_MODEL_MODE_THREAD).
+ *
+ * \par Expected results
+ * - Both calls: RCC_REQUEST_OK.
+ * - The voltage scale and the wait states are lowered once each, SW = HSI at that time.
+ * - The first change is the raise of the wait states to 5 (PLL1 still requested), the second change
+ *   moves SYSCLK to HSI.
+ * - Final state: SWS = HSE, voltage scale 3, 0 wait states, SystemCoreClock = 8 MHz.
+ */
+void Ut_Rcc_Init_ReinitFromPll1ToLowScale_SysClkToHsiBeforeVoltageAndLatencyLowered( void )
+{
+    rcc_ConfigStruct_t config;
+    uint32_t           loweredVosCnt     = 0u;
+    uint32_t           loweredLatencyCnt = 0u;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+
+    UtRcc_Clear_OrderLog();
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( UtRcc_HwModelOrder ) );
+
+    /* Order of the writes is observed by the synchronous model only */
+    const regMem_ModelMode_t modelMode = RegMem_Get_ModelMode();
+
+    if( REGMEM_MODEL_MODE_SYNC != modelMode )
+    {
+        TEST_IGNORE_MESSAGE( "Order of register writes is observed in the synchronous HW model mode only" );
+    }
+    else
+    {
+        /* Every write is followed by the model */
+    }
+
+    Gpio_Init_IgnoreAndReturn( GPIO_REQUEST_OK );  /* MCO pins, see ClkOut defect test */
+
+    /* First initialization: PLL1 160 MHz, voltage scale 0, 3 wait states */
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYS_CLKSOURCE_STATUS_PLL1, RCC->CFGR1 & RCC_CFGR1_SWS );
+    TEST_ASSERT_EQUAL_HEX32( LL_PWR_REGU_VOLTAGE_SCALE0, PWR->VOSCR & PWR_VOSCR_VOS );
+    TEST_ASSERT_EQUAL_HEX32( LL_FLASH_LATENCY_3, LL_FLASH_GetLatency() );
+
+    /* Second initialization while PLL1 drives SYSCLK: HSE 8 MHz, voltage scale 3, 0 wait states */
+    config.SystemClockSource = RCC_SYSTEM_CLOCK_SOURCE_HSE;
+    config.VoltageScaling    = RCC_PWR_VOLTAGE_SCALE_3;
+
+    UtRcc_Clear_OrderLog();
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
+
+    TEST_ASSERT_GREATER_THAN_UINT32( UT_RCC_ORDER_TRANSITION_CNT, utRcc_OrderLogCnt );
+    TEST_ASSERT_LESS_THAN_UINT32( UT_RCC_ORDER_LOG_SIZE, utRcc_OrderLogCnt );
+
+    for( uint32_t recIdx = 0u; utRcc_OrderLogCnt > recIdx; recIdx++ )
+    {
+        const utRcc_OrderRecord_t record = utRcc_OrderLog[ recIdx ];
+
+        if( ( UT_RCC_ORDER_FIELD_SYSCLK_SW != record.Field ) &&
+            ( record.Old                    > record.Value ) )
+        {
+            /* Voltage scale or wait states lowered: the old SYSCLK source must be left already */
+            TEST_ASSERT_EQUAL_HEX32_MESSAGE( LL_RCC_SYS_CLKSOURCE_HSI, record.SysClkSw, UT_RCC_ORDER_LOWERED_MSG );
+
+            if( UT_RCC_ORDER_FIELD_VOS == record.Field )
+            {
+                loweredVosCnt++;
+            }
+            else
+            {
+                loweredLatencyCnt++;
+            }
+        }
+        else
+        {
+            /* SYSCLK source switch or raised voltage scale / wait states */
+        }
+    }
+
+    TEST_ASSERT_EQUAL_UINT32( 1u, loweredVosCnt );
+    TEST_ASSERT_EQUAL_UINT32( 1u, loweredLatencyCnt );
+
+    /* Wait states valid for every clock are set while the old clock still runs, then SYSCLK moves to HSI */
+    TEST_ASSERT_EQUAL( UT_RCC_ORDER_FIELD_LATENCY, utRcc_OrderLog[ 0u ].Field );
+    TEST_ASSERT_EQUAL_HEX32( LL_FLASH_LATENCY_5, utRcc_OrderLog[ 0u ].Value );
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYS_CLKSOURCE_PLL1, utRcc_OrderLog[ 0u ].SysClkSw );
+    TEST_ASSERT_EQUAL( UT_RCC_ORDER_FIELD_SYSCLK_SW, utRcc_OrderLog[ 1u ].Field );
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYS_CLKSOURCE_HSI, utRcc_OrderLog[ 1u ].Value );
+
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYS_CLKSOURCE_STATUS_HSE, RCC->CFGR1 & RCC_CFGR1_SWS );
+    TEST_ASSERT_EQUAL_HEX32( LL_PWR_REGU_VOLTAGE_SCALE3, PWR->VOSCR & PWR_VOSCR_VOS );
+    TEST_ASSERT_EQUAL_HEX32( LL_FLASH_LATENCY_0, LL_FLASH_GetLatency() );
+    TEST_ASSERT_EQUAL_UINT32( UT_RCC_HSE_DEFAULT_HZ, SystemCoreClock );
+}
+
+
+/**
+ * \brief   Rcc_Init() repeated with a frequency over the limit of the voltage scale leaves SYSCLK on HSI.
+ *
+ * \details HW model sets ready flags. Rcc_Init() with default configuration (PLL1 160 MHz), then
+ *          Rcc_Init() repeated with voltage scale 3 (limit 100 MHz) and the same PLL1 as SYSCLK.
+ *
+ * \par Expected results
+ * - First call: RCC_REQUEST_OK, SWS = PLL1.
+ * - Second call: RCC_REQUEST_ERROR (frequency is rejected before PLL1 is reconfigured and SYSCLK is
+ *   switched), SWS = HSI (the old 160 MHz clock does not run at voltage scale 3),
+ *   5 wait states (valid for every clock).
+ */
+void Ut_Rcc_Init_ReinitFrequencyOverScaleLimit_ReturnsErrorWithSysClkOnHsi( void )
+{
+    rcc_ConfigStruct_t config;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    Gpio_Init_IgnoreAndReturn( GPIO_REQUEST_OK );  /* MCO pins, see ClkOut defect test */
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYS_CLKSOURCE_STATUS_PLL1, RCC->CFGR1 & RCC_CFGR1_SWS );
+
+    config.VoltageScaling = RCC_PWR_VOLTAGE_SCALE_3;    /* PLL1 160 MHz is over the limit of scale 3 */
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Init( &config ) );
+
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYS_CLKSOURCE_STATUS_HSI, RCC->CFGR1 & RCC_CFGR1_SWS );
+    TEST_ASSERT_EQUAL_HEX32( LL_FLASH_LATENCY_5, LL_FLASH_GetLatency() );
 }
 
 
@@ -2704,6 +3279,132 @@ void Ut_Rcc_Deinit_Task_NoClockChange( void )
     TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYS_CLKSOURCE_STATUS_HSI, RCC->CFGR1 );
 }
 
+
+/**
+ * \brief   Rcc_Set_PeriphActive() sets both enable bits of the Playback engine 1 (PLAY1) block.
+ *
+ * \details Enables PLAY1 with APB3 (PCLK3) kernel clock on devices with PLAY1
+ *          (AB#1845). On other devices the block does not exist, test is a no-op.
+ *
+ * \par Expected results
+ * - APB3ENR.PLAY1EN and APB3ENR.PLAY1APBEN are both set by a single request.
+ */
+void Ut_Rcc_Set_PeriphActive_Play1Pclk3_BothEnableBitsSet( void )
+{
+#if defined(PLAY1)
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_PLAY1_PCLK3 ) );
+
+    TEST_ASSERT_BITS_HIGH( RCC_APB3ENR_PLAY1EN | RCC_APB3ENR_PLAY1APBEN, RCC->APB3ENR );
+#else
+    /* PLAY1 not present on this device line */
+#endif
+}
+
+
+/**
+ * \brief   Rcc_Set_PeriphActive() selects the ETH RMII reference feedback source.
+ *
+ * \details Enables the Ethernet RMII reference clock with the eth_clk_fb loopback
+ *          as source (AB#1845). The LL driver names this field's two states
+ *          "PLL1Q"/"PLL1R", which contradicts the RM description of the bit, so
+ *          this test proves the module-local value (not the misleading LL name)
+ *          ends up in CCIPR5.ETHREFCLKSEL. On other devices the mux does not
+ *          exist, test is a no-op.
+ *
+ * \par Expected results
+ * - CCIPR5.ETHREFCLKSEL is set (eth_clk_fb selected).
+ */
+void Ut_Rcc_Set_PeriphActive_EthRefClkFb_SelectsFeedbackBit( void )
+{
+#if defined(RCC_CCIPR5_ETHREFCLKSEL)
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_ETH_REF_CLK_FB ) );
+
+    TEST_ASSERT_BITS_HIGH( RCC_CCIPR5_ETHREFCLKSEL, RCC->CCIPR5 );
+#else
+    /* ETH RMII reference mux not present on this device line */
+#endif
+}
+
+
+/**
+ * \brief   Rcc_Set_PeriphActive() selects OCTOSPI2 kernel clock through CCIPR5 (not CCIPR4).
+ *
+ * \details Enables OCTOSPI2 with PLL2 R kernel clock (AB#1845). OCTOSPI1 shares a
+ *          mux field in CCIPR4, OCTOSPI2 has its own field in CCIPR5; this test
+ *          proves the correct register is used. On other devices OCTOSPI2 does
+ *          not exist, test is a no-op.
+ *
+ * \par Expected results
+ * - CCIPR5.OCTOSPI2SEL = PLL2R, AHB4ENR.OCTOSPI2EN is set.
+ */
+void Ut_Rcc_Set_PeriphActive_Octospi2Pll2R_SelectsCcipr5Mux( void )
+{
+#if defined(OCTOSPI2)
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_OCTOSPI2_PLL2R ) );
+
+    TEST_ASSERT_EQUAL_HEX32( RCC_CCIPR5_OCTOSPI2SEL_1, RCC->CCIPR5 & RCC_CCIPR5_OCTOSPI2SEL );
+    TEST_ASSERT_BITS_HIGH( RCC_AHB4ENR_OCTOSPI2EN, RCC->AHB4ENR );
+#else
+    /* OCTOSPI2 not present on this device line */
+#endif
+}
+
+
+/**
+ * \brief   The I/O manager OCTOSPIM has its own clock enable and reset bit (AHB4ENR / AHB4RSTR bit 22).
+ *
+ * \details Activates RCC_PERIPH_OCTOSPIM, resets it, and deactivates it. Present only on
+ *          STM32H5E4 / H5E5 / H5F4 / H5F5, on other devices the test is a no-op.
+ *
+ * \par Expected results
+ * - AHB4ENR.OCTOSPIMEN is set after Rcc_Set_PeriphActive() and cleared after Rcc_Set_PeriphInactive().
+ * - AHB4RSTR.OCTOSPIMRST is set by Rcc_Set_ResetActive() and cleared by Rcc_Set_ResetInactive().
+ * - The enable bits of OCTOSPI1 / OCTOSPI2 are not touched.
+ */
+void Ut_Rcc_Set_PeriphActive_Octospim_TogglesEnableAndResetBit( void )
+{
+#if defined(OCTOSPIM)
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_OCTOSPIM ) );
+    TEST_ASSERT_BITS_HIGH( RCC_AHB4ENR_OCTOSPIMEN, RCC->AHB4ENR );
+    TEST_ASSERT_BITS_LOW( ( RCC_AHB4ENR_OCTOSPI1EN | RCC_AHB4ENR_OCTOSPI2EN ), RCC->AHB4ENR );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ResetActive( RCC_PERIPH_OCTOSPIM ) );
+    TEST_ASSERT_BITS_HIGH( RCC_AHB4RSTR_OCTOSPIMRST, RCC->AHB4RSTR );
+    TEST_ASSERT_BITS_LOW( ( RCC_AHB4RSTR_OCTOSPI1RST | RCC_AHB4RSTR_OCTOSPI2RST ), RCC->AHB4RSTR );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ResetInactive( RCC_PERIPH_OCTOSPIM ) );
+    TEST_ASSERT_BITS_LOW( RCC_AHB4RSTR_OCTOSPIMRST, RCC->AHB4RSTR );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphInactive( RCC_PERIPH_OCTOSPIM ) );
+    TEST_ASSERT_BITS_LOW( RCC_AHB4ENR_OCTOSPIMEN, RCC->AHB4ENR );
+#else
+    /* OCTOSPIM not present on this device line */
+#endif
+}
+
+
+/**
+ * \brief   Rcc_Set_PeriphActive() selects the ADF1 clock input pin (AUDIOCLK) source.
+ *
+ * \details Enables ADF1 with the pin source (SAI1 / SAI2 _CKIN naming convention
+ *          applied to ADF1, AB#1845). On other devices ADF1 does not exist, test
+ *          is a no-op.
+ *
+ * \par Expected results
+ * - CCIPR5.ADF1SEL selects the pin source, AHB2ENR.ADF1EN is set.
+ */
+void Ut_Rcc_Set_PeriphActive_Adf1Ckin_SelectsPinSource( void )
+{
+#if defined(ADF1)
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_ADF1_CKIN ) );
+
+    TEST_ASSERT_EQUAL_HEX32( RCC_CCIPR5_ADF1SEL_0 | RCC_CCIPR5_ADF1SEL_1, RCC->CCIPR5 & RCC_CCIPR5_ADF1SEL );
+    TEST_ASSERT_BITS_HIGH( RCC_AHB2ENR_ADF1EN, RCC->AHB2ENR );
+#else
+    /* ADF1 not present on this device line */
+#endif
+}
+
 /* =========================== LOCAL FUNCTIONS ============================== */
 
 /**
@@ -2777,4 +3478,105 @@ static void Ut_Rcc_Set_SysClkHsi( void )
 {
     RCC->CR    = RCC_CR_HSION | RCC_CR_HSIRDY;
     RCC->CFGR1 = LL_RCC_SYS_CLKSOURCE_STATUS_HSI;
+}
+
+
+/**
+ * \brief HW model of RCC with the AHB prescaler (CFGR2.HPRE) stuck at "not divided".
+ *
+ * Clears HPRE after every write, so the AHB divider read back differs from the written value.
+ */
+static void UtRcc_HwModelHpreStuck( void )
+{
+    (void)__atomic_and_fetch( &RCC->CFGR2, ~RCC_CFGR2_HPRE, __ATOMIC_SEQ_CST );
+}
+
+
+/**
+ * \brief HW model of RCC and PWR extended by the monitor of the order of the AHB divider and wait states writes.
+ *
+ * Behaves as \ref Ut_Rcc_HwModel and records every change of RCC_CFGR2.HPRE and FLASH_ACR.LATENCY in
+ * \ref utRcc_OrderLog, in the order of the writes of the code under test (synchronous model mode).
+ */
+static void UtRcc_HwModelAhbOrder( void )
+{
+    Ut_Rcc_HwModel();
+
+    UtRcc_Log_Change( UT_RCC_ORDER_FIELD_HPRE,    RCC->CFGR2 & RCC_CFGR2_HPRE );
+    UtRcc_Log_Change( UT_RCC_ORDER_FIELD_LATENCY, FLASH->ACR & FLASH_ACR_LATENCY );
+}
+
+
+/**
+ * \brief HW model of FLASH with the wait states (ACR.LATENCY) stuck at 0 wait states.
+ *
+ * Clears LATENCY after every write, so the wait states read back differ from the written value.
+ */
+static void UtRcc_HwModelLatencyStuck( void )
+{
+    (void)__atomic_and_fetch( &FLASH->ACR, ~FLASH_ACR_LATENCY, __ATOMIC_SEQ_CST );
+}
+
+
+/**
+ * \brief HW model of RCC and PWR extended by the monitor of the order of register writes.
+ *
+ * Behaves as \ref Ut_Rcc_HwModel and records every change of RCC_CFGR1.SW, PWR_VOSCR.VOS and
+ * FLASH_ACR.LATENCY in \ref utRcc_OrderLog. The model is called after every write in the
+ * synchronous model mode, so the records are in the order of the writes of the code under test.
+ */
+static void UtRcc_HwModelOrder( void )
+{
+    Ut_Rcc_HwModel();
+
+    UtRcc_Log_Change( UT_RCC_ORDER_FIELD_SYSCLK_SW, RCC->CFGR1 & RCC_CFGR1_SW );
+    UtRcc_Log_Change( UT_RCC_ORDER_FIELD_VOS,       PWR->VOSCR & PWR_VOSCR_VOS );
+    UtRcc_Log_Change( UT_RCC_ORDER_FIELD_LATENCY,   FLASH->ACR & FLASH_ACR_LATENCY );
+}
+
+
+/**
+ * \brief Records the new value of a watched register field when it differs from the last seen value.
+ *
+ * \param field [in]: Watched register field.
+ * \param value [in]: Actual value of the field.
+ */
+static void UtRcc_Log_Change( utRcc_OrderField_t field, uint32_t value )
+{
+    const uint32_t oldValue = utRcc_OrderLast[ field ];
+
+    if( oldValue != value )
+    {
+        utRcc_OrderLast[ field ] = value;
+
+        if( UT_RCC_ORDER_LOG_SIZE > utRcc_OrderLogCnt )
+        {
+            utRcc_OrderLog[ utRcc_OrderLogCnt ].Field    = field;
+            utRcc_OrderLog[ utRcc_OrderLogCnt ].Old      = oldValue;
+            utRcc_OrderLog[ utRcc_OrderLogCnt ].Value    = value;
+            utRcc_OrderLog[ utRcc_OrderLogCnt ].SysClkSw = RCC->CFGR1 & RCC_CFGR1_SW;
+
+            utRcc_OrderLogCnt++;
+        }
+        else
+        {
+            /* Log is full, the test checks the count of records */
+        }
+    }
+    else
+    {
+        /* Field is unchanged */
+    }
+}
+
+
+/** Empties the log of the order of register writes and takes the actual register values as the last seen ones */
+static void UtRcc_Clear_OrderLog( void )
+{
+    utRcc_OrderLogCnt = 0u;
+
+    utRcc_OrderLast[ UT_RCC_ORDER_FIELD_SYSCLK_SW ] = RCC->CFGR1 & RCC_CFGR1_SW;
+    utRcc_OrderLast[ UT_RCC_ORDER_FIELD_VOS ]       = PWR->VOSCR & PWR_VOSCR_VOS;
+    utRcc_OrderLast[ UT_RCC_ORDER_FIELD_LATENCY ]   = FLASH->ACR & FLASH_ACR_LATENCY;
+    utRcc_OrderLast[ UT_RCC_ORDER_FIELD_HPRE ]      = RCC->CFGR2 & RCC_CFGR2_HPRE;
 }

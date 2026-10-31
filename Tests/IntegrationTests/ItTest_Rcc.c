@@ -18,9 +18,10 @@
  * - SysTick - core clock based time base
  * - MCO2 pin (PC9) - LSI clock output, not connected on the board, read back
  *   by GPIO input data register, no external wiring
- * - LSE crystal X2 (32.768 kHz) of the Nucleo board
- * - HSE of the default configuration (started by StartUp), supervised by the
- *   clock security system (NMI reported as fault)
+ * - LSE crystal X2 (32.768 kHz) of the Nucleo board, started by the test (the
+ *   default configuration of StartUp starts no external oscillator)
+ * - HSE crystal of the board, started by the test and supervised by the clock
+ *   security system (NMI reported as fault)
  *
  * \note LSI accuracy (STM32H5 datasheet, ~ +-5 % over temperature / voltage)
  *       defines tolerance of the frequency measurement.
@@ -44,6 +45,7 @@ static void             It_Rcc_Start_SysTick        ( void );
 static void             It_Rcc_Start_Lsi            ( void );
 static tim_Counter_t    It_Rcc_Measure_SysTickPeriod ( uint32_t sysTickCnt );
 static void             It_Rcc_Wait_SysTicks        ( uint32_t sysTickCnt );
+static rcc_RequestState_t ItRcc_Get_BackupDomainResetResult( void );
 
 static void             It_Rcc_SysTickHandler       ( void );
 
@@ -140,29 +142,51 @@ void It_Rcc_Set_PeriphActive_PeriphClock_StateReadBack( void )
 /**
  * \brief   RTC kernel clock on target is enabled and the RTC sub-second counter runs.
  *
- * \details Enables RTC with LSI clock (RTCSEL is kept in the backup domain over resets,
- *          other Rcc test cases use LSI too), reads the state and waits until the RTC
- *          sub-second register (RTC_SSR, decremented at LSI / 128 = 250 Hz with reset
- *          prescalers) changes. RTC registers are read directly (no Rtc MCAL module yet),
- *          RTC_DR is read after RTC_SSR to unlock the calendar shadow registers. Disables
- *          RTC and reads the state. Bug AB#1559: RCC_BDCR.RTCEN was never set, the RTC
- *          counter did not run.
+ * \details Resets the backup domain first (RTCSEL is written once per backup domain life and
+ *          kept over resets, an earlier run or another module may have selected a source).
+ *          Enables RTC with LSI clock, reads the state and waits until the RTC sub-second
+ *          register (RTC_SSR, decremented at LSI / 128 = 250 Hz with reset prescalers)
+ *          changes. RTC registers are read directly (the test does not depend on the Rtc
+ *          module), RTC_DR is read after RTC_SSR to unlock the calendar shadow registers.
+ *          Disables RTC and reads the state. Resets the backup domain again, the board is
+ *          left without an RTC clock source. Bug AB#1559: RCC_BDCR.RTCEN was never set, the
+ *          RTC counter did not run. Where the stack lies in the SRAM2 (STM32H503) the backup
+ *          domain reset erases the stack, the request is refused there and the RTC clock
+ *          source of the backup domain is kept (LSI expected).
  *
  * \par Expected results
- * - RCC_REQUEST_OK, state active after enabling, RCC_BDCR.RTCEN set.
+ * - Backup domain reset: RCC_REQUEST_OK, RCC_BDCR.RTCSEL (no clock), RTCEN and LSEON cleared;
+ *   stack in the SRAM2: RCC_REQUEST_ERROR, RCC_BDCR.VSWRST not set.
+ * - RCC_REQUEST_OK, state active after enabling, RCC_BDCR.RTCEN set, RTCSEL = LSI.
  * - RTC_SSR changes before timeout.
  * - State inactive after disabling, RCC_BDCR.RTCEN cleared.
+ * - Backup domain reset at the end: RCC_REQUEST_OK, RCC_BDCR.RTCSEL cleared; stack in the SRAM2:
+ *   RCC_REQUEST_ERROR, RCC_BDCR.VSWRST not set.
  */
 void It_Rcc_Set_PeriphActive_RtcLsi_RtcCounterRuns( void )
 {
-    rcc_FunctionState_t state       = RCC_FUNCTION_INACTIVE;
-    uint32_t            startSubSec = 0u;
-    uint32_t            subSec      = 0u;
+    rcc_FunctionState_t      state         = RCC_FUNCTION_INACTIVE;
+    uint32_t                 startSubSec   = 0u;
+    uint32_t                 subSec        = 0u;
+    const rcc_RequestState_t resetExpected = ItRcc_Get_BackupDomainResetResult();
+
+    TEST_ASSERT_EQUAL( resetExpected, Rcc_Set_BackupDomainReset() );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_VSWRST, RCC->BDCR );
+
+    if( RCC_REQUEST_OK == resetExpected )
+    {
+        TEST_ASSERT_BITS_LOW( ( RCC_BDCR_RTCSEL | RCC_BDCR_RTCEN | RCC_BDCR_LSEON ), RCC->BDCR );
+    }
+    else
+    {
+        /* Stack in the SRAM2: the reset was refused, the backup domain is kept */
+    }
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_RTC_LSI ) );
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSI, &state ) );
     TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
     TEST_ASSERT_BITS_HIGH( RCC_BDCR_RTCEN, RCC->BDCR );
+    TEST_ASSERT_EQUAL_HEX32( RCC_BDCR_RTCSEL_1, ( RCC->BDCR & RCC_BDCR_RTCSEL ) );
 
     startSubSec = RTC->SSR;
     (void)RTC->DR;
@@ -183,6 +207,18 @@ void It_Rcc_Set_PeriphActive_RtcLsi_RtcCounterRuns( void )
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_RTC_LSI, &state ) );
     TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
     TEST_ASSERT_BITS_LOW( RCC_BDCR_RTCEN, RCC->BDCR );
+
+    TEST_ASSERT_EQUAL( resetExpected, Rcc_Set_BackupDomainReset() );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_VSWRST, RCC->BDCR );
+
+    if( RCC_REQUEST_OK == resetExpected )
+    {
+        TEST_ASSERT_BITS_LOW( RCC_BDCR_RTCSEL, RCC->BDCR );
+    }
+    else
+    {
+        /* Stack in the SRAM2: the reset was refused, the RTC clock source stays selected */
+    }
 }
 
 /**
@@ -377,11 +413,15 @@ void It_Rcc_Get_PeriphClk_Tim2_MatchesLsiReference( void )
     It_Rcc_Init_Timer( IT_RCC_TIM_FREQ_HZ );
 
     /* Synchronization to rising edge, then counting of LSI periods */
-    for( uint32_t loopIdx = 0u; ( IT_RCC_WAIT_LOOPS > loopIdx ) && ( IT_RCC_LSI_PERIODS >= risingEdges ); loopIdx++ )
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_WAIT_LOOPS > loopIdx ) &&
+         ( IT_RCC_LSI_PERIODS >= risingEdges );
+         loopIdx++ )
     {
         TEST_ASSERT_EQUAL( GPIO_REQUEST_OK, Gpio_Get_PinLevel( IT_RCC_MCO2_PORT, IT_RCC_MCO2_PIN, &pinLevel ) );
 
-        if( ( GPIO_PIN_LEVEL_LOW == prevLevel ) && ( GPIO_PIN_LEVEL_HIGH == pinLevel ) )
+        if( ( GPIO_PIN_LEVEL_LOW  == prevLevel ) &&
+            ( GPIO_PIN_LEVEL_HIGH == pinLevel  )    )
         {
             if( 0u == risingEdges )
             {
@@ -432,29 +472,35 @@ void It_Rcc_Set_OscActive_Lsi_StateReadBack( void )
 /**
  * \brief   LSE crystal on target is enabled by Rcc_Init() and becomes ready.
  *
- * \details Rcc is initialized by StartUp with default configuration (LSE crystal,
- *          medium-low drive) - LSE is enabled without waiting for the crystal start-up
- *          (bug AB#1560 - LSE could not be activated). The test waits for the ready
- *          state (SysTick time base), activates LSE through the oscillator interface
- *          (running LSE is kept), disables LSE and reads the state. NUCLEO-H503RB
- *          (MB1814) and NUCLEO-H563ZI (MB1404) have the 32.768 kHz crystal X2 connected
- *          to OSC32_IN / OSC32_OUT.
+ * \details Rcc_Init() with default configuration and LSE crystal (medium-low drive; the
+ *          default configuration of StartUp starts no LSE, bug AB#2115) - LSE is enabled
+ *          without waiting for the crystal start-up (bug AB#1560 - LSE could not be
+ *          activated). The test waits for the ready state (SysTick time base), activates
+ *          LSE through the oscillator interface (running LSE is kept), disables LSE and
+ *          reads the state. NUCLEO-H503RB (MB1814) and NUCLEO-H563ZI (MB1404) have the
+ *          32.768 kHz crystal X2 connected to OSC32_IN / OSC32_OUT.
  *
  * \note    Device errata bug AB#1560 (ES0561 2.2.5, ES0565 2.2.17, ES0621 2.2.8 "LSE low drive
  *          mode is not functional"): the crystal is started with medium-low drive, not with
  *          the forbidden LSEDRV = 00 reset value.
  *
  * \par Expected results
- * - RCC_BDCR.LSEON set after StartUp, LSEDRV medium-low, LSEBYP cleared.
+ * - Rcc_Init(): RCC_REQUEST_OK, RCC_BDCR.LSEON set, LSEDRV medium-low, LSEBYP cleared.
  * - State active within the start-up wait of the test.
  * - Activation of running LSE: RCC_REQUEST_OK, RCC_BDCR unchanged, state active.
  * - State inactive after disabling.
  */
 void It_Rcc_Set_OscActive_LseCrystal_StateReadBack( void )
 {
+    rcc_ConfigStruct_t  config;
     rcc_FunctionState_t state     = RCC_FUNCTION_INACTIVE;
     uint32_t            startTick = 0u;
     uint32_t            bdcrValue = 0u;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    config.LSE_ClockType = RCC_LSE_TYPE_CRYSTAL;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
 
     TEST_ASSERT_BITS_HIGH( RCC_BDCR_LSEON, RCC->BDCR );
     TEST_ASSERT_EQUAL_HEX32( RCC_BDCR_LSEDRV_0, RCC->BDCR & RCC_BDCR_LSEDRV );
@@ -513,7 +559,8 @@ void It_Rcc_Set_OscActive_Csi_StateReadBack( void )
 /**
  * \brief   Clock security system of HSE on target is enabled by Rcc_Init().
  *
- * \details Rcc_Init() with default configuration (HSE crystal, PLL1 from HSI) and CSS
+ * \details Rcc_Init() with default configuration (PLL1 from HSI), HSE crystal (not started
+ *          by the default configuration, bug AB#2115) and CSS
  *          enabled (bug AB#978 - CSS_Enable of the configuration was ignored), HSE
  *          supervised for 10 ms. Rcc_Init() repeated with the same configuration - HSE
  *          is stopped and restarted, the clock detector is disabled while HSE is
@@ -529,7 +576,8 @@ void It_Rcc_Init_HseCss_EnabledWithoutFailure( void )
     rcc_ConfigStruct_t config;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
-    config.CSS_Enable = RCC_FUNCTION_ACTIVE;
+    config.HSE_ClockType = RCC_HSE_TYPE_CRYSTAL;
+    config.CSS_Enable    = RCC_FUNCTION_ACTIVE;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
 
@@ -626,7 +674,9 @@ void It_Rcc_Set_ResetSourceClear_AllFlagsInactive( void )
  */
 void It_Rcc_Get_ResetSource_SoftwareReset_OnlySwAndPinFlags( void )
 {
-    if( 0u == IntegrationTesting_Get_Stage() )
+    const integrationTesting_Stage_t stage = IntegrationTesting_Get_Stage();
+
+    if( 0u == stage )
     {
         TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ResetSourceClear() );
         IntegrationTesting_Set_ResetExpected();
@@ -651,6 +701,33 @@ void It_Rcc_Get_ResetSource_SoftwareReset_OnlySwAndPinFlags( void )
 }
 
 /* ========================== LOCAL FUNCTIONS =============================== */
+
+/**
+ * \brief Expected result of Rcc_Set_BackupDomainReset() on this target: the request is refused when
+ *        the stack lies in the SRAM2 (erased by the backup domain reset, STM32H503: the stack is at
+ *        the end of the RAM = end of the SRAM2), otherwise it succeeds.
+ *
+ * \return RCC_REQUEST_ERROR when the stack lies in the SRAM2, otherwise RCC_REQUEST_OK
+ */
+static rcc_RequestState_t ItRcc_Get_BackupDomainResetResult( void )
+{
+    rcc_RequestState_t expected    = RCC_REQUEST_OK;
+    volatile uint32_t  stackMarker = 0u;
+    const uintptr_t    stackAddr   = (uintptr_t)&stackMarker;
+
+    if( ( SRAM2_BASE                  <= stackAddr ) &&
+        ( ( SRAM2_BASE + SRAM2_SIZE ) >  stackAddr )    )
+    {
+        expected = RCC_REQUEST_ERROR;
+    }
+    else
+    {
+        /* The stack lies outside of the SRAM2, the reset is allowed */
+    }
+
+    return ( expected );
+}
+
 
 /**
  * \brief Initializes and starts the timer (free running 32-bit counter).
@@ -707,7 +784,10 @@ static tim_Counter_t It_Rcc_Measure_SysTickPeriod( uint32_t sysTickCnt )
     uint32_t      startTick = itRcc_SysTickCnt;
 
     /* Synchronization to SysTick interrupt */
-    for( uint32_t loopIdx = 0u; ( IT_RCC_WAIT_LOOPS > loopIdx ) && ( startTick == itRcc_SysTickCnt ); loopIdx++ )
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_WAIT_LOOPS > loopIdx ) &&
+         ( startTick == itRcc_SysTickCnt );
+         loopIdx++ )
     {
         /* Wait for next SysTick */
     }
@@ -715,7 +795,10 @@ static tim_Counter_t It_Rcc_Measure_SysTickPeriod( uint32_t sysTickCnt )
     startCnt  = It_Rcc_Get_TimerCounter();
     startTick = itRcc_SysTickCnt;
 
-    for( uint32_t loopIdx = 0u; ( IT_RCC_WAIT_LOOPS > loopIdx ) && ( ( itRcc_SysTickCnt - startTick ) < sysTickCnt ); loopIdx++ )
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_WAIT_LOOPS > loopIdx ) &&
+         ( ( itRcc_SysTickCnt - startTick ) < sysTickCnt );
+         loopIdx++ )
     {
         /* Wait for SysTick periods */
     }

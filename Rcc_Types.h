@@ -111,6 +111,7 @@ typedef enum rcc_PeriphId_t
     RCC_PERIPH_RTC_HSE_DIV32      , /**< Real Time Clock active with High Speed External oscillator (HSE) divided by 32 used as clock source  */
     RCC_PERIPH_RTC_LSE            , /**< Real Time Clock active with Low Speed External (LSE) used as clock source */
     RCC_PERIPH_RTC_LSI            , /**< Real Time Clock active with Low Speed Internal (LSI) used as clock source */
+    RCC_PERIPH_RTC_APB            , /**< RTC / TAMP register interface clock (RCC_APB3ENR.RTCAPBEN) alone, without RTC clock selection and without RTC kernel clock enable (RCC_BDCR.RTCEN) */
 
     RCC_PERIPH_CRS                , /**< CRS Clock Enable */
 
@@ -144,6 +145,12 @@ typedef enum rcc_PeriphId_t
 #if defined(RAMCFG_SRAM3)
     RCC_PERIPH_SRAM3              , /**< SRAM3 Clock Enable */
 #endif /* RAMCFG_SRAM3 */
+#if defined(RAMCFG_SRAM4)
+    RCC_PERIPH_SRAM4              , /**< SRAM4 Clock Enable */
+#endif /* RAMCFG_SRAM4 */
+#if defined(RAMCFG_SRAM5)
+    RCC_PERIPH_SRAM5              , /**< SRAM5 Clock Enable */
+#endif /* RAMCFG_SRAM5 */
 
 #if defined(GPDMA1)
     RCC_PERIPH_GPDMA1             , /**< GPDMA1 Clock Enable */
@@ -556,6 +563,17 @@ typedef enum rcc_PeriphId_t
     RCC_PERIPH_OCTOSPI1_LPCLK     , /**< Octal SPI 1 (OCTOSPI) clock enable with Low-Power Clock Domain (PER) as clock source */
 #endif /* OCTOSPI1 */
 
+#if defined(OCTOSPI2)
+    RCC_PERIPH_OCTOSPI2_HCLK      , /**< Octal SPI 2 (OCTOSPI) clock enable with HCLK clock as clock source for QSPI 2 */
+    RCC_PERIPH_OCTOSPI2_PLL1Q     , /**< Octal SPI 2 (OCTOSPI) clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source for QSPI 2 */
+    RCC_PERIPH_OCTOSPI2_PLL2R     , /**< Octal SPI 2 (OCTOSPI) clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source for QSPI 2 */
+    RCC_PERIPH_OCTOSPI2_LPCLK     , /**< Octal SPI 2 (OCTOSPI) clock enable with Low-Power Clock Domain (PER) as clock source */
+#endif /* OCTOSPI2 */
+
+#if defined(OCTOSPIM)
+    RCC_PERIPH_OCTOSPIM           , /**< Octal SPI I/O manager (OCTOSPIM) clock enable */
+#endif /* OCTOSPIM */
+
 
 #if defined(USB_DRD_FS)
     RCC_PERIPH_USB_PLL1Q          , /**< USB Full Speed (12Mbps) clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
@@ -576,6 +594,25 @@ typedef enum rcc_PeriphId_t
     RCC_PERIPH_ETH_TX             , /**< Ethernet TX clock enable */
     RCC_PERIPH_ETH_RX             , /**< Ethernet RX clock enable */
 #endif /* ETH */
+
+#if defined(RCC_AHB1ENR_ETHCKEN)
+    RCC_PERIPH_ETH_CLK_HSE        , /**< Ethernet ETH_CLK pad clock enable with High Speed External oscillator (HSE) as clock source */
+    RCC_PERIPH_ETH_CLK_PLL1Q      , /**< Ethernet ETH_CLK pad clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
+#endif /* RCC_AHB1ENR_ETHCKEN */
+
+#if defined(RCC_CCIPR5_ETHPTPCLKSEL)
+    RCC_PERIPH_ETH_PTP_HCLK       , /**< Ethernet PTP clock enable with HCLK clock as clock source */
+    RCC_PERIPH_ETH_PTP_PLL1R      , /**< Ethernet PTP clock enable with Phase Locked Loop 1 output R (PLL1R) as clock source */
+    RCC_PERIPH_ETH_PTP_PLL1Q      , /**< Ethernet PTP clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
+#if defined(RCC_CR_PLL3ON)
+    RCC_PERIPH_ETH_PTP_PLL3P      , /**< Ethernet PTP clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+#endif /* RCC_CR_PLL3ON */
+#endif /* RCC_CCIPR5_ETHPTPCLKSEL */
+
+#if defined(RCC_CCIPR5_ETHREFCLKSEL)
+    RCC_PERIPH_ETH_REF_RMII_PAD   , /**< Ethernet RMII reference clock enable with the ETH_RMII_REF_CLK pad as clock source */
+    RCC_PERIPH_ETH_REF_CLK_FB     , /**< Ethernet RMII reference clock enable with the internal eth_clk_fb loopback as clock source */
+#endif /* RCC_CCIPR5_ETHREFCLKSEL */
 
     /*------------------------------ Multimedia ------------------------------*/
 
@@ -604,6 +641,36 @@ typedef enum rcc_PeriphId_t
     RCC_PERIPH_CEC_LSI            , /**< Consumer Electronics Control (CEC) clock enable with Low Speed Internal oscillator (LSI) as clock source */
 #endif /* CEC */
 
+#if defined(JPEG)
+    RCC_PERIPH_JPEG               , /**< JPEG codec (JPEG) Clock Enable */
+#endif /* JPEG */
+
+#if defined(LTDC)
+    /* No extra RCC_CR_PLL3ON guard here: LTDC exists only on H5E4/H5E5/H5F4/H5F5, and all four always have PLL3 */
+    RCC_PERIPH_LTDC_PLL3R         , /**< LCD-TFT Display Controller (LTDC) clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+    RCC_PERIPH_LTDC_PLL2R         , /**< LCD-TFT Display Controller (LTDC) clock enable with Phase Locked Loop 2 output R (PLL2R) as clock source */
+#endif /* LTDC */
+
+#if defined(GFXTIM)
+    RCC_PERIPH_GFXTIM             , /**< Graphic timer (GFXTIM) Clock Enable */
+#endif /* GFXTIM */
+
+#if defined(ADF1)
+    RCC_PERIPH_ADF1_PLL1Q         , /**< Analog Digital Filter 1 (ADF1) clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
+    RCC_PERIPH_ADF1_PLL2P         , /**< Analog Digital Filter 1 (ADF1) clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+    RCC_PERIPH_ADF1_PLL3P         , /**< Analog Digital Filter 1 (ADF1) clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+    RCC_PERIPH_ADF1_CKIN          , /**< Analog Digital Filter 1 (ADF1) clock enable with clock input through pin (AUDIOCLK) as clock source */
+    RCC_PERIPH_ADF1_LPCLK         , /**< Analog Digital Filter 1 (ADF1) clock enable with Low-Power Clock Domain (PER) as clock source */
+#endif /* ADF1 */
+
+#if defined(MDF1)
+    RCC_PERIPH_MDF1_PLL1Q         , /**< Multi-Function Digital Filter 1 (MDF1) clock enable with Phase Locked Loop 1 output Q (PLL1Q) as clock source */
+    RCC_PERIPH_MDF1_PLL2P         , /**< Multi-Function Digital Filter 1 (MDF1) clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+    RCC_PERIPH_MDF1_PLL3P         , /**< Multi-Function Digital Filter 1 (MDF1) clock enable with Phase Locked Loop 3 output P (PLL3P) as clock source */
+    RCC_PERIPH_MDF1_CKIN          , /**< Multi-Function Digital Filter 1 (MDF1) clock enable with clock input through pin (AUDIOCLK) as clock source */
+    RCC_PERIPH_MDF1_LPCLK         , /**< Multi-Function Digital Filter 1 (MDF1) clock enable with Low-Power Clock Domain (PER) as clock source */
+#endif /* MDF1 */
+
     /*-------------------------------- Analog --------------------------------*/
 
 #if defined(VREFBUF)
@@ -631,11 +698,23 @@ typedef enum rcc_PeriphId_t
     RCC_PERIPH_DAC_SAH_LSI        , /**< DAC Sample & Hold clock enable with Low Speed Internal oscillator (LSI) as clock source for DAC */
 #endif /* DAC1 */
 
+#if defined(COMP1)
+    RCC_PERIPH_COMP               , /**< Comparators (COMP) Clock Enable */
+#endif /* COMP1 */
+
+#if defined(OPAMP1)
+    RCC_PERIPH_OPAMP              , /**< Operational amplifiers (OPAMP) Clock Enable */
+#endif /* OPAMP1 */
+
     /*------------------------------- Security -------------------------------*/
 
 #if defined(AES)
     RCC_PERIPH_AES                , /**< Advanced Encryption Standard (AES) HW accelerator Clock Enable */
 #endif /* AES */
+
+#if defined(CCB)
+    RCC_PERIPH_CCB                , /**< Coupling and chaining bridge (CCB) Clock Enable */
+#endif /* CCB */
 
 #if defined(GTZC_TZSC1)
     RCC_PERIPH_GTZC1              , /**< Global Trust Zone Controller 1 (GTZC) Clock Enable */
@@ -648,6 +727,9 @@ typedef enum rcc_PeriphId_t
 #if defined(OTFDEC1)
     RCC_PERIPH_OTFDEC1            , /**< On-the-fly Decryption Engine 1 (OTFDEC) Clock Enable */
 #endif /* OTFDEC1 */
+#if defined(OTFDEC2)
+    RCC_PERIPH_OTFDEC2            , /**< On-the-fly Decryption Engine 2 (OTFDEC) Clock Enable */
+#endif /* OTFDEC2 */
 
 #if defined(PKA)
     RCC_PERIPH_PKA                , /**< Public Key Accelerator (PKA) Clock Enable */
@@ -677,6 +759,17 @@ typedef enum rcc_PeriphId_t
 #if defined(FMAC)
     RCC_PERIPH_FMAC               , /**< Filter Math (FMAC) accelerator Clock Enable */
 #endif /* FMAC */
+
+#if defined(PLAY1)
+    RCC_PERIPH_PLAY1_PCLK3        , /**< Playback engine 1 (PLAY1) clock enable with APB3 (PCLK3) as clock source */
+    RCC_PERIPH_PLAY1_PLL2P        , /**< Playback engine 1 (PLAY1) clock enable with Phase Locked Loop 2 output P (PLL2P) as clock source */
+#if defined(RCC_CR_PLL3ON)
+    RCC_PERIPH_PLAY1_PLL3R        , /**< Playback engine 1 (PLAY1) clock enable with Phase Locked Loop 3 output R (PLL3R) as clock source */
+#endif /* RCC_CR_PLL3ON */
+    RCC_PERIPH_PLAY1_LSE          , /**< Playback engine 1 (PLAY1) clock enable with Low Speed External oscillator (LSE) as clock source */
+    RCC_PERIPH_PLAY1_LSI          , /**< Playback engine 1 (PLAY1) clock enable with Low Speed Internal oscillator (LSI) as clock source */
+    RCC_PERIPH_PLAY1_CLKP         , /**< Playback engine 1 (PLAY1) clock enable with Low-Power Clock Domain (PER) as clock source */
+#endif /* PLAY1 */
 
     RCC_PERIPH_ID_CNT
 }   rcc_PeriphId_t;
