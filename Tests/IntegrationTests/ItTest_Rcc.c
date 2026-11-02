@@ -1125,9 +1125,10 @@ void It_Rcc_Set_SysTickInterval_MaxAtDefaultClock( void )
  */
 void It_Rcc_Get_ResetSource_SoftwareReset_SwFlagActive( void )
 {
-    rcc_FlagState_t flagState = RCC_FLAG_ACTIVE;
+    rcc_FlagState_t                  flagState = RCC_FLAG_ACTIVE;
+    const integrationTesting_Stage_t testStage = IntegrationTesting_Get_Stage();
 
-    if( 0u == IntegrationTesting_Get_Stage() )
+    if( 0u == testStage )
     {
         TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ResetSourceClear() );
 

@@ -106,6 +106,10 @@ SRAM1, SRAM2 and SRAM3 have sleep mode clock control only.
 - `rcc_RequestState_t Rcc_Get_PllClk_OutQ(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 - `rcc_RequestState_t Rcc_Get_PllClk_OutR(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 
+`Rcc_Get_PeriphClk()` and `Rcc_Get_PllClk_OutP()` / `OutQ()` / `OutR()` report 0 Hz (request OK) for a PLL output
+while the PLL is stopped or the output is disabled - the output has no clock (an output the MCU does not have is
+an error).
+
 PLLs: `RCC_PLL_1` main PLL (system clock from output R), `RCC_PLL_2` PLLSAI1, `RCC_PLL_3` PLLSAI2
 (where available). All PLLs share the source multiplexer (PLLSRC: MSI, HSI16, HSE). PLLSAI1 / PLLSAI2
 of STM32L4 share the M divider of the main PLL, STM32L4+ have own M dividers. A shared setting can be

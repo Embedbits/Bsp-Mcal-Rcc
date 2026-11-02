@@ -131,6 +131,7 @@ static rcc_FunctionState_t Rcc_Pll_Get_SharedInUse ( rcc_PllId_t pllId, rcc_RegI
 static rcc_RequestState_t  Rcc_Pll_Get_SourceClk   ( rcc_PllClkSrc_t clkSource, rcc_FreqHz_t * const clkFreq );
 static rcc_RequestState_t  Rcc_Pll_Set_OutQR       ( rcc_PllId_t pllId, uint32_t enMask, uint32_t divMask, uint32_t divPos, uint32_t divider );
 static rcc_RequestState_t  Rcc_Pll_Get_OutQRClk    ( rcc_PllId_t pllId, uint32_t enMask, uint32_t divMask, uint32_t divPos, rcc_FreqHz_t * const pllClk );
+static rcc_RequestState_t  Rcc_Pll_Get_OutState    ( rcc_PllId_t pllId, uint32_t enMask, rcc_FunctionState_t * const outState );
 static rcc_RequestState_t  Rcc_Pll_Wait_RegVal     ( rcc_RegId_t regId, uint32_t regMask, uint32_t expectedVal );
 
 /* =============================== MACROS =================================== */
@@ -896,7 +897,8 @@ rcc_RequestState_t Rcc_Pll_Set_OutP( rcc_PllId_t pllId, rcc_PllPDivider_t divide
  * \param pllClk [out]: Pointer to PLL clock output frequency in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error (also if the output is disabled).
+ *         otherwise return error (also if the output is not available). A
+ *         stopped PLL or a disabled output has no clock: OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Pll_Get_Clk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t * const pllClk )
 {
@@ -907,12 +909,22 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t * const
         ( RCC_NULL_PTR != pllClk )    )
     {
         const rcc_PllConfig_t * const pllConfig = &rcc_Pll_Config[ pllId ];
-        const uint32_t                enabled   = Rcc_Get_RegBit( pllConfig->CfgRegId, pllConfig->Out_P_EnMask );
+        rcc_FunctionState_t           outState  = RCC_FUNCTION_INACTIVE;
 
-        retState = Rcc_Pll_Get_InternalClk( pllId, &pllIntFreq );
+        retState = Rcc_Pll_Get_OutState( pllId, pllConfig->Out_P_EnMask, &outState );
 
-        if( ( RCC_REQUEST_OK == retState ) &&
-            ( 0u             != enabled  )    )
+        if( ( RCC_REQUEST_OK      == retState ) &&
+            ( RCC_FUNCTION_ACTIVE == outState )    )
+        {
+            retState = Rcc_Pll_Get_InternalClk( pllId, &pllIntFreq );
+        }
+        else
+        {
+            /* Output not available, PLL stopped or output disabled */
+        }
+
+        if( ( RCC_REQUEST_OK      == retState ) &&
+            ( RCC_FUNCTION_ACTIVE == outState )    )
         {
             uint32_t divider = Rcc_Get_RegVal( pllConfig->CfgRegId, pllConfig->Out_P_DivMask ) >> RCC_PLL_PDIV_POS;
 
@@ -937,9 +949,14 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t * const
 
             *pllClk = pllIntFreq / divider;
         }
+        else if( RCC_REQUEST_OK == retState )
+        {
+            /* PLL stopped or output disabled - the output has no clock (AB#2237) */
+            *pllClk = 0u;
+        }
         else
         {
-            /* Output is disabled or PLL source is not available */
+            /* Output not available or PLL source is not available */
             *pllClk  = 0u;
             retState = RCC_REQUEST_ERROR;
         }
@@ -991,7 +1008,8 @@ rcc_RequestState_t Rcc_Pll_Set_OutQ( rcc_PllId_t pllId, rcc_PllQDivider_t divide
  * \param pllClk [out]: Pointer to PLL clock output frequency in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error (also if the output is disabled).
+ *         otherwise return error (also if the output is not available). A
+ *         stopped PLL or a disabled output has no clock: OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Pll_Get_Clk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t * const pllClk )
 {
@@ -1048,7 +1066,8 @@ rcc_RequestState_t Rcc_Pll_Set_OutR( rcc_PllId_t pllId, rcc_PllRDivider_t divide
  * \param pllClk [out]: Pointer to PLL clock output frequency in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error (also if the output is disabled).
+ *         otherwise return error (also if the output is not available). A
+ *         stopped PLL or a disabled output has no clock: OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Pll_Get_Clk_OutR( rcc_PllId_t pllId, rcc_FreqHz_t * const pllClk )
 {
@@ -1313,7 +1332,8 @@ static rcc_RequestState_t Rcc_Pll_Set_OutQR( rcc_PllId_t pllId, uint32_t enMask,
  * \param pllClk [out]: Pointer to PLL output frequency in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error (also if the output is disabled).
+ *         otherwise return error (also if the output is not available). A
+ *         stopped PLL or a disabled output has no clock: OK with frequency 0 Hz.
  */
 static rcc_RequestState_t Rcc_Pll_Get_OutQRClk( rcc_PllId_t pllId, uint32_t enMask, uint32_t divMask, uint32_t divPos, rcc_FreqHz_t * const pllClk )
 {
@@ -1323,22 +1343,37 @@ static rcc_RequestState_t Rcc_Pll_Get_OutQRClk( rcc_PllId_t pllId, uint32_t enMa
     if( ( RCC_NULL_PTR != pllClk ) &&
         ( 0u           != enMask )    )
     {
-        const rcc_RegId_t cfgRegId = rcc_Pll_Config[ pllId ].CfgRegId;
-        const uint32_t    enabled  = Rcc_Get_RegBit( cfgRegId, enMask );
+        const rcc_RegId_t   cfgRegId = rcc_Pll_Config[ pllId ].CfgRegId;
+        rcc_FunctionState_t outState = RCC_FUNCTION_INACTIVE;
 
-        retState = Rcc_Pll_Get_InternalClk( pllId, &pllIntFreq );
+        retState = Rcc_Pll_Get_OutState( pllId, enMask, &outState );
 
-        if( ( RCC_REQUEST_OK == retState ) &&
-            ( 0u             != enabled  )    )
+        if( ( RCC_REQUEST_OK      == retState ) &&
+            ( RCC_FUNCTION_ACTIVE == outState )    )
+        {
+            retState = Rcc_Pll_Get_InternalClk( pllId, &pllIntFreq );
+        }
+        else
+        {
+            /* PLL stopped or output disabled */
+        }
+
+        if( ( RCC_REQUEST_OK      == retState ) &&
+            ( RCC_FUNCTION_ACTIVE == outState )    )
         {
             const uint32_t fieldVal = Rcc_Get_RegVal( cfgRegId, divMask ) >> divPos;
             const uint32_t divider  = ( fieldVal + RCC_PLL_QR_DIV_OFFSET ) * RCC_PLL_QR_DIV_STEP;
 
             *pllClk = pllIntFreq / divider;
         }
+        else if( RCC_REQUEST_OK == retState )
+        {
+            /* PLL stopped or output disabled - the output has no clock (AB#2237) */
+            *pllClk = 0u;
+        }
         else
         {
-            /* Output is disabled or PLL source is not available */
+            /* Output not available or PLL source is not available */
             *pllClk  = 0u;
             retState = RCC_REQUEST_ERROR;
         }
@@ -1346,6 +1381,47 @@ static rcc_RequestState_t Rcc_Pll_Get_OutQRClk( rcc_PllId_t pllId, uint32_t enMa
     else
     {
         retState = RCC_REQUEST_ERROR;
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief State of a PLL output: active while the PLL runs (enabled and locked) and the output
+ *        is enabled.
+ *
+ * \param pllId     [in]: PLL identification (valid)
+ * \param enMask    [in]: Output enable bit (0 - output not available)
+ * \param outState [out]: State of the output
+ *
+ * \return State of request execution. Returns "OK" if the output is available, otherwise
+ *         return error.
+ */
+static rcc_RequestState_t Rcc_Pll_Get_OutState( rcc_PllId_t pllId, uint32_t enMask, rcc_FunctionState_t * const outState )
+{
+    rcc_RequestState_t  retState = RCC_REQUEST_ERROR;
+    rcc_FunctionState_t pllState = RCC_FUNCTION_INACTIVE;
+
+    const rcc_RequestState_t stateReq = Rcc_Pll_Get_State( pllId, &pllState );
+    const uint32_t           enabled  = Rcc_Get_RegBit( rcc_Pll_Config[ pllId ].CfgRegId, enMask );
+
+    if( ( 0u             == enMask   ) ||
+        ( RCC_REQUEST_OK != stateReq )    )
+    {
+        /* Output not available */
+        retState = RCC_REQUEST_ERROR;
+    }
+    else if( ( RCC_FUNCTION_ACTIVE == pllState ) &&
+             ( 0u                  != enabled  )    )
+    {
+        *outState = RCC_FUNCTION_ACTIVE;
+        retState  = RCC_REQUEST_OK;
+    }
+    else
+    {
+        *outState = RCC_FUNCTION_INACTIVE;
+        retState  = RCC_REQUEST_OK;
     }
 
     return ( retState );
