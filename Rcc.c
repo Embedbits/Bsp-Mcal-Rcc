@@ -452,13 +452,13 @@ const rcc_PeriphConfigStruct_t          rcc_ConfigStruct[] =
   { .PeriphId = RCC_PERIPH_TIM8              , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM8     , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM8 */
 #if defined(TIM12)
-  { .PeriphId = RCC_PERIPH_TIM12             , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM12    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM12             , .ClkSrcId = RCC_CLK_SRC_APB1TIMCLK, .BlockId = RCC_BLOCK_TIM12    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM12 */
 #if defined(TIM13)
-  { .PeriphId = RCC_PERIPH_TIM13             , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM13    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM13             , .ClkSrcId = RCC_CLK_SRC_APB1TIMCLK, .BlockId = RCC_BLOCK_TIM13    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM13 */
 #if defined(TIM14)
-  { .PeriphId = RCC_PERIPH_TIM14             , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM14    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
+  { .PeriphId = RCC_PERIPH_TIM14             , .ClkSrcId = RCC_CLK_SRC_APB1TIMCLK, .BlockId = RCC_BLOCK_TIM14    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
 #endif /* TIM14 */
 #if defined(TIM15)
   { .PeriphId = RCC_PERIPH_TIM15             , .ClkSrcId = RCC_CLK_SRC_APB2TIMCLK, .BlockId = RCC_BLOCK_TIM15    , .ClkMuxId = RCC_CLK_MUX_LIST_CNT          },
@@ -1130,13 +1130,13 @@ const rcc_BlockConfigStruct_t           rcc_PeriphBlockConfig[] =
   { .BlockId = RCC_BLOCK_TIM11      , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB2ENR_TIM11EN      , .LpCtrlMask = RCC_APB2LPENR_TIM11LPEN      , .RstCtrlMask = RCC_APB2RSTR_TIM11RST      },
 #endif /* TIM11 */
 #if defined(TIM12)
-  { .BlockId = RCC_BLOCK_TIM12      , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB1LENR_TIM12EN     , .LpCtrlMask = RCC_APB1LLPENR_TIM12LPEN     , .RstCtrlMask = RCC_APB1LRSTR_TIM12RST     },
+  { .BlockId = RCC_BLOCK_TIM12      , .ClkBusId = RCC_CLK_BUS_APB1_1    , .StateMask = RCC_APB1LENR_TIM12EN     , .LpCtrlMask = RCC_APB1LLPENR_TIM12LPEN     , .RstCtrlMask = RCC_APB1LRSTR_TIM12RST     },
 #endif /* TIM12 */
 #if defined(TIM13)
-  { .BlockId = RCC_BLOCK_TIM13      , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB1LENR_TIM13EN     , .LpCtrlMask = RCC_APB1LLPENR_TIM13LPEN     , .RstCtrlMask = RCC_APB1LRSTR_TIM13RST     },
+  { .BlockId = RCC_BLOCK_TIM13      , .ClkBusId = RCC_CLK_BUS_APB1_1    , .StateMask = RCC_APB1LENR_TIM13EN     , .LpCtrlMask = RCC_APB1LLPENR_TIM13LPEN     , .RstCtrlMask = RCC_APB1LRSTR_TIM13RST     },
 #endif /* TIM13 */
 #if defined(TIM14)
-  { .BlockId = RCC_BLOCK_TIM14      , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB1LENR_TIM14EN     , .LpCtrlMask = RCC_APB1LLPENR_TIM14LPEN     , .RstCtrlMask = RCC_APB1LRSTR_TIM14RST     },
+  { .BlockId = RCC_BLOCK_TIM14      , .ClkBusId = RCC_CLK_BUS_APB1_1    , .StateMask = RCC_APB1LENR_TIM14EN     , .LpCtrlMask = RCC_APB1LLPENR_TIM14LPEN     , .RstCtrlMask = RCC_APB1LRSTR_TIM14RST     },
 #endif /* TIM14 */
 #if defined(TIM15)
   { .BlockId = RCC_BLOCK_TIM15      , .ClkBusId = RCC_CLK_BUS_APB2      , .StateMask = RCC_APB2ENR_TIM15EN      , .LpCtrlMask = RCC_APB2LPENR_TIM15LPEN      , .RstCtrlMask = RCC_APB2RSTR_TIM15RST      },
@@ -2096,7 +2096,8 @@ rcc_RequestState_t Rcc_Get_PeriphState( rcc_PeriphId_t periphId, rcc_FunctionSta
  * \param periphClk [out]: Value of frequency for selected peripheral in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error. A PLL output of a stopped PLL or a disabled
+ *         output has no clock: OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PeriphClk( rcc_PeriphId_t periphId, rcc_FreqHz_t * const periphClk )
 {
@@ -3499,7 +3500,8 @@ rcc_RequestState_t Rcc_Get_PllsSource( rcc_PllId_t pllId, rcc_PllClkSrc_t * cons
  * \param pllClk [out]: P output frequency in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error. A stopped PLL or a disabled output has no
+ *         clock: OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {
@@ -3514,7 +3516,8 @@ rcc_RequestState_t Rcc_Get_PllClk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk 
  * \param pllClk [out]: Q output frequency in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error. A stopped PLL or a disabled output has no
+ *         clock: OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {
@@ -3529,7 +3532,8 @@ rcc_RequestState_t Rcc_Get_PllClk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk 
  * \param pllClk [out]: R output frequency in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error. A stopped PLL or a disabled output has no
+ *         clock: OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutR( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {

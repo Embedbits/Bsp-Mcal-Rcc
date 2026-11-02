@@ -73,6 +73,9 @@ static void                 UtRcc_Clear_OrderLog    ( void );
 /** HSI oscillator frequency (HSI_VALUE, without HSIDIV divider) */
 #define UT_RCC_HSI_HZ                       ( 64000000u )
 
+/** Timer kernel clock with HSI system clock and APB divider 4 (2 x PCLK, TIMPRE = 0) */
+#define UT_RCC_HSI_APB_DIV4_TIM_HZ          ( UT_RCC_HSI_HZ / 2u )
+
 /** PLL1 P output frequency of default configuration: 64 MHz / 4 * 20 / 2 */
 #define UT_RCC_PLL1P_DEFAULT_HZ             ( 160000000u )
 
@@ -161,6 +164,15 @@ static const utRcc_PeriphEnable_t utRcc_PeriphEnableLut[] =
     { .PeriphId = RCC_PERIPH_TIM2,  .EnableReg = &RCC->APB1LENR, .EnableBit = RCC_APB1LENR_TIM2EN  },
     { .PeriphId = RCC_PERIPH_SBS,   .EnableReg = &RCC->APB3ENR,  .EnableBit = RCC_APB3ENR_SBSEN    },
     { .PeriphId = RCC_PERIPH_WWDG,  .EnableReg = &RCC->APB1LENR, .EnableBit = RCC_APB1LENR_WWDGEN  },
+#if defined(TIM12)
+    { .PeriphId = RCC_PERIPH_TIM12, .EnableReg = &RCC->APB1LENR, .EnableBit = RCC_APB1LENR_TIM12EN },
+#endif /* TIM12 */
+#if defined(TIM13)
+    { .PeriphId = RCC_PERIPH_TIM13, .EnableReg = &RCC->APB1LENR, .EnableBit = RCC_APB1LENR_TIM13EN },
+#endif /* TIM13 */
+#if defined(TIM14)
+    { .PeriphId = RCC_PERIPH_TIM14, .EnableReg = &RCC->APB1LENR, .EnableBit = RCC_APB1LENR_TIM14EN },
+#endif /* TIM14 */
 };
 
 /* ============================ TEST FIXTURE ================================ */
@@ -238,7 +250,8 @@ void Ut_Rcc_Get_DefaultConfig_ReturnsPll1FromHsi( void )
  * \brief   Rcc_Set_PeriphActive() sets only the clock enable bit of the peripheral.
  *
  * \details Enables clock of a sample peripheral from every bus (FLASH - AHB1,
- *          GPIOA - AHB2, TIM2 / WWDG - APB1L, SBS - APB3), registers are cleared
+ *          GPIOA - AHB2, TIM2 / WWDG - APB1L, SBS - APB3) and of TIM12 / TIM13 /
+ *          TIM14 (APB1L, bug AB#2257) when the MCU has them, registers are cleared
  *          before every peripheral.
  *
  * \par Expected results
@@ -1189,6 +1202,41 @@ void Ut_Rcc_Get_PeriphClk_TimerApbDivided_TwicePclk( void )
 
 
 /**
+ * \brief   TIM12 / TIM13 / TIM14 kernel clock is the APB1 timer clock (bug AB#2257).
+ *
+ * \details System clock HSI 64 MHz, APB1 divider 4, APB2 divider 2 (TIMPRE = 0).
+ *          Reads the clock of the timers the MCU has.
+ *
+ * \par Expected results
+ * - TIM12 / TIM13 / TIM14 = 2 x 16 MHz = 32 MHz (APB2 timer clock is 64 MHz).
+ * - MCU without TIM12: test ignored.
+ */
+void Ut_Rcc_Get_PeriphClk_Tim12To14_Apb1TimerClock( void )
+{
+#if defined(TIM12)
+    rcc_FreqHz_t freq = 0u;
+
+    Ut_Rcc_Set_SysClkHsi();
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_APB1_1, RCC_APB1_DIVIDER_4 ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_APB2, RCC_APB2_DIVIDER_2 ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_TIM12, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( UT_RCC_HSI_APB_DIV4_TIM_HZ, freq );
+#if defined(TIM13)
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_TIM13, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( UT_RCC_HSI_APB_DIV4_TIM_HZ, freq );
+#endif /* TIM13 */
+#if defined(TIM14)
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_TIM14, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( UT_RCC_HSI_APB_DIV4_TIM_HZ, freq );
+#endif /* TIM14 */
+#else
+    TEST_IGNORE_MESSAGE( "TIM12 is not available on this MCU" );
+#endif /* TIM12 */
+}
+
+
+/**
  * \brief   Timer kernel clock with TIMPRE = 1.
  *
  * \details System clock HSI 64 MHz, TIMPRE set. Reads TIM2 clock with APB1 divider 4
@@ -1634,6 +1682,103 @@ void Ut_Rcc_Get_PllClk_OutQR_DefaultPll1_ReturnsFrequency( void )
     pllClk = 0u;
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_RNG_PLL1Q, &pllClk ) );
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_PLL1P_DEFAULT_HZ, pllClk );
+}
+
+
+/**
+ * \brief   A stopped PLL has no output frequency (AB#2234).
+ *
+ * \details HW model sets ready flags. Configures PLL1 with default configuration, stops it and
+ *          reads the Q output frequency and the kernel clock of RNG clocked by PLL1 Q into
+ *          variables preset to 160 MHz - the divider registers keep the configuration.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK and 0 Hz for both requests.
+ */
+void Ut_Rcc_Get_PeriphClk_Pll1Stopped_ReturnsZero( void )
+{
+    rcc_ConfigStruct_t config;
+    rcc_FreqHz_t       pllClk = UT_RCC_PLL1P_DEFAULT_HZ;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllInactive( RCC_PLL_1 ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_1, &pllClk ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, pllClk );
+
+    pllClk = UT_RCC_PLL1P_DEFAULT_HZ;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_RNG_PLL1Q, &pllClk ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, pllClk );
+}
+
+
+/**
+ * \brief   A disabled PLL output has no frequency (AB#2234).
+ *
+ * \details HW model sets ready flags. Configures PLL1 with default configuration except the Q
+ *          output (Q divider 0 - output not enabled) and reads the Q and R output frequencies.
+ *
+ * \par Expected results
+ * - Q output: RCC_REQUEST_OK and 0 Hz.
+ * - R output: RCC_REQUEST_OK and 160 MHz (VCO 320 MHz / 2).
+ */
+void Ut_Rcc_Get_PllClk_OutQ_OutputDisabled_ReturnsZero( void )
+{
+    rcc_ConfigStruct_t config;
+    rcc_FreqHz_t       pllClk = UT_RCC_PLL1P_DEFAULT_HZ;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    config.Pll_Config[ RCC_PLL_1 ].Q_Divider = 0u;
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_1, &pllClk ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, pllClk );
+
+    pllClk = 0u;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutR( RCC_PLL_1, &pllClk ) );
+    TEST_ASSERT_EQUAL_UINT32( UT_RCC_PLL1P_DEFAULT_HZ, pllClk );
+}
+
+
+/**
+ * \brief   Rcc_Set_PllConfig() disables the outputs that are not used (bug AB#2279).
+ *
+ * \details HW model sets ready flags. Configures PLL1 with default configuration (P, Q, R used),
+ *          then again with Q and R divider 0 (not used), then with the R output used again.
+ *
+ * \par Expected results
+ * - Default configuration: PLL1PEN, PLL1QEN and PLL1REN set.
+ * - Q and R not used: RCC_REQUEST_OK, PLL1PEN set, PLL1QEN and PLL1REN cleared, Q output 0 Hz.
+ * - R used again: PLL1PEN and PLL1REN set, PLL1QEN cleared.
+ */
+void Ut_Rcc_Set_PllConfig_UnusedOutputs_Disabled( void )
+{
+    rcc_ConfigStruct_t config;
+    rcc_FreqHz_t       pllClk = UT_RCC_PLL1P_DEFAULT_HZ;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+    TEST_ASSERT_BITS_HIGH( RCC_PLL1CFGR_PLL1PEN | RCC_PLL1CFGR_PLL1QEN | RCC_PLL1CFGR_PLL1REN, RCC->PLL1CFGR );
+
+    config.Pll_Config[ RCC_PLL_1 ].Q_Divider = 0u;
+    config.Pll_Config[ RCC_PLL_1 ].R_Divider = 0u;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+    TEST_ASSERT_BITS_HIGH( RCC_PLL1CFGR_PLL1PEN, RCC->PLL1CFGR );
+    TEST_ASSERT_BITS_LOW( RCC_PLL1CFGR_PLL1QEN | RCC_PLL1CFGR_PLL1REN, RCC->PLL1CFGR );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_1, &pllClk ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, pllClk );
+
+    config.Pll_Config[ RCC_PLL_1 ].R_Divider = UT_RCC_DEFAULT_PLL_DIV;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+    TEST_ASSERT_BITS_HIGH( RCC_PLL1CFGR_PLL1PEN | RCC_PLL1CFGR_PLL1REN, RCC->PLL1CFGR );
+    TEST_ASSERT_BITS_LOW( RCC_PLL1CFGR_PLL1QEN, RCC->PLL1CFGR );
 }
 
 

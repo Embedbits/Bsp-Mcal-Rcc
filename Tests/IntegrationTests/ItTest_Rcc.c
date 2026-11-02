@@ -91,6 +91,9 @@ static void             It_Rcc_SysTickHandler       ( void );
 /** Time of HSE supervised by the clock security system [ms] */
 #define IT_RCC_CSS_SUPERVISION_MS           ( 10u )
 
+/** Value written to the TIM12 auto-reload register (reset value 0xFFFF, unclocked register reads 0) */
+#define IT_RCC_TIM12_ARR_VALUE              ( 0x1234u )
+
 /* ============================== MACROS ==================================== */
 
 /* ========================== LOCAL VARIABLES =============================== */
@@ -137,6 +140,43 @@ void It_Rcc_Set_PeriphActive_PeriphClock_StateReadBack( void )
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphInactive( IT_RCC_PERIPH ) );
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( IT_RCC_PERIPH, &state ) );
     TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE, state );
+}
+
+/**
+ * \brief   TIM12 on target is clocked from APB1.
+ *
+ * \details Enables TIM12 clock, reads the state, writes the TIM12 auto-reload register and
+ *          reads it back (TIM12 register accessed directly, the test does not depend on the
+ *          Tim module). Sets APB2 divider 4 (APB2 timer clock = AHB1 / 2) and reads the TIM2
+ *          (APB1) and TIM12 kernel clock. Bug AB#2257: the clock enable bit was written to
+ *          RCC_APB2ENR, TIM12 registers stayed 0 and the APB2 timer clock was reported.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, state active, TIM12_ARR reads back the written value.
+ * - TIM12 kernel clock = TIM2 kernel clock.
+ * - MCU without TIM12 (STM32H503): test ignored.
+ */
+void It_Rcc_Set_PeriphActive_Tim12_Apb1ClockRegistersWritable( void )
+{
+#if defined(TIM12)
+    rcc_FunctionState_t state    = RCC_FUNCTION_INACTIVE;
+    rcc_FreqHz_t        tim2Clk  = 0u;
+    rcc_FreqHz_t        tim12Clk = 0u;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_TIM12 ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphState( RCC_PERIPH_TIM12, &state ) );
+    TEST_ASSERT_EQUAL( RCC_FUNCTION_ACTIVE, state );
+
+    TIM12->ARR = IT_RCC_TIM12_ARR_VALUE;
+    TEST_ASSERT_EQUAL_HEX32( IT_RCC_TIM12_ARR_VALUE, TIM12->ARR );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ClkBusDivider( RCC_CLK_BUS_APB2, RCC_APB2_DIVIDER_4 ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_TIM2,  &tim2Clk ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_TIM12, &tim12Clk ) );
+    TEST_ASSERT_EQUAL_UINT32( tim2Clk, tim12Clk );
+#else
+    TEST_IGNORE_MESSAGE( "TIM12 is not available on this MCU" );
+#endif /* TIM12 */
 }
 
 /**
@@ -320,6 +360,43 @@ void It_Rcc_Get_PllClk_OutP_DefaultConfig_EqualsSystemBusClock( void )
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutP( RCC_PLL_1, &pllClk ) );
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_ClkBusClk( RCC_CLK_BUS_AHB1, &ahbClk ) );
     TEST_ASSERT_EQUAL_UINT32( pllClk, ahbClk );
+}
+
+/**
+ * \brief   PLL output with divider 0 is disabled on target.
+ *
+ * \details Configures PLL2 with the PLL1 values of the default configuration (P, Q, R used) and
+ *          reads the Q output frequency, configures PLL2 again with Q divider 0 and reads the Q
+ *          and P output frequencies, stops PLL2. Bug AB#2279: the Q output stayed enabled from
+ *          the first configuration.
+ *
+ * \par Expected results
+ * - All requests RCC_REQUEST_OK.
+ * - Q output frequency not 0 when used, 0 Hz with divider 0 (output disabled).
+ * - P output frequency not 0 in both configurations.
+ */
+void It_Rcc_Set_PllConfig_Pll2UnusedOutput_Disabled( void )
+{
+    rcc_ConfigStruct_t    config;
+    rcc_PllConfigStruct_t pllConfig;
+    rcc_FreqHz_t          outQClk = 0u;
+    rcc_FreqHz_t          outPClk = 0u;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    pllConfig = config.Pll_Config[ RCC_PLL_1 ];
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_2, &pllConfig ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_2, &outQClk ) );
+    TEST_ASSERT_NOT_EQUAL( 0u, outQClk );
+
+    pllConfig.Q_Divider = 0u;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_2, &pllConfig ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_2, &outQClk ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, outQClk );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutP( RCC_PLL_2, &outPClk ) );
+    TEST_ASSERT_NOT_EQUAL( 0u, outPClk );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllInactive( RCC_PLL_2 ) );
 }
 
 /**

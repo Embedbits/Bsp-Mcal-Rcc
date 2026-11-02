@@ -80,6 +80,9 @@ disable it.
 - `rcc_RequestState_t Rcc_Get_PllClk_OutQ(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 - `rcc_RequestState_t Rcc_Get_PllClk_OutR(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 
+`Rcc_Get_PeriphClk()` and `Rcc_Get_PllClk_OutP()` / `OutQ()` / `OutR()` report 0 Hz (request OK) for a PLL output
+while the PLL is stopped or the output is disabled - the output has no clock.
+
 ### Clock Sources
 Oscillators except HSE (`rcc_OscId_t`: HSI64, HSI48, CSI, LSI, LSE). HSE is configured by
 `rcc_ConfigStruct_t` (`HSE_ClockType`, `HSE_Frequency_Hz`) and started by `Rcc_Init()`.
