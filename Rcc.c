@@ -2261,7 +2261,8 @@ rcc_RequestState_t Rcc_Get_PllsSource( rcc_PllId_t pllId, rcc_PllClkSrc_t * cons
  * \param pllClk [out]: P output frequency in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error. A stopped PLL has no clock: OK with
+ *         frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {
@@ -2276,7 +2277,8 @@ rcc_RequestState_t Rcc_Get_PllClk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk 
  * \param pllClk [out]: Q output frequency in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error. A stopped PLL has no clock: OK with
+ *         frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {
@@ -2291,7 +2293,8 @@ rcc_RequestState_t Rcc_Get_PllClk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk 
  * \param pllClk [out]: R output frequency in Hz
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error. A stopped PLL has no clock: OK with
+ *         frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutR( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {

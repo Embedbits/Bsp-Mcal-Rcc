@@ -815,12 +815,30 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t * const
     if( ( RCC_PLL_CNT   > pllId  ) &&
         ( RCC_NULL_PTR != pllClk )    )
     {
-        const uint32_t outMask = rcc_Pll_Config[ pllId ].Out_P_Mask;
+        const uint32_t      outMask  = rcc_Pll_Config[ pllId ].Out_P_Mask;
+        rcc_FunctionState_t pllState = RCC_FUNCTION_INACTIVE;
 
-        retState = Rcc_Pll_Get_InternalClk( pllId, &pllIntFreq );
+        retState = Rcc_Pll_Get_State( pllId, &pllState );
 
-        if( ( RCC_REQUEST_OK == retState ) &&
-            ( 0u             != outMask  )    )
+        if( ( RCC_REQUEST_OK      == retState ) &&
+            ( RCC_FUNCTION_ACTIVE == pllState )    )
+        {
+            retState = Rcc_Pll_Get_InternalClk( pllId, &pllIntFreq );
+        }
+        else
+        {
+            /* PLL stopped - no internal frequency */
+        }
+
+        if( ( RCC_REQUEST_OK      == retState ) &&
+            ( 0u                  != outMask  ) &&
+            ( RCC_FUNCTION_ACTIVE != pllState )    )
+        {
+            /* PLL stopped - the output has no clock (AB#2238) */
+            *pllClk = 0u;
+        }
+        else if( ( RCC_REQUEST_OK == retState ) &&
+                 ( 0u             != outMask  )    )
         {
             const uint32_t regVal  = Rcc_Get_RegVal( rcc_Pll_Config[ pllId ].CfgRegId, outMask ) >> RCC_PLL_P_POS;
             const uint32_t divider = ( regVal + 1u ) * RCC_PLL_P_DIV_STEP;
@@ -1183,6 +1201,8 @@ static rcc_RequestState_t Rcc_Pll_Get_SourceClk( rcc_PllClkSrc_t clkSource, rcc_
 /**
  * \brief Calculates frequency of PLL output Q or R (divider field holds divider value).
  *
+ * \note A stopped PLL has no clock: frequency 0 Hz and the request succeeds (AB#2238).
+ *
  * \param pllId   [in]: PLL identification (must be valid)
  * \param outMask [in]: Output divider field mask (0 - output not available)
  * \param outPos  [in]: Output divider field position
@@ -1199,9 +1219,27 @@ static rcc_RequestState_t Rcc_Pll_Get_OutClk( rcc_PllId_t pllId, uint32_t outMas
     if( ( RCC_NULL_PTR != pllClk  ) &&
         ( 0u           != outMask )    )
     {
-        retState = Rcc_Pll_Get_InternalClk( pllId, &pllIntFreq );
+        rcc_FunctionState_t pllState = RCC_FUNCTION_INACTIVE;
 
-        if( RCC_REQUEST_OK == retState )
+        retState = Rcc_Pll_Get_State( pllId, &pllState );
+
+        if( ( RCC_REQUEST_OK      == retState ) &&
+            ( RCC_FUNCTION_ACTIVE == pllState )    )
+        {
+            retState = Rcc_Pll_Get_InternalClk( pllId, &pllIntFreq );
+        }
+        else
+        {
+            /* PLL stopped - no internal frequency */
+        }
+
+        if( ( RCC_REQUEST_OK      == retState ) &&
+            ( RCC_FUNCTION_ACTIVE != pllState )    )
+        {
+            /* PLL stopped - the output has no clock (AB#2238) */
+            *pllClk = 0u;
+        }
+        else if( RCC_REQUEST_OK == retState )
         {
             const uint32_t divider = Rcc_Get_RegVal( rcc_Pll_Config[ pllId ].CfgRegId, outMask ) >> outPos;
 

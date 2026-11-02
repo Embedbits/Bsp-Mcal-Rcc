@@ -927,6 +927,7 @@ void Ut_Rcc_Get_PeriphClk_Pll48ClkPeriphs_ReturnPllQ( void )
     rcc_FreqHz_t freq = 0u;
 
     RCC->PLLCFGR = TEST_RCC_PLLCFGR( 16u, 336u, TEST_RCC_PLLP_DIV4, 7u, RCC_PLLCFGR_PLLSRC_HSI );
+    RCC->CR     |= RCC_CR_PLLON | RCC_CR_PLLRDY;
 
 #if defined(RCC_AHB2ENR_OTGFSEN)
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_USB_OTG_FS, &freq ) );
@@ -1302,6 +1303,7 @@ void Ut_Rcc_Get_ClkBusClk_PllSysClk_ReturnsBusFreq( void )
     rcc_FreqHz_t freq = 0u;
 
     RCC->PLLCFGR = TEST_RCC_PLLCFGR( 16u, 336u, TEST_RCC_PLLP_DIV4, 7u, RCC_PLLCFGR_PLLSRC_HSI );
+    RCC->CR     |= RCC_CR_PLLON | RCC_CR_PLLRDY;
     RCC->CFGR    = RCC_CFGR_SWS_PLL | RCC_CFGR_PPRE1_DIV2;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_ClkBusClk( RCC_CLK_BUS_AHB1, &freq ) );
@@ -1870,6 +1872,7 @@ void Ut_Rcc_Get_PllClk_MainOutputs_CalculatedFromRegisters( void )
     rcc_FreqHz_t freq = 0u;
 
     RCC->PLLCFGR = TEST_RCC_PLLCFGR( 16u, 336u, TEST_RCC_PLLP_DIV2, 7u, RCC_PLLCFGR_PLLSRC_HSI );
+    RCC->CR     |= RCC_CR_PLLON | RCC_CR_PLLRDY;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllInternalClk( RCC_PLL_MAIN, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( 336000000u, freq );
@@ -1881,6 +1884,29 @@ void Ut_Rcc_Get_PllClk_MainOutputs_CalculatedFromRegisters( void )
 #if !defined(RCC_PLLCFGR_PLLR)
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_PllClk_OutR( RCC_PLL_MAIN, &freq ) );
 #endif /* RCC_PLLCFGR_PLLR */
+}
+
+
+/**
+ * \brief   A stopped PLL has no output frequency (AB#2238).
+ *
+ * \details PLLCFGR preset: HSI, M 16, N 336, P 2, Q 7, PLL not running (PLLON / PLLRDY cleared).
+ *          Frequency variable preset to 1 Hz before every request.
+ *
+ * \par Expected results
+ * - Outputs P and Q: RCC_REQUEST_OK and 0 Hz.
+ */
+void Ut_Rcc_Get_PllClk_PllStopped_ReturnsZero( void )
+{
+    rcc_FreqHz_t freq = 1u;
+
+    RCC->PLLCFGR = TEST_RCC_PLLCFGR( 16u, 336u, TEST_RCC_PLLP_DIV2, 7u, RCC_PLLCFGR_PLLSRC_HSI );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutP( RCC_PLL_MAIN, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+    freq = 1u;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_MAIN, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
 }
 
 
@@ -1898,6 +1924,7 @@ void Ut_Rcc_Get_PllClk_ZeroDividerOrInvalidArgs_ReturnsError( void )
     rcc_FreqHz_t freq = 1u;
 
     RCC->PLLCFGR = TEST_RCC_PLLCFGR( 16u, 336u, TEST_RCC_PLLP_DIV2, 0u, RCC_PLLCFGR_PLLSRC_HSI );
+    RCC->CR     |= RCC_CR_PLLON | RCC_CR_PLLRDY;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_PllClk_OutQ( RCC_PLL_MAIN, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( 0u, freq );

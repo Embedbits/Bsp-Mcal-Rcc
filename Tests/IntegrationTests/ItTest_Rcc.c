@@ -68,9 +68,12 @@ static void It_Rcc_Check_BusClocks  ( rcc_FreqHz_t ahbClk, rcc_FreqHz_t apb1Clk,
     #define IT_RCC_FREE_PERIPH              ( RCC_PERIPH_GPIOE )
 
 #elif defined(IT_BOARD_STM32F401xE) || \
-      defined(IT_BOARD_STM32F411xE)
+      defined(IT_BOARD_STM32F411xE) || \
+      defined(IT_BOARD_STM32F413xH) || \
+      defined(IT_BOARD_STM32F446xE)
 
-    /** HSE - 8 MHz MCO of the ST-LINK (oscillator bypassed, X3 not fitted) */
+    /** HSE - 8 MHz MCO of the ST-LINK (oscillator bypassed, X3 not fitted), NUCLEO-F401RE / F411RE / F446RE
+     *  (Nucleo-64) and NUCLEO-F413ZH (Nucleo-144) */
     #define IT_RCC_HSE_TYPE                 ( RCC_HSE_TYPE_SIG_IN )
     #define IT_RCC_HSE_FREQ_HZ              ( 8000000u )
 
@@ -81,8 +84,19 @@ static void It_Rcc_Check_BusClocks  ( rcc_FreqHz_t ahbClk, rcc_FreqHz_t apb1Clk,
     #define IT_RCC_HSE_PLL_P                ( 4u )
     #define IT_RCC_HSE_PLL_Q                ( 7u )
     #define IT_RCC_HSE_PLL_SYSCLK_HZ        ( 84000000u )
+#elif defined(IT_BOARD_STM32F446xE)
+    /** Main PLL from HSE: 8 MHz / 8 * 336 / 2 = 168 MHz, Q 7 = 48 MHz (below the over-drive limit of STM32F446) */
+    #define IT_RCC_HSE_PLL_M                ( 8u )
+    #define IT_RCC_HSE_PLL_N                ( 336u )
+    #define IT_RCC_HSE_PLL_P                ( 2u )
+    #define IT_RCC_HSE_PLL_Q                ( 7u )
+    #define IT_RCC_HSE_PLL_SYSCLK_HZ        ( 168000000u )
+
+    /** Voltage scale 3 (max. 120 MHz): scale 2 of STM32F446 allows 168 MHz */
+    #define IT_RCC_REJECT_SCALE             ( RCC_PWR_VOLTAGE_SCALE_3 )
 #else
-    /** Main PLL from HSE: 8 MHz / 8 * 384 / 4 = 96 MHz, Q 8 = 48 MHz (USB clock of STM32F411) */
+    /** Main PLL from HSE: 8 MHz / 8 * 384 / 4 = 96 MHz, Q 8 = 48 MHz (USB clock of STM32F411 / F413, SYSCLK
+     *  below the 100 MHz maximum of STM32F413) */
     #define IT_RCC_HSE_PLL_M                ( 8u )
     #define IT_RCC_HSE_PLL_N                ( 384u )
     #define IT_RCC_HSE_PLL_P                ( 4u )
@@ -93,13 +107,21 @@ static void It_Rcc_Check_BusClocks  ( rcc_FreqHz_t ahbClk, rcc_FreqHz_t apb1Clk,
     /** LSE 32.768 kHz crystal X2 (fitted on the board - LSE starts) */
     #define IT_RCC_LSE_FITTED               ( 1u )
 
-    /** Morpho CN10 pin 2 (PC8) - not connected on the board */
+    /** Morpho CN10 pin 2 (PC8) - not connected on the board (Nucleo-144: CN8 pin 2, SDMMC data line, not used;
+     *  PC8 is no wire of the boards in the inventory) */
     #define IT_RCC_FREE_PORT                ( GPIO_PORT_C )
     #define IT_RCC_FREE_PIN                 ( GPIO_PIN_ID_8 )
     #define IT_RCC_FREE_PERIPH              ( RCC_PERIPH_GPIOC )
 
 #else
     #error "Board of Rcc integration tests is not defined (INTEGRATION_TEST_BOARD)."
+#endif
+
+/** Voltage scale whose maximal system clock is below the HSE PLL frequency of the board (default scale 2) */
+#if !defined(IT_RCC_REJECT_SCALE)
+    #define IT_RCC_REJECT_SCALE             ( RCC_PWR_VOLTAGE_SCALE_2 )
+#else
+    /* Scale given by the board configuration */
 #endif
 
 /** System clock of default configuration (StartUp) */
@@ -303,8 +325,9 @@ void It_Rcc_Init_HseSysClk_HseFrequency( void )
 /**
  * \brief   Rcc_Init() rejects frequency above limit of voltage scale.
  *
- * \details HSE PLL configuration of the board with voltage scale 2 (STM32F407:
- *          168 MHz, scale 2 max. 144 MHz; STM32F411: 96 MHz, scale 2 max. 84 MHz).
+ * \details HSE PLL configuration of the board with the voltage scale IT_RCC_REJECT_SCALE (STM32F407:
+ *          168 MHz, scale 2 max. 144 MHz; STM32F411: 96 MHz, scale 2 max. 84 MHz; STM32F446: 168 MHz,
+ *          scale 3 max. 120 MHz).
  *
  * \par Expected results
  * - RCC_REQUEST_ERROR, system keeps running from HSI (AHB 16 MHz).
@@ -315,7 +338,7 @@ void It_Rcc_Init_SysClkOverScaleLimit_KeepsHsi( void )
     rcc_FreqHz_t       ahbClk = 0u;
 
     It_Rcc_Get_HsePllConfig( &config );
-    config.VoltageScaling = RCC_PWR_VOLTAGE_SCALE_2;
+    config.VoltageScaling = IT_RCC_REJECT_SCALE;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Init( &config ) );
 
@@ -677,9 +700,10 @@ void It_Rcc_Set_SysTickInterval_MaxAtDefaultClock( void )
  */
 void It_Rcc_Get_ResetSource_SoftwareReset_SwFlagActive( void )
 {
-    rcc_FlagState_t flagState = RCC_FLAG_ACTIVE;
+    rcc_FlagState_t                  flagState = RCC_FLAG_ACTIVE;
+    const integrationTesting_Stage_t stage     = IntegrationTesting_Get_Stage();
 
-    if( 0u == IntegrationTesting_Get_Stage() )
+    if( 0u == stage )
     {
         TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ResetSourceClear() );
 
