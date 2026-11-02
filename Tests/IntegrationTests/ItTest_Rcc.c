@@ -374,7 +374,10 @@ void It_Rcc_Get_PeriphClk_Tim2_MatchesLsiReference( void )
     It_Rcc_Init_Timer( IT_RCC_TIM_FREQ_HZ );
 
     /* Synchronization to rising edge, then counting of LSI periods */
-    for( uint32_t loopIdx = 0u; ( IT_RCC_WAIT_LOOPS > loopIdx ) && ( IT_RCC_LSI_PERIODS >= risingEdges ); loopIdx++ )
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_WAIT_LOOPS  >  loopIdx     ) &&
+         ( IT_RCC_LSI_PERIODS >= risingEdges );
+         loopIdx++ )
     {
         TEST_ASSERT_EQUAL( GPIO_REQUEST_OK, Gpio_Get_PinLevel( IT_RCC_MCO_PORT, IT_RCC_MCO_PIN, &pinLevel ) );
 
@@ -628,7 +631,9 @@ void It_Rcc_Set_ResetSourceClear_AllFlagsInactive( void )
  */
 void It_Rcc_Get_ResetSource_SoftwareReset_OnlySwAndPinFlags( void )
 {
-    if( 0u == IntegrationTesting_Get_Stage() )
+    const integrationTesting_Stage_t stage = IntegrationTesting_Get_Stage();
+
+    if( 0u == stage )
     {
         TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ResetSourceClear() );
         IntegrationTesting_Set_ResetExpected();
@@ -709,7 +714,10 @@ static tim_Counter_t It_Rcc_Measure_SysTickPeriod( uint32_t sysTickCnt )
     uint32_t      startTick = itRcc_SysTickCnt;
 
     /* Synchronization to SysTick interrupt */
-    for( uint32_t loopIdx = 0u; ( IT_RCC_WAIT_LOOPS > loopIdx ) && ( startTick == itRcc_SysTickCnt ); loopIdx++ )
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_WAIT_LOOPS >  loopIdx          ) &&
+         ( startTick         == itRcc_SysTickCnt );
+         loopIdx++ )
     {
         /* Wait for next SysTick */
     }
@@ -717,7 +725,10 @@ static tim_Counter_t It_Rcc_Measure_SysTickPeriod( uint32_t sysTickCnt )
     startCnt  = It_Rcc_Get_TimerCounter();
     startTick = itRcc_SysTickCnt;
 
-    for( uint32_t loopIdx = 0u; ( IT_RCC_WAIT_LOOPS > loopIdx ) && ( ( itRcc_SysTickCnt - startTick ) < sysTickCnt ); loopIdx++ )
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_WAIT_LOOPS                > loopIdx    ) &&
+         ( ( itRcc_SysTickCnt - startTick ) < sysTickCnt );
+         loopIdx++ )
     {
         /* Wait for SysTick periods */
     }

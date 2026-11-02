@@ -1308,6 +1308,68 @@ void Ut_Rcc_Get_PllClk_DefaultPll1_ReturnsFrequency( void )
 
 
 /**
+ * \brief   A stopped PLL has no output frequency (AB#2235).
+ *
+ * \details HW model sets ready flags. Configures PLL1 with default configuration, stops it and
+ *          reads the Q output frequency and the kernel clock of FDCAN1 clocked by PLL1 Q into
+ *          variables preset to 160 MHz - the divider registers keep the configuration.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK and 0 Hz for both requests.
+ */
+void Ut_Rcc_Get_PeriphClk_Pll1Stopped_ReturnsZero( void )
+{
+    rcc_ConfigStruct_t config;
+    rcc_FreqHz_t       freq = UT_RCC_SYSCLK_DEFAULT_HZ;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    PWR->VOSR = LL_PWR_REGU_VOLTAGE_SCALE1;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllInactive( RCC_PLL_1 ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_1, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+
+    freq = UT_RCC_SYSCLK_DEFAULT_HZ;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_FDCAN1_PLL1Q, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+}
+
+
+/**
+ * \brief   A disabled PLL output has no frequency (AB#2235).
+ *
+ * \details HW model sets ready flags. Configures PLL1 with default configuration except the Q
+ *          output (Q divider 0 - output disabled) and reads the Q and R output frequencies.
+ *
+ * \par Expected results
+ * - Q output: RCC_REQUEST_OK and 0 Hz.
+ * - R output: RCC_REQUEST_OK and 160 MHz (VCO 320 MHz / 2).
+ */
+void Ut_Rcc_Get_PllClk_OutQ_OutputDisabled_ReturnsZero( void )
+{
+    rcc_ConfigStruct_t config;
+    rcc_FreqHz_t       freq = UT_RCC_SYSCLK_DEFAULT_HZ;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    config.Pll_Config[ RCC_PLL_1 ].Q_Divider = 0u;
+    PWR->VOSR = LL_PWR_REGU_VOLTAGE_SCALE1;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_1, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+
+    freq = 0u;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutR( RCC_PLL_1, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( UT_RCC_SYSCLK_DEFAULT_HZ, freq );
+}
+
+
+/**
  * \brief   PLL with input frequency 8 - 16 MHz selects the upper input range.
  *
  * \details PLL2 from HSI16, M = 1, N = 20 (VCO 320 MHz), only output R (R = 4).
@@ -2189,7 +2251,7 @@ void Ut_Rcc_Set_ResetSourceClear_FlagsStay_ReturnsErrorAndReleasesRmvf( void )
  *
  * \par Expected results
  * - RCC_REQUEST_OK, SWS = PLL1, PLL1 enabled, voltage range 1, booster enabled.
- * - Flash prefetch enabled, latency 4 wait states, ICACHE enabled.
+ * - Flash prefetch enabled, latency 4 wait states, ICACHE enabled in the 2-way mode (bug AB#2113).
  * - SystemCoreClock = AHB = 160 MHz, SysTick interval 1 ms.
  */
 void Ut_Rcc_Init_DefaultConfig_SysClkFromPll1( void )
@@ -2210,6 +2272,7 @@ void Ut_Rcc_Init_DefaultConfig_SysClkFromPll1( void )
     TEST_ASSERT_BITS_HIGH( FLASH_ACR_PRFTEN, FLASH->ACR );
     TEST_ASSERT_EQUAL_HEX32( LL_FLASH_LATENCY_4, LL_FLASH_GetLatency() );
     TEST_ASSERT_EQUAL_UINT32( 1u, LL_ICACHE_IsEnabled() );
+    TEST_ASSERT_EQUAL_HEX32( LL_ICACHE_2WAYS, LL_ICACHE_GetMode() );
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_SYSCLK_DEFAULT_HZ, SystemCoreClock );
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_ClkBusClk( RCC_CLK_BUS_AHB1, &freq ) );
@@ -2217,6 +2280,33 @@ void Ut_Rcc_Init_DefaultConfig_SysClkFromPll1( void )
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_SysTickInterval( &interval ) );
     TEST_ASSERT_EQUAL_UINT32( 1u, interval );
+}
+
+
+/**
+ * \brief   Rcc_Init() keeps an enabled ICACHE as it is.
+ *
+ * \details With HW model, ICACHE is enabled in the 1-way mode before Rcc_Init() with default
+ *          configuration (bug AB#2113 - Rcc_Init() wrote WAYSEL also while the cache was
+ *          enabled; RM0456 ICACHE: WAYSEL is writable only with EN = 0).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, ICACHE stays enabled in the 1-way mode.
+ */
+void Ut_Rcc_Init_IcacheEnabled_KeptAsIs( void )
+{
+    rcc_ConfigStruct_t config;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    LL_ICACHE_SetMode( LL_ICACHE_1WAY );
+    LL_ICACHE_Enable();
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
+
+    TEST_ASSERT_EQUAL_UINT32( 1u, LL_ICACHE_IsEnabled() );
+    TEST_ASSERT_EQUAL_HEX32( LL_ICACHE_1WAY, LL_ICACHE_GetMode() );
 }
 
 

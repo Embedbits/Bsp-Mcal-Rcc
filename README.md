@@ -67,6 +67,9 @@ outputs are not started automatically.
 - `rcc_RequestState_t Rcc_Get_PllClk_OutQ(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 - `rcc_RequestState_t Rcc_Get_PllClk_OutR(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 
+`Rcc_Get_PeriphClk()` and `Rcc_Get_PllClk_OutP()` / `OutQ()` / `OutR()` report 0 Hz (request OK) for a PLL output
+while the PLL is stopped or the output is disabled - the output has no clock.
+
 ### Oscillators
 - `rcc_RequestState_t Rcc_Set_OscActive(rcc_OscId_t oscId)`
 - `rcc_RequestState_t Rcc_Set_OscInactive(rcc_OscId_t oscId)`

@@ -104,6 +104,9 @@
 /** Count of flash latency thresholds per voltage range */
 #define RCC_FLASH_LATENCY_THR_CNT               ( 5u )
 
+/** ICACHE state returned by LL_ICACHE_IsEnabled() for a disabled cache */
+#define RCC_ICACHE_STATE_DISABLED               ( 0u )
+
 /** Count of voltage ranges */
 #define RCC_PWR_VOLTAGE_SCALE_CNT               ( 4u )
 
@@ -1014,8 +1017,20 @@ rcc_RequestState_t Rcc_Init( rcc_ConfigStruct_t * const clockConfig )
         LL_PWR_DisableUCPDDeadBattery();
 #endif
 
-        LL_ICACHE_SetMode( LL_ICACHE_1WAY );
-        LL_ICACHE_Enable();
+        /* ICACHE 2-way set associative (reset value; the 1-way mode is the low-power option,
+         * RM0456 ICACHE). WAYSEL is writable only while the cache is disabled - a repeated
+         * Rcc_Init() keeps the running cache as it is. */
+        const uint32_t icacheState = LL_ICACHE_IsEnabled();
+
+        if( RCC_ICACHE_STATE_DISABLED == icacheState )
+        {
+            LL_ICACHE_SetMode( LL_ICACHE_2WAYS );
+            LL_ICACHE_Enable();
+        }
+        else
+        {
+            /* Running cache is kept */
+        }
 
         /*-------------- System clock temporarily from HSI16 -----------------*/
         if( RCC_REQUEST_OK == retState )
@@ -1621,6 +1636,8 @@ rcc_RequestState_t Rcc_Get_PeriphState( rcc_PeriphId_t periphId, rcc_FunctionSta
  *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error (also for external clock input pin source).
+ *         A PLL output of a stopped PLL or a disabled output has no clock:
+ *         OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PeriphClk( rcc_PeriphId_t periphId, rcc_FreqHz_t * const periphClk )
 {
@@ -2592,7 +2609,8 @@ rcc_RequestState_t Rcc_Get_PllsSource( rcc_PllId_t pllId, rcc_PllClkSrc_t * cons
  * \param pllClk [out]: Pointer to store frequency in Hz. Must not be NULL.
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error. A stopped PLL or a disabled output has no
+ *         clock: OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {
@@ -2607,7 +2625,8 @@ rcc_RequestState_t Rcc_Get_PllClk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk 
  * \param pllClk [out]: Pointer to store frequency in Hz. Must not be NULL.
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error. A stopped PLL or a disabled output has no
+ *         clock: OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {
@@ -2622,7 +2641,8 @@ rcc_RequestState_t Rcc_Get_PllClk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk 
  * \param pllClk [out]: Pointer to store frequency in Hz. Must not be NULL.
  *
  * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ *         otherwise return error. A stopped PLL or a disabled output has no
+ *         clock: OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutR( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {
