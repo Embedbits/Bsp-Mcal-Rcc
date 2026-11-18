@@ -109,6 +109,13 @@ static void Ut_Rcc_Check_OtherRegsClear ( volatile uint32_t * const * regList, u
 /** PWR_CR1 VOS value of voltage range 2 */
 #define TEST_RCC_VOS_RANGE2                 ( PWR_CR1_VOS_1 )
 
+/** PWR_CR3 value after Rcc_Init(): UCPD dead battery disabled (the bit exists on devices with UCPD) */
+#if defined(PWR_CR3_UCPD_DBDIS)
+    #define TEST_RCC_PWR_CR3_DBDIS          ( PWR_CR3_UCPD_DBDIS )
+#else
+    #define TEST_RCC_PWR_CR3_DBDIS          ( 0u )
+#endif /* PWR_CR3_UCPD_DBDIS */
+
 /** Flash latency used by Rcc_Init() while the clock tree is changed */
 #define TEST_RCC_TRANSITION_LATENCY         ( FLASH_ACR_LATENCY_4WS )
 
@@ -343,6 +350,7 @@ void Ut_Rcc_Init_NullConfig_ReturnsErrorWithoutWrite( void )
  * - Flash: 4 wait states (170 MHz, range 1 boost), prefetch and caches enabled.
  * - PWR and SYSCFG interface clocks enabled, voltage range 1 (VOS 01) in
  *   boost mode (R1MODE 0).
+ * - UCPD dead battery pull-downs released (PWR_CR3.UCPD_DBDIS) on devices with UCPD.
  * - AHB / 1, APB1 / 1, APB2 / 1, SysTick reload 170000 - 1, SystemCoreClock 170 MHz.
  */
 void Ut_Rcc_Init_DefaultConfig_Configures170MHzBoost( void )
@@ -352,11 +360,13 @@ void Ut_Rcc_Init_DefaultConfig_Configures170MHzBoost( void )
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
 
     PWR->CR5 = PWR_CR5_R1MODE;              /* HW reset value - normal mode */
+    PWR->CR3 = 0u;
 
     Ut_Rcc_Start_HwModel();
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
 
+    TEST_ASSERT_EQUAL_HEX32( TEST_RCC_PWR_CR3_DBDIS, PWR->CR3 );
     TEST_ASSERT_EQUAL_HEX32( RCC_CFGR_SWS_PLL, RCC->CFGR & RCC_CFGR_SWS );
     TEST_ASSERT_EQUAL_HEX32( TEST_RCC_PLLCFGR( 4u, 85u, 6u, 0u, TEST_RCC_PLLQR_DIV2, RCC_PLLCFGR_PLLSRC_HSI ) |
                              RCC_PLLCFGR_PLLPEN | RCC_PLLCFGR_PLLREN, RCC->PLLCFGR );
@@ -1126,7 +1136,7 @@ void Ut_Rcc_Get_PeriphClk_ApbNotDivided_TimerClockEqualsPclk( void )
  * \brief   PLL output clocked peripherals return frequency of the output.
  *
  * \details PLLCFGR preset: HSI, M 4, N 85 (VCO 340 MHz), PDIV 6, Q 4, R 2, all
- *          outputs enabled.
+ *          outputs enabled, PLL running (PLLON, PLLRDY).
  *
  * \par Expected results
  * - ADC12 PLLP 56666666 Hz, FDCAN / RNG PLLQ 85 MHz.
@@ -1136,6 +1146,7 @@ void Ut_Rcc_Get_PeriphClk_PllOutputs_ReturnPllFreq( void )
     rcc_FreqHz_t freq = 0u;
 
     RCC->PLLCFGR = TEST_RCC_PLLCFGR( 4u, 85u, 6u, TEST_RCC_PLLQR_DIV4, TEST_RCC_PLLQR_DIV2, RCC_PLLCFGR_PLLSRC_HSI ) | TEST_RCC_PLL_OUTPUTS_EN;
+    RCC->CR     |= RCC_CR_PLLON | RCC_CR_PLLRDY;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_ADC12_PLLP, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( TEST_RCC_DEFAULT_VCO_HZ / 6u, freq );
@@ -1147,22 +1158,26 @@ void Ut_Rcc_Get_PeriphClk_PllOutputs_ReturnPllFreq( void )
 
 
 /**
- * \brief   Peripheral clocked by disabled PLL output has no clock.
+ * \brief   Peripheral clocked by disabled PLL output has no clock (AB#2236).
  *
- * \details PLLCFGR preset with outputs P and R enabled, Q disabled.
+ * \details PLLCFGR preset with outputs P and R enabled, Q disabled, PLL running. Frequency
+ *          variable preset to the VCO frequency.
  *
  * \par Expected results
- * - FDCAN PLLQ: RCC_REQUEST_ERROR. ADC12 PLLP: RCC_REQUEST_OK.
+ * - FDCAN PLLQ: RCC_REQUEST_OK and 0 Hz. ADC12 PLLP: RCC_REQUEST_OK.
  */
-void Ut_Rcc_Get_PeriphClk_PllOutputDisabled_ReturnsError( void )
+void Ut_Rcc_Get_PeriphClk_PllOutputDisabled_ReturnsZero( void )
 {
-    rcc_FreqHz_t freq = 0u;
+    rcc_FreqHz_t freq = TEST_RCC_DEFAULT_VCO_HZ;
 
     RCC->PLLCFGR = TEST_RCC_PLLCFGR( 4u, 85u, 6u, TEST_RCC_PLLQR_DIV4, TEST_RCC_PLLQR_DIV2, RCC_PLLCFGR_PLLSRC_HSI ) |
                    RCC_PLLCFGR_PLLPEN | RCC_PLLCFGR_PLLREN;
+    RCC->CR     |= RCC_CR_PLLON | RCC_CR_PLLRDY;
 
-    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_PeriphClk( RCC_PERIPH_FDCAN_PLLQ, &freq ) );
-    TEST_ASSERT_EQUAL( RCC_REQUEST_OK,    Rcc_Get_PeriphClk( RCC_PERIPH_ADC12_PLLP, &freq ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_FDCAN_PLLQ, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_ADC12_PLLP, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( TEST_RCC_DEFAULT_VCO_HZ / 6u, freq );
 }
 
 
@@ -1524,6 +1539,7 @@ void Ut_Rcc_Get_ClkBusClk_PllSysClk_ReturnsBusFreq( void )
     rcc_FreqHz_t freq = 0u;
 
     RCC->PLLCFGR = TEST_RCC_PLLCFGR( 4u, 85u, 6u, 0u, TEST_RCC_PLLQR_DIV2, RCC_PLLCFGR_PLLSRC_HSI ) | RCC_PLLCFGR_PLLREN;
+    RCC->CR     |= RCC_CR_PLLON | RCC_CR_PLLRDY;
     RCC->CFGR    = RCC_CFGR_SWS_PLL | RCC_CFGR_PPRE1_DIV2;
 
     for( rcc_ClkBusId_t busId = RCC_CLK_BUS_AHB1; RCC_CLK_BUS_AHB3 >= busId; busId++ )
@@ -1622,6 +1638,7 @@ void Ut_Rcc_Set_PwrRange_SysClkAboveRange_ChangeRejected( void )
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
 
     RCC->PLLCFGR = TEST_RCC_PLLCFGR( 4u, 85u, 6u, 0u, TEST_RCC_PLLQR_DIV2, RCC_PLLCFGR_PLLSRC_HSI ) | RCC_PLLCFGR_PLLREN;
+    RCC->CR     |= RCC_CR_PLLON | RCC_CR_PLLRDY;
     RCC->CFGR    = RCC_CFGR_SWS_PLL;
     PWR->CR1     = TEST_RCC_VOS_RANGE1;
 
@@ -2082,7 +2099,7 @@ void Ut_Rcc_Set_PllConfig_UnusedOutputs_Disabled( void )
 /**
  * \brief   PLL output clocks are calculated from registers.
  *
- * \details PLLCFGR preset: HSI, M 4, N 85, PDIV 10, Q 6, R 4, outputs enabled.
+ * \details PLLCFGR preset: HSI, M 4, N 85, PDIV 10, Q 6, R 4, outputs enabled, PLL running.
  *          Then PDIV 0 with PLLP 0 / 1 (dividers 7 / 17).
  *
  * \par Expected results
@@ -2094,6 +2111,7 @@ void Ut_Rcc_Get_PllClk_Outputs_CalculatedFromRegisters( void )
     rcc_FreqHz_t freq = 0u;
 
     RCC->PLLCFGR = TEST_RCC_PLLCFGR( 4u, 85u, 10u, TEST_RCC_PLLQR_DIV6, TEST_RCC_PLLQR_DIV4, RCC_PLLCFGR_PLLSRC_HSI ) | TEST_RCC_PLL_OUTPUTS_EN;
+    RCC->CR     |= RCC_CR_PLLON | RCC_CR_PLLRDY;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllInternalClk( RCC_PLL_1, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( TEST_RCC_DEFAULT_VCO_HZ, freq );
@@ -2115,25 +2133,59 @@ void Ut_Rcc_Get_PllClk_Outputs_CalculatedFromRegisters( void )
 
 
 /**
- * \brief   PLL output clock getters reject disabled output and invalid arguments.
+ * \brief   PLL output clock getters report no clock of a stopped PLL or a disabled output (AB#2236).
  *
- * \details Outputs disabled (enable bits 0), invalid PLL ID, NULL pointer, no
- *          PLL source selected.
+ * \details Outputs enabled with the PLL stopped, then the PLL running with the outputs disabled.
+ *          Frequency variable preset to the VCO frequency before every request.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK and 0 Hz for every output in both cases.
+ */
+void Ut_Rcc_Get_PllClk_StoppedPllOrDisabledOutput_ReturnsZero( void )
+{
+    rcc_FreqHz_t freq = TEST_RCC_DEFAULT_VCO_HZ;
+
+    RCC->PLLCFGR = TEST_RCC_PLLCFGR( 4u, 85u, 10u, TEST_RCC_PLLQR_DIV6, TEST_RCC_PLLQR_DIV4, RCC_PLLCFGR_PLLSRC_HSI ) | TEST_RCC_PLL_OUTPUTS_EN;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutP( RCC_PLL_1, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+    freq = TEST_RCC_DEFAULT_VCO_HZ;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_1, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+    freq = TEST_RCC_DEFAULT_VCO_HZ;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutR( RCC_PLL_1, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+
+    RCC->PLLCFGR &= ~TEST_RCC_PLL_OUTPUTS_EN;
+    RCC->CR      |= RCC_CR_PLLON | RCC_CR_PLLRDY;
+
+    freq = TEST_RCC_DEFAULT_VCO_HZ;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutP( RCC_PLL_1, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+    freq = TEST_RCC_DEFAULT_VCO_HZ;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_1, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+    freq = TEST_RCC_DEFAULT_VCO_HZ;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutR( RCC_PLL_1, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+}
+
+
+/**
+ * \brief   PLL output clock getters reject invalid arguments.
+ *
+ * \details Invalid PLL ID, NULL pointer, no PLL source selected (PLL running, outputs enabled).
  *
  * \par Expected results
  * - RCC_REQUEST_ERROR in all cases.
  */
-void Ut_Rcc_Get_PllClk_DisabledOutputOrInvalidArgs_ReturnsError( void )
+void Ut_Rcc_Get_PllClk_InvalidArgs_ReturnsError( void )
 {
     rcc_FreqHz_t freq = 0u;
 
-    RCC->PLLCFGR = TEST_RCC_PLLCFGR( 4u, 85u, 10u, TEST_RCC_PLLQR_DIV6, TEST_RCC_PLLQR_DIV4, RCC_PLLCFGR_PLLSRC_HSI );
+    RCC->PLLCFGR = TEST_RCC_PLLCFGR( 4u, 85u, 10u, TEST_RCC_PLLQR_DIV6, TEST_RCC_PLLQR_DIV4, RCC_PLLCFGR_PLLSRC_HSI ) | TEST_RCC_PLL_OUTPUTS_EN;
+    RCC->CR     |= RCC_CR_PLLON | RCC_CR_PLLRDY;
 
-    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_PllClk_OutP( RCC_PLL_1, &freq ) );
-    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_PllClk_OutQ( RCC_PLL_1, &freq ) );
-    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_PllClk_OutR( RCC_PLL_1, &freq ) );
-
-    RCC->PLLCFGR |= TEST_RCC_PLL_OUTPUTS_EN;
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_PllClk_OutP( RCC_PLL_CNT, &freq ) );
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_PllClk_OutQ( RCC_PLL_CNT, &freq ) );
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Get_PllClk_OutR( RCC_PLL_CNT, &freq ) );

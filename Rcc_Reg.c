@@ -80,6 +80,7 @@ const rcc_RegList_t                     rcc_RegList[] =
     { .RegId = RCC_REG_CCIPR2     , .RegAddr = &(RCC->CCIPR2    ) }, /**< RCC peripherals independent clock configuration register 2 */
     { .RegId = RCC_REG_FLASH_ACR  , .RegAddr = &(FLASH->ACR     ) }, /**< Flash access control register                              */
     { .RegId = RCC_REG_PWR_CR1    , .RegAddr = &(PWR->CR1       ) }, /**< PWR power control register 1                               */
+    { .RegId = RCC_REG_PWR_CR3    , .RegAddr = &(PWR->CR3       ) }, /**< PWR power control register 3                               */
     { .RegId = RCC_REG_PWR_CR5    , .RegAddr = &(PWR->CR5       ) }, /**< PWR power control register 5                               */
     { .RegId = RCC_REG_PWR_SR2    , .RegAddr = &(PWR->SR2       ) }, /**< PWR power status register 2                                */
 };

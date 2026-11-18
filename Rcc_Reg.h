@@ -55,6 +55,7 @@ typedef enum
     RCC_REG_CCIPR2     , /**< RCC peripherals independent clock configuration register 2     */
     RCC_REG_FLASH_ACR  , /**< Flash access control register                                  */
     RCC_REG_PWR_CR1    , /**< PWR power control register 1 (voltage range, backup access)    */
+    RCC_REG_PWR_CR3    , /**< PWR power control register 3 (UCPD dead battery disable)       */
     RCC_REG_PWR_CR5    , /**< PWR power control register 5 (range 1 boost mode)              */
     RCC_REG_PWR_SR2    , /**< PWR power status register 2 (voltage scaling flag)             */
     RCC_REG_CNT          /**< Count of available RCC registers                               */

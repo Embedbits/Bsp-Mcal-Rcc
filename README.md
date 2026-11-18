@@ -47,7 +47,9 @@ SYSCLK = HCLK = 170 MHz (output R / 2) in voltage range 1 boost mode, APB1 and A
 `Rcc_Init()` switches the system clock to HSI16 before the PLL is reconfigured. A switch to a system
 clock above 80 MHz passes through the AHB / 2 transition state required by RM0440 (HCLK divided by 2
 for at least 1 us). The flash latency is set to the safe value during the change and to the value
-of the new clock afterwards.
+of the new clock afterwards. On the devices with UCPD (STM32G431, G441, G471, G473, G474, G483, G484,
+G491, G4A1) `Rcc_Init()` also releases the dead battery pull-downs of UCPD1 on PB4 / PB6
+(`PWR_CR3.UCPD_DBDIS`), like the STM32H5 module.
 
 ### Peripheral Clock Management
 - `rcc_RequestState_t Rcc_Set_PeriphActive(rcc_PeriphId_t periphId)`
@@ -90,6 +92,9 @@ SRAM1, SRAM2, CCM SRAM and flash interface have sleep mode clock control only.
 - `rcc_RequestState_t Rcc_Get_PllClk_OutP(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 - `rcc_RequestState_t Rcc_Get_PllClk_OutQ(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 - `rcc_RequestState_t Rcc_Get_PllClk_OutR(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
+
+`Rcc_Get_PeriphClk()` and `Rcc_Get_PllClk_OutP()` / `OutQ()` / `OutR()` report 0 Hz (request OK) for a PLL output
+while the PLL is stopped or the output is disabled - the output has no clock.
 
 PLL limits: M 1 - 16, N 8 - 127, input 2.66 - 16 MHz, VCO 96 - 344 MHz, P 2 - 31, Q / R 2, 4, 6, 8.
 Divider 0 marks an unused output (output disabled by PLLxEN bit). The PLL can not be reconfigured

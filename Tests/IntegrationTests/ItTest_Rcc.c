@@ -65,7 +65,8 @@ static rcc_FreqHz_t It_Rcc_Measure_HclkHz      ( void );
 /* Boards are named by their MCU (IT_BOARD_<MCU>, name of the board from the detection), MCUs
  * with the same DEV_ID and flash size share the block. Board MB1367:
  * NUCLEO-G474RE - DEV_ID 0x469, 512 KB flash (STM32G471xE / G473xE / G474xE / G483xE / G484xE)
- * NUCLEO-G431RB - DEV_ID 0x468, 128 KB flash (STM32G411xB / G431xB / G441xB) */
+ * NUCLEO-G431RB - DEV_ID 0x468, 128 KB flash (STM32G411xB / G431xB / G441xB)
+ * NUCLEO-G491RE - DEV_ID 0x479, 512 KB flash (STM32G491xE / G4A1xE) */
 #if defined(IT_BOARD_STM32G471xE) || \
     defined(IT_BOARD_STM32G473xE) || \
     defined(IT_BOARD_STM32G474xE) || \
@@ -73,7 +74,9 @@ static rcc_FreqHz_t It_Rcc_Measure_HclkHz      ( void );
     defined(IT_BOARD_STM32G484xE) || \
     defined(IT_BOARD_STM32G411xB) || \
     defined(IT_BOARD_STM32G431xB) || \
-    defined(IT_BOARD_STM32G441xB)
+    defined(IT_BOARD_STM32G441xB) || \
+    defined(IT_BOARD_STM32G491xE) || \
+    defined(IT_BOARD_STM32G4A1xE)
 
     /** HSE - 24 MHz crystal X3 */
     #define IT_RCC_HSE_TYPE                 ( RCC_HSE_TYPE_CRYSTAL )
@@ -94,7 +97,8 @@ static rcc_FreqHz_t It_Rcc_Measure_HclkHz      ( void );
     /** LSE 32.768 kHz crystal X2 (fitted on the board - LSE starts) */
     #define IT_RCC_LSE_FITTED               ( 1u )
 
-    /** Morpho CN10 pin 2 (PC8) - not connected on the board */
+    /** Morpho CN10 pin 2 (PC8) - SCL wire of the common board wiring (I2C3 PC8 -> I2C1 PA15, pull-up 4.7 kOhm);
+     *  the test only switches the pin mode and reads it back after the GPIOC reset (output low loads the pull-up) */
     #define IT_RCC_FREE_PORT                ( GPIO_PORT_C )
     #define IT_RCC_FREE_PIN                 ( GPIO_PIN_ID_8 )
     #define IT_RCC_FREE_PERIPH              ( RCC_PERIPH_GPIOC )
@@ -793,7 +797,9 @@ void It_Rcc_Get_ResetSource_SoftwareReset_SwFlagActive( void )
 {
     rcc_FlagState_t flagState = RCC_FLAG_ACTIVE;
 
-    if( 0u == IntegrationTesting_Get_Stage() )
+    const integrationTesting_Stage_t stage = IntegrationTesting_Get_Stage();
+
+    if( 0u == stage )
     {
         TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ResetSourceClear() );
 
@@ -933,6 +939,10 @@ static rcc_FreqHz_t It_Rcc_Measure_HclkHz( void )
             }
 
             risingEdges++;
+        }
+        else
+        {
+            /* No action required */
         }
 
         prevLevel = pinLevel;

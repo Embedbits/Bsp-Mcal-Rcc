@@ -673,6 +673,19 @@ rcc_RequestState_t Rcc_Init( rcc_ConfigStruct_t * const clockConfig )
             retState = Rcc_Set_PeriphActive( RCC_PERIPH_PWR );
         }
 
+#if defined(PWR_CR3_UCPD_DBDIS)
+        if( RCC_REQUEST_OK == retState )
+        {
+            /* Dead battery pull-downs of UCPD1 on PB4 / PB6 are released (after reset they stay
+             * connected until UCPD_DBDIS is set, RM0440 PWR_CR3) */
+            Rcc_Set_RegBit( RCC_REG_PWR_CR3, PWR_CR3_UCPD_DBDIS );
+        }
+        else
+        {
+            /* PWR interface clock is not enabled */
+        }
+#endif /* PWR_CR3_UCPD_DBDIS */
+
         if( RCC_REQUEST_OK == retState )
         {
             retState = Rcc_Set_PeriphActive( RCC_PERIPH_SYSCFG );
