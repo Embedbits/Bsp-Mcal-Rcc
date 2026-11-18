@@ -83,6 +83,9 @@ ADC1, ADC2 and ADC3 share one reset control.
 - `rcc_RequestState_t Rcc_Get_PllClk_OutQ(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 - `rcc_RequestState_t Rcc_Get_PllClk_OutR(rcc_PllId_t pllId, rcc_FreqHz_t *pllClk)`
 
+`Rcc_Get_PeriphClk()` and `Rcc_Get_PllClk_OutP()` / `OutQ()` / `OutR()` report 0 Hz (request OK) for a PLL output
+while the PLL is stopped - the output has no clock.
+
 All PLLs share the PLL source multiplexer and the M divider of the main PLL. Shared settings can be
 changed only while no other PLL using them is active. Main PLL output R exists on STM32F76x/F77x only,
 PLLI2S output P and PLLSAI output R on STM32F74x/F75x/F76x/F77x.
