@@ -40,6 +40,7 @@ rcc_RequestState_t          Rcc_ClkBus_Get_TraceClk     ( rcc_FreqHz_t * const t
 rcc_RequestState_t          Rcc_ClkBus_Set_SYSDivider   ( rcc_SYS_Div_t dividerId );
 rcc_RequestState_t          Rcc_ClkBus_Get_SYSDivider   ( rcc_SYS_Div_t * const dividerId );
 rcc_RequestState_t          Rcc_ClkBus_Get_CpuClk       ( rcc_FreqHz_t * const busClk );
+rcc_RequestState_t          Rcc_ClkBus_Get_CoreClk      ( rcc_FreqHz_t * const busClk );
 
 rcc_RequestState_t          Rcc_ClkBus_Set_AHBDivider   ( rcc_AHB_Div_t dividerId );
 rcc_RequestState_t          Rcc_ClkBus_Get_AHBDivider   ( rcc_AHB_Div_t * const dividerId );

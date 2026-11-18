@@ -346,6 +346,32 @@ rcc_RequestState_t Rcc_ClkBus_Get_SYSDivider( rcc_SYS_Div_t * const dividerId )
 
 
 /**
+ * \brief Reading of the clock frequency of the core the code runs on in Hz
+ *
+ * Cortex-M7 (and the single-core lines): CPU clock (\ref Rcc_ClkBus_Get_CpuClk).
+ * Cortex-M4 of the dual-core lines (CORE_CM4): HCLK - CPU2 clock rcc_c2_ck after
+ * the AHB prescaler HPRE (RM0399 Rev 5, system clock generation).
+ *
+ * \param busClk [out]: Pointer to the clock frequency of the core in Hz
+ *
+ * \return State of request execution. Returns "OK" if request was success,
+ *         otherwise return error.
+ */
+rcc_RequestState_t Rcc_ClkBus_Get_CoreClk( rcc_FreqHz_t * const busClk )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+
+#if defined(CORE_CM4)
+    retState = Rcc_ClkBus_Get_AHBClk( busClk );
+#else
+    retState = Rcc_ClkBus_Get_CpuClk( busClk );
+#endif
+
+    return ( retState );
+}
+
+
+/**
  * \brief Reading of CPU clock frequency (SYSCLK divided by D1CPRE / CDCPRE) in Hz
  *
  * \param busClk [out]: Pointer to CPU clock frequency in Hz

@@ -43,8 +43,12 @@
 
 #define RCC_UNSUPPORTED_FUNCTION                ( 0xFF )
 
-/* Reset source flags of the CPU running the code (Cortex-M7 on dual-core devices) */
-#if defined(RCC_RSR_SFT1RSTF)
+/* Reset source flags of the CPU running the code (CPU1 Cortex-M7, CPU2 Cortex-M4 of the dual-core devices) */
+#if defined(CORE_CM4) && \
+    defined(RCC_RSR_SFT2RSTF)
+/** Software reset flag */
+#define RCC_RSR_SW_RESET_FLAG                   ( RCC_RSR_SFT2RSTF )
+#elif defined(RCC_RSR_SFT1RSTF)
 /** Software reset flag */
 #define RCC_RSR_SW_RESET_FLAG                   ( RCC_RSR_SFT1RSTF )
 #else
@@ -52,7 +56,11 @@
 #define RCC_RSR_SW_RESET_FLAG                   ( RCC_RSR_SFTRSTF )
 #endif
 
-#if defined(RCC_RSR_LPWR1RSTF)
+#if defined(CORE_CM4) && \
+    defined(RCC_RSR_LPWR2RSTF)
+/** Illegal Stop / Standby mode entry reset flag */
+#define RCC_RSR_LPWR_RESET_FLAG                 ( RCC_RSR_LPWR2RSTF )
+#elif defined(RCC_RSR_LPWR1RSTF)
 /** Illegal Stop / Standby mode entry reset flag */
 #define RCC_RSR_LPWR_RESET_FLAG                 ( RCC_RSR_LPWR1RSTF )
 #else
@@ -60,7 +68,13 @@
 #define RCC_RSR_LPWR_RESET_FLAG                 ( RCC_RSR_LPWRRSTF )
 #endif
 
-#if defined(RCC_RSR_IWDG1RSTF)
+#if defined(CORE_CM4) && \
+    defined(RCC_RSR_IWDG2RSTF)
+/** Independent watchdog reset flag */
+#define RCC_RSR_IWDG_RESET_FLAG                 ( RCC_RSR_IWDG2RSTF )
+/** Window watchdog reset flag */
+#define RCC_RSR_WWDG_RESET_FLAG                 ( RCC_RSR_WWDG2RSTF )
+#elif defined(RCC_RSR_IWDG1RSTF)
 /** Independent watchdog reset flag */
 #define RCC_RSR_IWDG_RESET_FLAG                 ( RCC_RSR_IWDG1RSTF )
 /** Window watchdog reset flag */
@@ -107,8 +121,46 @@
 /** Value of RSR register bits in cleared state */
 #define RCC_RSR_BITS_CLEARED                    ( 0u )
 
+#if defined(RCC_GCR_WW1RSC)
+/** Mask of the reset scope bits of RCC_GCR when the peripheral is not a window watchdog of the line */
+#define RCC_GCR_RSC_NONE                        ( 0u )
+#endif
+
+#if defined(RCC_BOARD_HSE_TYPE)
+/** HSE input type used by \ref Rcc_Get_DefaultConfig - HSE of the board (board define RCC_BOARD_HSE_TYPE,
+ *  eg. RCC_HSE_TYPE_SIG_DIGITAL_IN for the ST-LINK MCO) */
+#define RCC_DEFAULT_HSE_TYPE                    ( RCC_BOARD_HSE_TYPE )
+#else
+/** HSE input type used by \ref Rcc_Get_DefaultConfig - HSE is not started (board without RCC_BOARD_HSE_TYPE) */
+#define RCC_DEFAULT_HSE_TYPE                    ( RCC_HSE_TYPE_NONE )
+#endif /* RCC_BOARD_HSE_TYPE */
+
+#if defined(RCC_BOARD_HSE_FREQ_HZ)
+/** HSE frequency used by \ref Rcc_Get_DefaultConfig - HSE of the board (board define RCC_BOARD_HSE_FREQ_HZ) */
+#define RCC_DEFAULT_HSE_FREQ_HZ                 ( RCC_BOARD_HSE_FREQ_HZ )
+#else
 /** Default HSE frequency used by \ref Rcc_Get_DefaultConfig (ST-LINK MCO of Nucleo boards) */
 #define RCC_DEFAULT_HSE_FREQ_HZ                 ( 8000000u )
+#endif /* RCC_BOARD_HSE_FREQ_HZ */
+
+#if defined(RCC_BOARD_LSE_TYPE)
+/** LSE input type used by \ref Rcc_Get_DefaultConfig - LSE of the board (board define RCC_BOARD_LSE_TYPE,
+ *  eg. RCC_LSE_TYPE_CRYSTAL) */
+#define RCC_DEFAULT_LSE_TYPE                    ( RCC_BOARD_LSE_TYPE )
+#else
+/** LSE input type used by \ref Rcc_Get_DefaultConfig - LSE is not started (board without RCC_BOARD_LSE_TYPE) */
+#define RCC_DEFAULT_LSE_TYPE                    ( RCC_LSE_TYPE_NONE )
+#endif /* RCC_BOARD_LSE_TYPE */
+
+#if defined(RCC_BOARD_PWR_SUPPLY)
+/** Supply configuration used by \ref Rcc_Get_DefaultConfig - supply of the board (board define
+    RCC_BOARD_PWR_SUPPLY, eg. RCC_PWR_SUPPLY_LDO on NUCLEO-H723ZG) */
+#define RCC_DEFAULT_PWR_SUPPLY                  ( RCC_BOARD_PWR_SUPPLY )
+#else
+/** Supply configuration used by \ref Rcc_Get_DefaultConfig - the reset configuration is kept (board without
+    RCC_BOARD_PWR_SUPPLY) */
+#define RCC_DEFAULT_PWR_SUPPLY                  ( RCC_PWR_SUPPLY_DEFAULT )
+#endif /* RCC_BOARD_PWR_SUPPLY */
 
 /** Default PLL input divider - HSI 64 MHz / 4 gives 16 MHz reference frequency */
 #define RCC_DEFAULT_PLL_M_DIV                   ( 4u )
@@ -263,17 +315,25 @@ typedef struct
 typedef rcc_RequestState_t (*rcc_ClkSrcCallback_t)( rcc_FreqHz_t * const clkFreq );
 
 
+/** \brief State of a clock source (oscillator running) */
+typedef rcc_RequestState_t (*rcc_ClkSrcStateCallback_t)( rcc_FunctionState_t * const state );
+
+
 typedef struct
 {
-    rcc_ClkSrcId_t       PeriphClkSrcId; /**< Peripheral clock source ID */
-    rcc_ClkSrcCallback_t ClkSrcCallback; /**< Callback function pointer */
+    rcc_ClkSrcId_t            PeriphClkSrcId; /**< Peripheral clock source ID                                        */
+    rcc_ClkSrcCallback_t      ClkSrcCallback; /**< Callback function pointer                                         */
+    rcc_ClkSrcStateCallback_t StateCallback;  /**< State of the oscillator of the source, NULL - a bus clock or a PLL
+                                                   output (its callback reports 0 Hz when the PLL is stopped)       */
 }   rcc_ClkSrcConfigStruct_t;
 
 /* ======================== FORWARD DECLARATIONS ============================ */
 
 static rcc_RequestState_t  Rcc_Get_ExpectedSysClkFrequency( rcc_ConfigStruct_t * const clockConfig, rcc_FreqHz_t * const sysClk );
 static rcc_RequestState_t  Rcc_Get_ExpectedHclkFrequency  ( rcc_ConfigStruct_t * const clockConfig, rcc_FreqHz_t * const hclkFreq );
+static rcc_RequestState_t  Rcc_Check_ExpectedHclkLimit    ( rcc_ConfigStruct_t * const clockConfig );
 static rcc_RequestState_t  Rcc_Set_ClkSrcOscActive        ( rcc_ClkSrcId_t clkSrcId );
+static rcc_RequestState_t  Rcc_Get_PerClkState            ( rcc_FunctionState_t * const state );
 static rcc_FunctionState_t Rcc_Get_ClkMuxShared           ( rcc_PeriphId_t periphId );
 static rcc_FunctionState_t Rcc_Get_RtcKernelClkUsed       ( rcc_PeriphId_t periphId );
 static rcc_RequestState_t  Rcc_Set_RtcKernelClkState      ( rcc_FunctionState_t clkState );
@@ -382,18 +442,18 @@ const rcc_ClkSrcConfigStruct_t rcc_PeriphClkSrcConfig[] =
 #endif
   { .PeriphClkSrcId = RCC_CLK_SRC_APB1TIMCLK  , .ClkSrcCallback = Rcc_ClkBus_Get_APB1TimClk   },
   { .PeriphClkSrcId = RCC_CLK_SRC_APB2TIMCLK  , .ClkSrcCallback = Rcc_ClkBus_Get_APB2TimClk   },
-  { .PeriphClkSrcId = RCC_CLK_SRC_HSI64CLK    , .ClkSrcCallback = Rcc_ClkSrc_Get_Hsi64Clk     },
-  { .PeriphClkSrcId = RCC_CLK_SRC_CSI4CLK     , .ClkSrcCallback = Rcc_ClkSrc_Get_CsiClk       },
-  { .PeriphClkSrcId = RCC_CLK_SRC_CSIDIV122CLK, .ClkSrcCallback = Rcc_ClkSrc_Get_CsiDiv122Clk },
-  { .PeriphClkSrcId = RCC_CLK_SRC_HSI48CLK    , .ClkSrcCallback = Rcc_ClkSrc_Get_Hsi48Clk     },
-  { .PeriphClkSrcId = RCC_CLK_SRC_HSECLK      , .ClkSrcCallback = Rcc_ClkSrc_Get_HseClk       },
+  { .PeriphClkSrcId = RCC_CLK_SRC_HSI64CLK    , .ClkSrcCallback = Rcc_ClkSrc_Get_Hsi64Clk     , .StateCallback = Rcc_ClkSrc_Get_Hsi64State },
+  { .PeriphClkSrcId = RCC_CLK_SRC_CSI4CLK     , .ClkSrcCallback = Rcc_ClkSrc_Get_CsiClk       , .StateCallback = Rcc_ClkSrc_Get_CsiState },
+  { .PeriphClkSrcId = RCC_CLK_SRC_CSIDIV122CLK, .ClkSrcCallback = Rcc_ClkSrc_Get_CsiDiv122Clk , .StateCallback = Rcc_ClkSrc_Get_CsiState },
+  { .PeriphClkSrcId = RCC_CLK_SRC_HSI48CLK    , .ClkSrcCallback = Rcc_ClkSrc_Get_Hsi48Clk     , .StateCallback = Rcc_ClkSrc_Get_Hsi48State },
+  { .PeriphClkSrcId = RCC_CLK_SRC_HSECLK      , .ClkSrcCallback = Rcc_ClkSrc_Get_HseClk       , .StateCallback = Rcc_ClkSrc_Get_HseState },
 #if defined(STM32H7RS)
-  { .PeriphClkSrcId = RCC_CLK_SRC_HSEDIV2CLK  , .ClkSrcCallback = Rcc_ClkSrc_Get_HseDiv2Clk   },
+  { .PeriphClkSrcId = RCC_CLK_SRC_HSEDIV2CLK  , .ClkSrcCallback = Rcc_ClkSrc_Get_HseDiv2Clk   , .StateCallback = Rcc_ClkSrc_Get_HseState },
 #endif
-  { .PeriphClkSrcId = RCC_CLK_SRC_LSICLK      , .ClkSrcCallback = Rcc_ClkSrc_Get_LsiClk       },
-  { .PeriphClkSrcId = RCC_CLK_SRC_LSECLK      , .ClkSrcCallback = Rcc_ClkSrc_Get_LseClk       },
-  { .PeriphClkSrcId = RCC_CLK_SRC_PERCLK      , .ClkSrcCallback = Rcc_ClkSrc_Get_PerClk       },
-  { .PeriphClkSrcId = RCC_CLK_SRC_RTCHSECLK   , .ClkSrcCallback = Rcc_ClkSrc_Get_RtcHseClk    },
+  { .PeriphClkSrcId = RCC_CLK_SRC_LSICLK      , .ClkSrcCallback = Rcc_ClkSrc_Get_LsiClk       , .StateCallback = Rcc_ClkSrc_Get_LsiState },
+  { .PeriphClkSrcId = RCC_CLK_SRC_LSECLK      , .ClkSrcCallback = Rcc_ClkSrc_Get_LseClk       , .StateCallback = Rcc_ClkSrc_Get_LseState },
+  { .PeriphClkSrcId = RCC_CLK_SRC_PERCLK      , .ClkSrcCallback = Rcc_ClkSrc_Get_PerClk       , .StateCallback = Rcc_Get_PerClkState },
+  { .PeriphClkSrcId = RCC_CLK_SRC_RTCHSECLK   , .ClkSrcCallback = Rcc_ClkSrc_Get_RtcHseClk    , .StateCallback = Rcc_ClkSrc_Get_HseState },
   { .PeriphClkSrcId = RCC_CLK_SRC_PINCLK      , .ClkSrcCallback = Rcc_ClkSrc_Get_PinClk       },
   { .PeriphClkSrcId = RCC_CLK_SRC_TRACECLK    , .ClkSrcCallback = Rcc_ClkBus_Get_TraceClk     },
 };
@@ -2246,6 +2306,17 @@ rcc_RequestState_t Rcc_Init( rcc_ConfigStruct_t * const clockConfig )
             /* Previous step failed */
         }
 
+        /* The AXI clock (HCLK) of the configuration has to be allowed in the active voltage scale before the
+         * system clock is switched - the device would run out of the limit of the voltage scale */
+        if( RCC_REQUEST_OK == retState )
+        {
+            retState = Rcc_Check_ExpectedHclkLimit( clockConfig );
+        }
+        else
+        {
+            /* Previous step failed */
+        }
+
         if( RCC_REQUEST_OK == retState )
         {
             retState = Rcc_ClkBus_Set_SysClkSource( clockConfig->SystemClockSource );
@@ -2341,8 +2412,14 @@ void Rcc_Task( void )
  *
  * Default configuration is valid for every STM32H7 board: system clock from HSI
  * (64 MHz), all PLLs stopped, all prescalers 1, voltage scale 3 (VOS low -
- * scale 1 on STM32H7R / H7S) and supply configuration of the reset (not
- * written).
+ * scale 1 on STM32H7R / H7S) and the supply configuration of the board
+ * (\ref RCC_DEFAULT_PWR_SUPPLY: board define RCC_BOARD_PWR_SUPPLY, without it
+ * the supply configuration of the reset is kept - not written). External
+ * oscillators are board specific and an enabled oscillator takes over its pins
+ * (LSEON of the backup domain is kept over resets), so HSE and LSE are started
+ * only for a board which gives them by the board defines RCC_BOARD_HSE_TYPE /
+ * RCC_BOARD_HSE_FREQ_HZ and RCC_BOARD_LSE_TYPE (\ref RCC_DEFAULT_HSE_TYPE,
+ * \ref RCC_DEFAULT_LSE_TYPE).
  *
  * \param clockConfig [out]: Pointer to clock configuration structure.
  *
@@ -2355,10 +2432,10 @@ rcc_RequestState_t Rcc_Get_DefaultConfig( rcc_ConfigStruct_t * const clockConfig
 
     if( RCC_NULL_PTR != clockConfig )
     {
-        clockConfig->PowerSupply       = RCC_PWR_SUPPLY_DEFAULT;
-        clockConfig->HSE_ClockType     = RCC_HSE_TYPE_NONE;
+        clockConfig->PowerSupply       = RCC_DEFAULT_PWR_SUPPLY;
+        clockConfig->HSE_ClockType     = RCC_DEFAULT_HSE_TYPE;
         clockConfig->HSE_Frequency_Hz  = RCC_DEFAULT_HSE_FREQ_HZ;
-        clockConfig->LSE_ClockType     = RCC_LSE_TYPE_CRYSTAL;
+        clockConfig->LSE_ClockType     = RCC_DEFAULT_LSE_TYPE;
         clockConfig->LSE_Drive         = RCC_LSE_DRIVE_LOW;
         clockConfig->SystemClockSource = RCC_SYSTEM_CLOCK_SOURCE_HSI;
         clockConfig->CSS_Enable        = RCC_FUNCTION_INACTIVE;
@@ -2716,7 +2793,9 @@ rcc_RequestState_t Rcc_Get_PeriphState( rcc_PeriphId_t periphId, rcc_FunctionSta
  *
  * \return State of request execution. Returns "OK" if request was success,
  *         otherwise return error (also for external clock input - frequency
- *         is unknown).
+ *         is unknown). A stopped oscillator (HSE, LSE, HSI, CSI, HSI48, LSI,
+ *         AB#2241), a PLL output of a stopped PLL or a disabled output has no
+ *         clock: OK with frequency 0 Hz.
  */
 rcc_RequestState_t Rcc_Get_PeriphClk( rcc_PeriphId_t periphId, rcc_FreqHz_t * const periphClk )
 {
@@ -2730,7 +2809,33 @@ rcc_RequestState_t Rcc_Get_PeriphClk( rcc_PeriphId_t periphId, rcc_FreqHz_t * co
         if( ( RCC_CLK_SRC_CNT > periphClkSrcId                                          ) &&
             ( RCC_NULL_PTR   != rcc_PeriphClkSrcConfig[ periphClkSrcId ].ClkSrcCallback )    )
         {
-            returnState = rcc_PeriphClkSrcConfig[ periphClkSrcId ].ClkSrcCallback( periphClk );
+            const rcc_ClkSrcStateCallback_t stateCallback = rcc_PeriphClkSrcConfig[ periphClkSrcId ].StateCallback;
+            rcc_FunctionState_t             srcState      = RCC_FUNCTION_ACTIVE;
+
+            if( RCC_NULL_PTR != stateCallback )
+            {
+                returnState = stateCallback( &srcState );
+            }
+            else
+            {
+                /* Bus clock or PLL output - no oscillator state of its own */
+                returnState = RCC_REQUEST_OK;
+            }
+
+            if( RCC_REQUEST_OK != returnState )
+            {
+                /* State of the oscillator could not be read */
+                *periphClk = 0u;
+            }
+            else if( RCC_FUNCTION_ACTIVE != srcState )
+            {
+                /* Oscillator of the source stopped - no clock (AB#2241) */
+                *periphClk = 0u;
+            }
+            else
+            {
+                returnState = rcc_PeriphClkSrcConfig[ periphClkSrcId ].ClkSrcCallback( periphClk );
+            }
         }
         else
         {
@@ -3482,7 +3587,7 @@ rcc_RequestState_t Rcc_Set_SysTickInterval( rcc_Time_ms_t sysTickInterval )
     if( 0u < sysTickInterval )
     {
         rcc_FreqHz_t             cpuFreq  = 0u;
-        const rcc_RequestState_t clkState = Rcc_ClkBus_Get_CpuClk( &cpuFreq );
+        const rcc_RequestState_t clkState = Rcc_ClkBus_Get_CoreClk( &cpuFreq );
         const uint64_t           ticksCnt = ( (uint64_t)cpuFreq * sysTickInterval ) / RCC_MS_IN_SECOND;
 
         if( ( RCC_REQUEST_OK        == clkState ) &&
@@ -3531,7 +3636,7 @@ rcc_RequestState_t Rcc_Get_SysTickInterval( rcc_Time_ms_t * const sysTickInterva
     if( RCC_NULL_PTR != sysTickInterval )
     {
         rcc_FreqHz_t             cpuFreq  = 0u;
-        const rcc_RequestState_t clkState = Rcc_ClkBus_Get_CpuClk( &cpuFreq );
+        const rcc_RequestState_t clkState = Rcc_ClkBus_Get_CoreClk( &cpuFreq );
 
         if( ( RCC_REQUEST_OK == clkState ) &&
             ( 0u              < cpuFreq  )    )
@@ -3669,10 +3774,10 @@ rcc_RequestState_t Rcc_Get_PllsSource( rcc_PllId_t pllId, rcc_PllClkSrc_t * cons
  * \brief Reads Phase Locked Loop P output clock frequency.
  *
  * \param pllId   [in]: Phase Locked Loop identification
- * \param pllClk [out]: P output frequency in Hz
+ * \param pllClk [out]: P output frequency in Hz, 0 Hz while the PLL is stopped or the output is disabled
  *
- * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ * \return State of request execution. Returns "OK" if request was success (also for a stopped PLL or a
+ *         disabled output), otherwise return error.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {
@@ -3684,10 +3789,10 @@ rcc_RequestState_t Rcc_Get_PllClk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk 
  * \brief Reads Phase Locked Loop Q output clock frequency.
  *
  * \param pllId   [in]: Phase Locked Loop identification
- * \param pllClk [out]: Q output frequency in Hz
+ * \param pllClk [out]: Q output frequency in Hz, 0 Hz while the PLL is stopped or the output is disabled
  *
- * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ * \return State of request execution. Returns "OK" if request was success (also for a stopped PLL or a
+ *         disabled output), otherwise return error.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {
@@ -3699,10 +3804,10 @@ rcc_RequestState_t Rcc_Get_PllClk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk 
  * \brief Reads Phase Locked Loop R output clock frequency.
  *
  * \param pllId   [in]: Phase Locked Loop identification
- * \param pllClk [out]: R output frequency in Hz
+ * \param pllClk [out]: R output frequency in Hz, 0 Hz while the PLL is stopped or the output is disabled
  *
- * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ * \return State of request execution. Returns "OK" if request was success (also for a stopped PLL or a
+ *         disabled output), otherwise return error.
  */
 rcc_RequestState_t Rcc_Get_PllClk_OutR( rcc_PllId_t pllId, rcc_FreqHz_t *pllClk )
 {
@@ -4136,6 +4241,103 @@ rcc_RequestState_t Rcc_Set_ResetSourceClear( void )
     {
         /* Flags were not cleared, error is returned */
     }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief Sets the reset scope of a window watchdog to the system reset.
+ *
+ * The bit WW1RSC / WW2RSC of RCC_GCR selects whether the timeout of WWDG1 / WWDG2 resets only its
+ * core (value after a system reset) or the whole system. The reference manuals (RM0433, RM0399 and
+ * RM0468, RCC_GCR) require the system reset scope before the watchdog is enabled, the behavior of the
+ * watchdog is not guaranteed otherwise. The bit can only be set by software, a system reset clears it.
+ * The write is verified by read-back.
+ *
+ * \note  The lines without RCC_GCR (STM32H7A3 / H7B0 / H7B3, STM32H7R / STM32H7S) have no reset scope
+ *        selection, their window watchdog always resets the system: the function returns
+ *        \ref RCC_REQUEST_OK for it without a register access.
+ *
+ * \param periphId [in]: Window watchdog: RCC_PERIPH_WWDG1, RCC_PERIPH_WWDG2 (dual-core lines) or
+ *                       RCC_PERIPH_WWDG (lines with this name)
+ *
+ * \return Function processing state. Returns \ref RCC_REQUEST_OK if request
+ *         was processed without problems. Returns \ref RCC_REQUEST_ERROR for a peripheral
+ *         which is not a window watchdog of the line (no register is written) or when the bit
+ *         does not read back as set.
+ */
+rcc_RequestState_t Rcc_Set_WwdgSystemReset( rcc_PeriphId_t periphId )
+{
+    rcc_RequestState_t retState = RCC_REQUEST_ERROR;
+
+#if defined(RCC_GCR_WW1RSC)
+    uint32_t rscMask = RCC_GCR_RSC_NONE;
+
+    if( RCC_PERIPH_WWDG1 == periphId )
+    {
+        rscMask = RCC_GCR_WW1RSC;
+    }
+#if defined(RCC_GCR_WW2RSC)
+    else if( RCC_PERIPH_WWDG2 == periphId )
+    {
+        rscMask = RCC_GCR_WW2RSC;
+    }
+#endif /* RCC_GCR_WW2RSC */
+    else
+    {
+        /* Not a window watchdog of the line */
+        rscMask = RCC_GCR_RSC_NONE;
+    }
+
+    if( RCC_GCR_RSC_NONE != rscMask )
+    {
+        /* The bit can only be set by software, a system reset clears it */
+        Rcc_Set_RegBit( RCC_REG_GCR, rscMask );
+
+        for( uint32_t iterationCnt = 0u; RCC_TIMEOUT_RAW > iterationCnt; iterationCnt ++ )
+        {
+            const uint32_t regValue = Rcc_Get_RegBit( RCC_REG_GCR, rscMask );
+
+            if( rscMask == regValue )
+            {
+                retState = RCC_REQUEST_OK;
+                break;
+            }
+            else
+            {
+                /* Bit has not been set yet */
+                retState = RCC_REQUEST_ERROR;
+            }
+        }
+    }
+    else
+    {
+        /* Not a window watchdog of the line, nothing is written */
+        retState = RCC_REQUEST_ERROR;
+    }
+#elif defined(RCC_APB3ENR_WWDG1EN)
+    /* No RCC_GCR (STM32H7A3 / H7B0 / H7B3): WWDG1 (CMSIS alias WWDG) always resets the system */
+    if( ( RCC_PERIPH_WWDG1 == periphId ) ||
+        ( RCC_PERIPH_WWDG  == periphId )    )
+    {
+        retState = RCC_REQUEST_OK;
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+#else
+    /* No RCC_GCR (STM32H7R / STM32H7S): WWDG always resets the system */
+    if( RCC_PERIPH_WWDG == periphId )
+    {
+        retState = RCC_REQUEST_OK;
+    }
+    else
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+#endif /* RCC_GCR_WW1RSC */
 
     return ( retState );
 }
@@ -4810,7 +5012,7 @@ static rcc_RequestState_t Rcc_Set_ClkVariables( void )
 {
     rcc_FreqHz_t       cpuFreq  = 0u;
     rcc_FreqHz_t       hclkFreq = 0u;
-    rcc_RequestState_t retState = Rcc_ClkBus_Get_CpuClk( &cpuFreq );
+    rcc_RequestState_t retState = Rcc_ClkBus_Get_CoreClk( &cpuFreq );
 
     if( RCC_REQUEST_OK == retState )
     {
@@ -4876,6 +5078,46 @@ static rcc_RequestState_t Rcc_Set_AHBDividerSafe( rcc_AHB_Div_t dividerId )
     else
     {
         /* Previous step failed */
+    }
+
+    return ( retState );
+}
+
+
+/**
+ * \brief State of the oscillator of the peripheral clock per_ck (CKPER mux: HSI, CSI or HSE).
+ *
+ * \param state [out]: RCC_FUNCTION_ACTIVE while the selected oscillator runs, RCC_FUNCTION_INACTIVE otherwise
+ *                     (also for the selection without an oscillator)
+ * \return State of request execution. Returns "OK" if request was success,
+ *        otherwise return error.
+ */
+static rcc_RequestState_t Rcc_Get_PerClkState( rcc_FunctionState_t * const state )
+{
+    rcc_RequestState_t retState  = RCC_REQUEST_ERROR;
+    const uint32_t     clkSource = LL_RCC_GetCLKPClockSource( LL_RCC_CLKP_CLKSOURCE );
+
+    if( RCC_NULL_PTR == state )
+    {
+        retState = RCC_REQUEST_ERROR;
+    }
+    else if( LL_RCC_CLKP_CLKSOURCE_HSI == clkSource )
+    {
+        retState = Rcc_ClkSrc_Get_Hsi64State( state );
+    }
+    else if( LL_RCC_CLKP_CLKSOURCE_CSI == clkSource )
+    {
+        retState = Rcc_ClkSrc_Get_CsiState( state );
+    }
+    else if( LL_RCC_CLKP_CLKSOURCE_HSE == clkSource )
+    {
+        retState = Rcc_ClkSrc_Get_HseState( state );
+    }
+    else
+    {
+        /* No oscillator selected */
+        *state   = RCC_FUNCTION_INACTIVE;
+        retState = RCC_REQUEST_OK;
     }
 
     return ( retState );
@@ -5154,6 +5396,32 @@ static rcc_RequestState_t Rcc_Get_ExpectedHclkFrequency( rcc_ConfigStruct_t * co
         const rcc_FreqHz_t cpuClk = Rcc_ClkBus_Calc_CpuClk( sysClk, clockConfig->SYS_Divider );
 
         *hclkFreq = Rcc_ClkBus_Calc_AHBClk( cpuClk, clockConfig->AHB_Divider );
+    }
+    else
+    {
+        /* System clock is not known */
+    }
+
+    return ( retState );
+}
+
+/**
+ * \brief Checks that the AXI clock (HCLK) expected from the configuration is allowed in the active
+ *        voltage scale (nothing is written).
+ *
+ * \param clockConfig [in]: Configuration structure
+ *
+ * \return Returns "OK" if the frequency is known and allowed in the voltage scale. Otherwise returns error.
+ */
+static rcc_RequestState_t Rcc_Check_ExpectedHclkLimit( rcc_ConfigStruct_t * const clockConfig )
+{
+    rcc_FreqHz_t       hclkFreq = 0u;
+    uint32_t           latency  = RCC_FLASH_LATENCY_SWITCH;
+    rcc_RequestState_t retState = Rcc_Get_ExpectedHclkFrequency( clockConfig, &hclkFreq );
+
+    if( RCC_REQUEST_OK == retState )
+    {
+        retState = Rcc_Get_FlashLatencyRequired( hclkFreq, &latency );
     }
     else
     {

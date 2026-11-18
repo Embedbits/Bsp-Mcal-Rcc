@@ -229,7 +229,11 @@ typedef struct
 
 static uint32_t           Rcc_Pll_Get_FieldPos   ( uint32_t fieldMask );
 static rcc_RequestState_t Rcc_Pll_Set_OutDivider ( rcc_RegId_t divRegId, uint32_t confMask, uint32_t stateMask, uint32_t divider, uint32_t dividerMax );
-static rcc_RequestState_t Rcc_Pll_Get_OutClk     ( rcc_PllId_t pllId, rcc_RegId_t divRegId, uint32_t confMask, rcc_FreqHz_t * const pllClk );
+static rcc_RequestState_t Rcc_Pll_Get_OutClk     ( rcc_PllId_t pllId,
+                                                   rcc_RegId_t divRegId,
+                                                   uint32_t confMask,
+                                                   uint32_t stateMask,
+                                                   rcc_FreqHz_t * const pllClk );
 
 /* =============================== MACROS =================================== */
 
@@ -523,14 +527,16 @@ rcc_RequestState_t Rcc_Pll_Set_Config( rcc_PllId_t pllId, rcc_PllConfigStruct_t 
 
             if( RCC_REQUEST_OK == retState )
             {
-                /* Wide VCO range is not allowed with reference frequency 1 - 2 MHz (PLLxRGE = 0) */
+                /* Wide VCO range needs a reference of 2 - 16 MHz, medium VCO range a reference
+                 * of 1 - 2 MHz (PLLxRGE = 0; DS12110 / DS13313 / DS13195 / DS14359 PLL tables) */
                 if( ( RCC_PLL_REF_RANGE1_MAX_HZ <  refFreqHz ) &&
                     ( RCC_PLL_VCO_WIDE_MIN_HZ   <= vcoFreqHz ) &&
                     ( RCC_PLL_VCO_WIDE_MAX_HZ   >= vcoFreqHz )    )
                 {
                     vcoSelVal = RCC_PLL_VCOSEL_WIDE;
                 }
-                else if( ( RCC_PLL_VCO_MEDIUM_MIN_HZ <= vcoFreqHz ) &&
+                else if( ( RCC_PLL_REF_RANGE1_MAX_HZ >= refFreqHz ) &&
+                         ( RCC_PLL_VCO_MEDIUM_MIN_HZ <= vcoFreqHz ) &&
                          ( RCC_PLL_VCO_MEDIUM_MAX_HZ >= vcoFreqHz )    )
                 {
                     vcoSelVal = RCC_PLL_VCOSEL_MEDIUM;
@@ -1062,7 +1068,11 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutP( rcc_PllId_t pllId, rcc_FreqHz_t * const
 
     if( RCC_PLL_CNT > pllId )
     {
-        retState = Rcc_Pll_Get_OutClk( pllId, rcc_Pll_Config[ pllId ].DivRegId, rcc_Pll_Config[ pllId ].Out_P_ConfMask, pllClk );
+        retState = Rcc_Pll_Get_OutClk( pllId,
+                                       rcc_Pll_Config[ pllId ].DivRegId,
+                                       rcc_Pll_Config[ pllId ].Out_P_ConfMask,
+                                       rcc_Pll_Config[ pllId ].Out_P_StateMask,
+                                       pllClk );
     }
     else
     {
@@ -1119,7 +1129,11 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutQ( rcc_PllId_t pllId, rcc_FreqHz_t * const
 
     if( RCC_PLL_CNT > pllId )
     {
-        retState = Rcc_Pll_Get_OutClk( pllId, rcc_Pll_Config[ pllId ].DivRegId, rcc_Pll_Config[ pllId ].Out_Q_ConfMask, pllClk );
+        retState = Rcc_Pll_Get_OutClk( pllId,
+                                       rcc_Pll_Config[ pllId ].DivRegId,
+                                       rcc_Pll_Config[ pllId ].Out_Q_ConfMask,
+                                       rcc_Pll_Config[ pllId ].Out_Q_StateMask,
+                                       pllClk );
     }
     else
     {
@@ -1176,7 +1190,11 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutR( rcc_PllId_t pllId, rcc_FreqHz_t * const
 
     if( RCC_PLL_CNT > pllId )
     {
-        retState = Rcc_Pll_Get_OutClk( pllId, rcc_Pll_Config[ pllId ].DivRegId, rcc_Pll_Config[ pllId ].Out_R_ConfMask, pllClk );
+        retState = Rcc_Pll_Get_OutClk( pllId,
+                                       rcc_Pll_Config[ pllId ].DivRegId,
+                                       rcc_Pll_Config[ pllId ].Out_R_ConfMask,
+                                       rcc_Pll_Config[ pllId ].Out_R_StateMask,
+                                       pllClk );
     }
     else
     {
@@ -1234,7 +1252,11 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutS( rcc_PllId_t pllId, rcc_FreqHz_t * const
 
     if( RCC_PLL_CNT > pllId )
     {
-        retState = Rcc_Pll_Get_OutClk( pllId, rcc_Pll_Config[ pllId ].Div2RegId, rcc_Pll_Config[ pllId ].Out_S_ConfMask, pllClk );
+        retState = Rcc_Pll_Get_OutClk( pllId,
+                                       rcc_Pll_Config[ pllId ].Div2RegId,
+                                       rcc_Pll_Config[ pllId ].Out_S_ConfMask,
+                                       rcc_Pll_Config[ pllId ].Out_S_StateMask,
+                                       pllClk );
     }
     else
     {
@@ -1304,7 +1326,11 @@ rcc_RequestState_t Rcc_Pll_Get_Clk_OutT( rcc_PllId_t pllId, rcc_FreqHz_t * const
     if( ( RCC_PLL_CNT               >  pllId                                     ) &&
         ( RCC_PLL_OUT_NOT_AVAILABLE != rcc_Pll_Config[ pllId ].Out_T_ConfMask    )    )
     {
-        retState = Rcc_Pll_Get_OutClk( pllId, rcc_Pll_Config[ pllId ].Div2RegId, rcc_Pll_Config[ pllId ].Out_T_ConfMask, pllClk );
+        retState = Rcc_Pll_Get_OutClk( pllId,
+                                       rcc_Pll_Config[ pllId ].Div2RegId,
+                                       rcc_Pll_Config[ pllId ].Out_T_ConfMask,
+                                       rcc_Pll_Config[ pllId ].Out_T_StateMask,
+                                       pllClk );
     }
     else
     {
@@ -1487,34 +1513,72 @@ static rcc_RequestState_t Rcc_Pll_Set_OutDivider( rcc_RegId_t divRegId, uint32_t
 /**
  * \brief Calculates frequency of one PLL output.
  *
+ * A stopped PLL (PLLxON or PLLxRDY cleared) or a disabled output has no clock: its frequency is 0 Hz and the
+ * request succeeds - the frequency calculated from the divider registers would let a caller configure a peripheral
+ * without a kernel clock (AB#2207).
+ *
  * \param pllId     [in]: PLL identification (valid)
  * \param divRegId  [in]: Divider register of the output (PLLxDIVR, PLLxDIVR2 on STM32H7R / H7S)
  * \param confMask  [in]: Divider field of the output in the divider register
- * \param pllClk   [out]: Frequency of the output in Hz
+ * \param stateMask [in]: Output enable bit in PLLCFGR
+ * \param pllClk   [out]: Frequency of the output in Hz, 0 Hz for a stopped PLL or a disabled output
  *
- * \return State of request execution. Returns "OK" if request was success,
- *         otherwise return error.
+ * \return State of request execution. Returns "OK" if request was success (also for a stopped PLL or a
+ *         disabled output), otherwise return error.
  */
-static rcc_RequestState_t Rcc_Pll_Get_OutClk( rcc_PllId_t pllId, rcc_RegId_t divRegId, uint32_t confMask, rcc_FreqHz_t * const pllClk )
+static rcc_RequestState_t Rcc_Pll_Get_OutClk( rcc_PllId_t pllId,
+                                              rcc_RegId_t divRegId,
+                                              uint32_t confMask,
+                                              uint32_t stateMask,
+                                              rcc_FreqHz_t * const pllClk )
 {
-    rcc_RequestState_t retState   = RCC_REQUEST_ERROR;
-    rcc_FreqHz_t       pllIntFreq = 0u;
+    rcc_RequestState_t  retState   = RCC_REQUEST_ERROR;
+    rcc_FreqHz_t        pllIntFreq = 0u;
+    rcc_FunctionState_t pllState   = RCC_FUNCTION_INACTIVE;
 
-    retState = Rcc_Pll_Get_InternalClk( pllId, &pllIntFreq );
-
-    if( ( RCC_REQUEST_ERROR != retState ) &&
-        ( RCC_NULL_PTR      != pllClk   )    )
+    if( RCC_NULL_PTR != pllClk )
     {
-        const uint32_t regVal  = Rcc_Get_RegVal( divRegId, confMask );
-        const uint32_t divider = ( regVal >> Rcc_Pll_Get_FieldPos( confMask ) ) + RCC_PLL_OUT_DIV_REG_OFFSET;
-
-        *pllClk = ( pllIntFreq / divider );
-
-        retState = RCC_REQUEST_OK;
+        retState = Rcc_Pll_Get_State( pllId, &pllState );
     }
     else
     {
+        /* Invalid pointer */
         retState = RCC_REQUEST_ERROR;
+    }
+
+    const uint32_t outState = Rcc_Get_RegBit( RCC_REG_PLLCFGR, stateMask );
+
+    if( RCC_REQUEST_OK != retState )
+    {
+        /* Invalid pointer or the PLL state could not be read */
+        retState = RCC_REQUEST_ERROR;
+    }
+    else if( RCC_FUNCTION_ACTIVE != pllState )
+    {
+        /* PLL stopped - no clock on the output */
+        *pllClk = 0u;
+    }
+    else if( 0u == outState )
+    {
+        /* Output disabled - no clock on the output */
+        *pllClk = 0u;
+    }
+    else
+    {
+        retState = Rcc_Pll_Get_InternalClk( pllId, &pllIntFreq );
+
+        if( RCC_REQUEST_OK == retState )
+        {
+            const uint32_t regVal  = Rcc_Get_RegVal( divRegId, confMask );
+            const uint32_t divider = ( regVal >> Rcc_Pll_Get_FieldPos( confMask ) ) + RCC_PLL_OUT_DIV_REG_OFFSET;
+
+            *pllClk = ( pllIntFreq / divider );
+        }
+        else
+        {
+            /* VCO frequency of the running PLL could not be calculated */
+            *pllClk = 0u;
+        }
     }
 
     return ( retState );

@@ -43,6 +43,9 @@ Supported lines: STM32H742 / H743 / H745 / H747 / H750 / H753 / H755 / H757, STM
 `Rcc_Set_PeriphActive()` starts the internal oscillator (HSI, HSI48, CSI, LSI) of the selected kernel
 clock if it is not running yet (eg. `RCC_PERIPH_RNG_HSI48`). External sources (HSE, LSE), PLL outputs and
 the peripheral clock `per_ck` (CKPER, `RCC_PERIPH_LPCLK_*`) are not started automatically.
+`Rcc_Get_PeriphClk()` and `Rcc_Get_PllClk_OutP()` / `OutQ()` / `OutR()` report 0 Hz (request OK) for a PLL output
+while the PLL is stopped or the output is disabled - the output has no clock. `Rcc_Get_PeriphClk()` reports 0 Hz
+(request OK) as well while the oscillator of the kernel clock (HSE, LSE, HSI, CSI, HSI48, LSI) is stopped.
 `Rcc_Set_PeriphInactive()` releases the kernel clock multiplexer unless it is shared with another enabled
 peripheral (eg. SPI1 / SPI2 / SPI3) or it is the RTC / CKPER selection.
 
@@ -77,10 +80,18 @@ Oscillators except HSE (`rcc_OscId_t`: HSI64, HSI48, CSI, LSI, LSE). HSE is conf
 - `rcc_RequestState_t Rcc_Set_OscDiv(rcc_OscId_t oscId, rcc_OscDiv_t oscDiv)`
 - `rcc_RequestState_t Rcc_Get_OscDiv(rcc_OscId_t oscId, rcc_OscDiv_t * const oscDiv)`
 
+`Rcc_Get_DefaultConfig()` (used by StartUp) starts neither HSE nor LSE (`RCC_HSE_TYPE_NONE`,
+`RCC_LSE_TYPE_NONE`): external oscillators are board specific and an enabled oscillator takes over its pins -
+the GPIO configuration of the pins has no effect (RM0433 / RM0468 / RM0455 / RM0477 GPIO), for LSE (PC14 / PC15)
+even over resets, LSEON is in the backup domain. A board with a crystal or an external clock gives it by the
+board defines (defines of the board in `ItBoards.json` / the inventory of the IT agents): `RCC_BOARD_HSE_TYPE`
+(eg. `RCC_HSE_TYPE_SIG_DIGITAL_IN` for the ST-LINK MCO), `RCC_BOARD_HSE_FREQ_HZ` (default 8 MHz) and
+`RCC_BOARD_LSE_TYPE` (eg. `RCC_LSE_TYPE_CRYSTAL`).
+
 **LSE** is enabled by `Rcc_Init()` (and by `Rcc_Set_OscActive(RCC_OSC_LSE)`) with the input type
 and driving capability of the `Rcc_Init()` configuration. The start-up of the crystal is not
 awaited - the ready state is reported by `Rcc_Get_OscState(RCC_OSC_LSE, ...)`:
-- `LSE_ClockType` (`rcc_LseType_t`): `RCC_LSE_TYPE_CRYSTAL` (default), `RCC_LSE_TYPE_SIG_ANALOG_IN`
+- `LSE_ClockType` (`rcc_LseType_t`): `RCC_LSE_TYPE_CRYSTAL`, `RCC_LSE_TYPE_SIG_ANALOG_IN`
   (bypass, `LSEBYP = 1`, `LSEEXT = 0` where `LSEEXT` exists), `RCC_LSE_TYPE_SIG_DIGITAL_IN` (bypass,
   `LSEEXT = 1`, only STM32H7A3 / H7B0 / H7B3 and STM32H7R / H7S - lines with `RCC_BDCR_LSEEXT`) or
   `RCC_LSE_TYPE_NONE` (`Rcc_Init()` leaves LSE untouched, activation returns error).
@@ -129,6 +140,13 @@ Low speed clock output (LSCO) is not available on STM32H7 - requests return erro
 - `rcc_RequestState_t Rcc_Get_ResetSource(rcc_ResetSrc_t resetSrc, rcc_FlagState_t * const flagState)`
 - `rcc_RequestState_t Rcc_Set_ResetSourceClear(void)`
 
+### Window Watchdog Reset
+- `rcc_RequestState_t Rcc_Set_WwdgSystemReset(rcc_PeriphId_t periphId)` - sets the system reset scope of
+  `RCC_PERIPH_WWDG1` (RCC_GCR.WW1RSC) or `RCC_PERIPH_WWDG2` (RCC_GCR.WW2RSC, dual-core lines), required by the
+  reference manuals before the watchdog is enabled; the bit is cleared only by a system reset. On the lines
+  without RCC_GCR (STM32H7A3 / H7B0 / H7B3, STM32H7R / STM32H7S) the window watchdog always resets the system,
+  the function returns OK for it without a register access.
+
 ---
 
 ## STM32H7 Specifics
@@ -136,6 +154,13 @@ Low speed clock output (LSCO) is not available on STM32H7 - requests return erro
 - **Supply configuration** (`PowerSupply`) can be written only once after power-on reset and must match the
   board (LDO / SMPS wiring). `RCC_PWR_SUPPLY_DEFAULT` keeps the reset configuration - only voltage scale 3 is
   available then. Locked supply configuration is accepted only if it matches the requested one.
+  `Rcc_Get_DefaultConfig()` takes the supply of the board from the board define `RCC_BOARD_PWR_SUPPLY`
+  (defines of the board in `ItBoards.json` / the inventory of the IT agents, eg.
+  `RCC_BOARD_PWR_SUPPLY=RCC_PWR_SUPPLY_LDO` on NUCLEO-H723ZG as in the STM32CubeH7 template of the board);
+  without the define the reset configuration is kept. The SMPS supplies exist only for the CMSIS devices with
+  SMPS (`SMPS` defined, eg. `STM32H7A3xxQ`): the MCU `STM32H7A3xI` is built for `STM32H7A3xx` (package without
+  SMPS), so NUCLEO-H7A3ZI-Q (package with SMPS) keeps the reset configuration. A board with
+  SMPS whose supply is never written can lose the debug connection when the voltage scale is raised.
 - **Voltage scale 0** of STM32H742 / H743 / H745 / H747 / H750 / H753 / H755 / H757 is VOS1 with SYSCFG
   overdrive and needs the LDO supply.
 - **Flash latency** is set by `Rcc_Init()` automatically: the maximal latency is used during the clock switch,

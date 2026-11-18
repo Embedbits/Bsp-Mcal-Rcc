@@ -111,6 +111,9 @@ typedef enum
     RCC_REG_APB1HLPENR , /**< RCC APB1 sleep clock high word register              */
     RCC_REG_APB2LPENR  , /**< RCC APB2 sleep clock register                        */
     RCC_REG_APB4LPENR  , /**< RCC APB4 sleep clock register                        */
+#if defined(RCC_GCR_WW1RSC)
+    RCC_REG_GCR        , /**< RCC global control register                          */
+#endif
     RCC_REG_FLASH_ACR  , /**< Flash access control register                        */
     RCC_REG_CNT          /**< Count of available RCC registers                     */
 }   rcc_RegId_t;

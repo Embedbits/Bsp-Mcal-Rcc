@@ -111,6 +111,12 @@ static void                 Ut_Rcc_Set_PllConfig    ( rcc_PllConfigStruct_t * co
 #define UT_RCC_PLLVCOSEL_WIDE               ( 0u )
 #define UT_RCC_PLLVCOSEL_MEDIUM             ( 1u )
 
+/** PLL input divider giving a 4 MHz reference (above the 1 - 2 MHz reference of the medium VCO) from HSI 64 MHz */
+#define UT_RCC_PLL_M_REF_4M                 ( 16u )
+
+/** PLL multiplier: 4 MHz reference x 40 = 160 MHz VCO (medium range, below the wide minimum except H7A3 / B0 / B3) */
+#define UT_RCC_PLL_N_VCO_160M               ( 40u )
+
 /* Voltage scaling register (D3CR on 3-domain devices, SRDCR on STM32H7A3 / H7B0 / H7B3, CSR4 on STM32H7R / H7S) */
 #if defined(PWR_CSR4_VOS)
 #define UT_PWR_VOS_REG                      ( PWR->CSR4 )
@@ -187,9 +193,23 @@ static void                 Ut_Rcc_Set_PllConfig    ( rcc_PllConfigStruct_t * co
 #define UT_PWR_SUPPLY_LDOEN                 ( PWR_CR3_LDOEN )
 #endif
 
+#if defined(RCC_GCR_WW1RSC)
+/** Pattern of RCC_GCR preset by the tests of the reset scope (WW1RSC and WW2RSC clear) */
+#define UT_RCC_GCR_PATTERN                  ( 0xA5A5A5A4u & ~( RCC_GCR_WW1RSC | UT_RCC_GCR_WW2RSC ) )
+
+#if defined(RCC_GCR_WW2RSC)
+/** Reset scope bit of WWDG2 (dual-core lines) */
+#define UT_RCC_GCR_WW2RSC                   ( RCC_GCR_WW2RSC )
+#else
+/** Reset scope bit of WWDG2 - none on the single-core lines */
+#define UT_RCC_GCR_WW2RSC                   ( 0u )
+#endif
+#endif
+
 /* Registers, bits and LL values of the line used by the tests (STM32H7R / H7S: other kernel clock
  * multiplexers - USART1, I2C1 and SPI2 / SPI3 shared, GPDMA1 instead of DMA1, RNG without kernel
  * clock multiplexer on AHB3) */
+
 #if defined(STM32H7RS)
 #define UT_LL_USART1_CLKSOURCE              ( LL_RCC_USART1_CLKSOURCE )
 #define UT_LL_USART1_CLKSOURCE_PCLK2        ( LL_RCC_USART1_CLKSOURCE_PCLK2 )
@@ -237,7 +257,12 @@ static void                 Ut_Rcc_Set_PllConfig    ( rcc_PllConfigStruct_t * co
 #define UT_RCC_CFGR_MCO1                    ( RCC_CFGR_MCO1 )
 #define UT_RCC_CFGR_MCO2                    ( RCC_CFGR_MCO2 )
 #define UT_RCC_CR_CSSHSEON                  ( RCC_CR_CSSHSEON )
+#if defined(CORE_CM4) && \
+    defined(RCC_RSR_IWDG2RSTF)
+#define UT_RCC_RSR_IWDGRSTF                 ( RCC_RSR_IWDG2RSTF )
+#else
 #define UT_RCC_RSR_IWDGRSTF                 ( RCC_RSR_IWDG1RSTF )
+#endif
 #define UT_RCC_PERIPH_AHB1                  ( RCC_PERIPH_DMA1 )
 #define UT_RCC_AHB1RSTR_AHB1                ( RCC_AHB1RSTR_DMA1RST )
 #define UT_RCC_PERIPH_PLL1Q_KERNEL          ( RCC_PERIPH_RNG_PLL1Q )
@@ -395,7 +420,8 @@ void Ut_Rcc_Get_ModuleVersion_ReturnsVersion( void )
  * - Supply configuration of the reset, voltage scale 3 (1 - VOS low on STM32H7R / H7S),
  *   all prescalers 1, PLL outputs S / T not used (STM32H7R / H7S).
  * - HSE frequency 8 MHz, clock outputs not used.
- * - LSE crystal with lowest drive (reset value, bug AB#1565).
+ * - LSE not used (bug AB#2116 - external oscillators are board specific, given by board
+ *   defines), lowest drive preset (reset value, bug AB#1565).
  * - NULL pointer: RCC_REQUEST_ERROR.
  */
 void Ut_Rcc_Get_DefaultConfig_ReturnsHsiWithoutPll( void )
@@ -408,7 +434,7 @@ void Ut_Rcc_Get_DefaultConfig_ReturnsHsiWithoutPll( void )
     TEST_ASSERT_EQUAL( RCC_PWR_SUPPLY_DEFAULT,      config.PowerSupply );
     TEST_ASSERT_EQUAL( UT_RCC_SCALE_RESET,          config.VoltageScaling );
     TEST_ASSERT_EQUAL( RCC_HSE_TYPE_NONE,           config.HSE_ClockType );
-    TEST_ASSERT_EQUAL( RCC_LSE_TYPE_CRYSTAL,        config.LSE_ClockType );
+    TEST_ASSERT_EQUAL( RCC_LSE_TYPE_NONE,           config.LSE_ClockType );
     TEST_ASSERT_EQUAL( RCC_LSE_DRIVE_LOW,           config.LSE_Drive );
     TEST_ASSERT_EQUAL( RCC_FUNCTION_INACTIVE,       config.CSS_Enable );
     TEST_ASSERT_EQUAL( RCC_SYS_DIVIDER_1,           config.SYS_Divider );
@@ -1313,11 +1339,12 @@ void Ut_Rcc_Get_ClkBusClk_HsiDividerApplied( void )
 /**
  * \brief   Rcc_Set_SysTickInterval() configures 1 ms SysTick from CPU clock.
  *
- * \details System clock HSI 64 MHz, AHB divider 2 (SysTick uses CPU clock, not HCLK).
- *          Sets 1 ms interval and reads it back.
+ * \details System clock HSI 64 MHz, AHB divider 2 (SysTick uses CPU clock, not HCLK; the
+ *          clock of the Cortex-M4 of the dual-core lines is HCLK). Sets 1 ms interval and
+ *          reads it back.
  *
  * \par Expected results
- * - LOAD = 63999, CTRL: counter enabled, interrupt enabled, processor clock.
+ * - LOAD = 63999 (Cortex-M4: 31999), CTRL: counter enabled, interrupt enabled, processor clock.
  * - Interval reads back 1 ms.
  */
 void Ut_Rcc_Set_SysTickInterval_1ms_ConfiguresReload( void )
@@ -1329,7 +1356,11 @@ void Ut_Rcc_Set_SysTickInterval_1ms_ConfiguresReload( void )
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_SysTickInterval( 1u ) );
 
+#if defined(CORE_CM4)
+    TEST_ASSERT_EQUAL_UINT32( ( ( UT_RCC_HSI_HZ / 2u ) / UT_RCC_MS_IN_SECOND ) - 1u, SysTick->LOAD );
+#else
     TEST_ASSERT_EQUAL_UINT32( ( UT_RCC_HSI_HZ / UT_RCC_MS_IN_SECOND ) - 1u, SysTick->LOAD );
+#endif
     TEST_ASSERT_BITS_HIGH( SysTick_CTRL_ENABLE_Msk | SysTick_CTRL_TICKINT_Msk | SysTick_CTRL_CLKSOURCE_Msk, SysTick->CTRL );
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_SysTickInterval( &interval ) );
@@ -1771,6 +1802,42 @@ void Ut_Rcc_Set_PllConfig_Reference2MHz_MediumVcoOnly( void )
 
 
 /**
+ * \brief   PLL with a reference frequency above 2 MHz does not use the medium VCO range.
+ *
+ * \details HW model sets ready flags. PLL2 from HSI with a 4 MHz reference and a 160 MHz
+ *          VCO - inside the medium VCO limits, below the wide minimum (192 MHz, STM32H7R / H7S
+ *          400 MHz; STM32H7A3 / B0 / B3 128 MHz). Bug AB#2110 - the medium range was selected
+ *          for any reference; the medium (low) VCO range needs a 1 - 2 MHz reference (DS12110
+ *          Table 41, DS13313 Tables 40 / 42, DS13195 Table 56, DS14359 Table 65).
+ *
+ * \par Expected results
+ * - STM32H7A3 / B0 / B3: RCC_REQUEST_OK, VCO range wide.
+ * - Other devices: RCC_REQUEST_ERROR, PLL2 stays stopped.
+ */
+void Ut_Rcc_Set_PllConfig_ReferenceAbove2MHz_NoMediumVco( void )
+{
+    rcc_PllConfigStruct_t pllConfig;
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    Ut_Rcc_Set_PllConfig( &pllConfig,
+                          RCC_PLL_SRC_HSI,
+                          UT_RCC_PLL_M_REF_4M,
+                          UT_RCC_PLL_N_VCO_160M,
+                          UT_RCC_DEFAULT_PLL_DIV );
+
+#if defined(RCC_VER_2_0)
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_2, &pllConfig ) );
+    TEST_ASSERT_EQUAL_HEX32( UT_RCC_PLLVCOSEL_WIDE,
+                             ( ( RCC->PLLCFGR & RCC_PLLCFGR_PLL2VCOSEL ) >> RCC_PLLCFGR_PLL2VCOSEL_Pos ) );
+#else
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_PllConfig( RCC_PLL_2, &pllConfig ) );
+    TEST_ASSERT_BITS_LOW( RCC_CR_PLL2ON, RCC->CR );
+#endif
+}
+
+
+/**
  * \brief   PLL1 Q and R output frequencies are returned.
  *
  * \details HW model sets ready flags. Configures PLL1 from HSI (Q = R = 2) and reads
@@ -1801,6 +1868,68 @@ void Ut_Rcc_Get_PllClk_OutQR_Pll1FromHsi_ReturnsFrequency( void )
 
     pllClk = 0u;
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( UT_RCC_PERIPH_PLL1Q_KERNEL, &pllClk ) );
+    TEST_ASSERT_EQUAL_UINT32( UT_RCC_PLL_OUT_DEFAULT_HZ, pllClk );
+}
+
+
+/**
+ * \brief   A stopped PLL has no output frequency (AB#2207).
+ *
+ * \details HW model sets ready flags. Configures PLL1 from HSI (Q = R = 2), stops it and reads
+ *          the Q output frequency and the kernel clock of RNG (SPI1 on STM32H7R / H7S) clocked by
+ *          PLL1 Q into variables preset to 200 MHz - the divider registers keep the configuration.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK and 0 Hz for both requests.
+ */
+void Ut_Rcc_Get_PeriphClk_Pll1Stopped_ReturnsZero( void )
+{
+    rcc_ConfigStruct_t config;
+    rcc_FreqHz_t       pllClk = UT_RCC_PLL_OUT_DEFAULT_HZ;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    config.Pll_Config[ RCC_PLL_1 ].Pll_Source = RCC_PLL_SRC_HSI;
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllInactive( RCC_PLL_1 ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_1, &pllClk ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, pllClk );
+
+    pllClk = UT_RCC_PLL_OUT_DEFAULT_HZ;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( UT_RCC_PERIPH_PLL1Q_KERNEL, &pllClk ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, pllClk );
+}
+
+
+/**
+ * \brief   A disabled PLL output has no frequency (AB#2207).
+ *
+ * \details HW model sets ready flags. Configures PLL1 from HSI with the Q output disabled
+ *          (Q divider 0, R = 2) and reads the Q and R output frequencies.
+ *
+ * \par Expected results
+ * - Q output: RCC_REQUEST_OK and 0 Hz.
+ * - R output: RCC_REQUEST_OK and 200 MHz (VCO 400 MHz / 2).
+ */
+void Ut_Rcc_Get_PllClk_OutQ_OutputDisabled_ReturnsZero( void )
+{
+    rcc_ConfigStruct_t config;
+    rcc_FreqHz_t       pllClk = UT_RCC_PLL_OUT_DEFAULT_HZ;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    config.Pll_Config[ RCC_PLL_1 ].Pll_Source = RCC_PLL_SRC_HSI;
+    config.Pll_Config[ RCC_PLL_1 ].Q_Divider  = 0u;
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PllConfig( RCC_PLL_1, &config.Pll_Config[ RCC_PLL_1 ] ) );
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutQ( RCC_PLL_1, &pllClk ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, pllClk );
+
+    pllClk = 0u;
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PllClk_OutR( RCC_PLL_1, &pllClk ) );
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_PLL_OUT_DEFAULT_HZ, pllClk );
 }
 
@@ -2673,7 +2802,7 @@ void Ut_Rcc_Set_ClkOutDivider_ReadBack( void )
 /**
  * \brief   Rcc_Get_ResetSource() reads reset flags.
  *
- * \details RSR = IWDG1 and PIN reset flags. Reads IWDG, PIN and BOR reset source, then
+ * \details RSR = IWDG (of the CPU) and PIN reset flags. Reads IWDG, PIN and BOR reset source, then
  *          calls the function with source out of range and with NULL pointer.
  *
  * \par Expected results
@@ -2701,7 +2830,7 @@ void Ut_Rcc_Get_ResetSource_ReadsFlags( void )
 /**
  * \brief   Rcc_Set_ResetSourceClear() removes reset flags.
  *
- * \details RSR = IWDG1 and PIN reset flags, HW model removes flags while RMVF is set.
+ * \details RSR = IWDG (of the CPU) and PIN reset flags, HW model removes flags while RMVF is set.
  *
  * \par Expected results
  * - RCC_REQUEST_OK, RSR = 0 (flags removed, RMVF released).
@@ -2721,7 +2850,7 @@ void Ut_Rcc_Set_ResetSourceClear_FlagsRemoved_ReturnsOkAndReleasesRmvf( void )
 /**
  * \brief   Rcc_Set_ResetSourceClear() reports flags not removed.
  *
- * \details RSR = IWDG1 reset flag, without HW model (flags are not removed).
+ * \details RSR = IWDG (of the CPU) reset flag, without HW model (flags are not removed).
  *
  * \par Expected results
  * - RCC_REQUEST_ERROR, RMVF is released.
@@ -2734,6 +2863,79 @@ void Ut_Rcc_Set_ResetSourceClear_FlagsStay_ReturnsErrorAndReleasesRmvf( void )
     TEST_ASSERT_BITS_LOW( RCC_RSR_RMVF, RCC->RSR );
 }
 
+
+/**
+ * \brief   Rcc_Set_WwdgSystemReset() sets the system reset scope of WWDG1.
+ *
+ * \details Lines with RCC_GCR: presets GCR with a pattern (WW1RSC and WW2RSC clear), calls the function for
+ *          RCC_PERIPH_WWDG1. Lines without RCC_GCR (STM32H7A3 / H7B0 / H7B3: WWDG1 and its alias WWDG,
+ *          STM32H7R / STM32H7S: WWDG): calls the function for the window watchdog of the line.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK.
+ * - Lines with RCC_GCR: WW1RSC set, the other bits of GCR unchanged.
+ */
+void Ut_Rcc_Set_WwdgSystemReset_WindowWatchdog_SetsSystemScope( void )
+{
+#if defined(RCC_GCR_WW1RSC)
+    RCC->GCR = UT_RCC_GCR_PATTERN;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_WwdgSystemReset( RCC_PERIPH_WWDG1 ) );
+
+    TEST_ASSERT_EQUAL_HEX32( UT_RCC_GCR_PATTERN | RCC_GCR_WW1RSC, RCC->GCR );
+#elif defined(RCC_APB3ENR_WWDG1EN)
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_WwdgSystemReset( RCC_PERIPH_WWDG1 ) );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_WwdgSystemReset( RCC_PERIPH_WWDG ) );
+#else
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_WwdgSystemReset( RCC_PERIPH_WWDG ) );
+#endif
+}
+
+
+/**
+ * \brief   Rcc_Set_WwdgSystemReset() sets the system reset scope of WWDG2 (dual-core lines).
+ *
+ * \details Presets GCR with a pattern (WW1RSC and WW2RSC clear), calls the function for RCC_PERIPH_WWDG2.
+ *          Ignored on the lines without WWDG2.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_OK, WW2RSC set, the other bits of GCR (also WW1RSC) unchanged.
+ */
+void Ut_Rcc_Set_WwdgSystemReset_Wwdg2_SetsWw2rsc( void )
+{
+#if defined(RCC_GCR_WW2RSC)
+    RCC->GCR = UT_RCC_GCR_PATTERN;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_WwdgSystemReset( RCC_PERIPH_WWDG2 ) );
+
+    TEST_ASSERT_EQUAL_HEX32( UT_RCC_GCR_PATTERN | RCC_GCR_WW2RSC, RCC->GCR );
+#else
+    TEST_IGNORE_MESSAGE( "MCU without WWDG2" );
+#endif
+}
+
+
+/**
+ * \brief   Rcc_Set_WwdgSystemReset() rejects a peripheral which is not a window watchdog.
+ *
+ * \details Presets GCR with a pattern (lines with RCC_GCR), calls the function for RCC_PERIPH_GPIOA.
+ *
+ * \par Expected results
+ * - RCC_REQUEST_ERROR, GCR unchanged.
+ */
+void Ut_Rcc_Set_WwdgSystemReset_OtherPeripheral_ReturnsErrorWithoutWrite( void )
+{
+#if defined(RCC_GCR_WW1RSC)
+    RCC->GCR = UT_RCC_GCR_PATTERN;
+#endif
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Set_WwdgSystemReset( RCC_PERIPH_GPIOA ) );
+
+#if defined(RCC_GCR_WW1RSC)
+    TEST_ASSERT_EQUAL_HEX32( UT_RCC_GCR_PATTERN, RCC->GCR );
+#endif
+}
+
 /* ============================ INITIALIZATION ============================== */
 
 /**
@@ -2743,7 +2945,8 @@ void Ut_Rcc_Set_ResetSourceClear_FlagsStay_ReturnsErrorAndReleasesRmvf( void )
  *          default configuration (no clock output - Gpio_Init() not called).
  *
  * \par Expected results
- * - RCC_REQUEST_OK, SWS = HSI, HSE and PLLs stopped, VOS3 (VOS low) kept, supply not written.
+ * - RCC_REQUEST_OK, SWS = HSI, HSE and PLLs stopped, LSE not enabled (bug AB#2116), VOS3 (VOS low)
+ *   kept, supply not written.
  * - Latency for 64 MHz in VOS3 of the device line.
  * - SystemCoreClock = SystemD2Clock = 64 MHz, SysTick interval 1 ms.
  */
@@ -2760,6 +2963,7 @@ void Ut_Rcc_Init_DefaultConfig_SysClkFromHsi( void )
 
     TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYS_CLKSOURCE_STATUS_HSI, RCC->CFGR & RCC_CFGR_SWS );
     TEST_ASSERT_BITS_LOW( RCC_CR_HSEON | RCC_CR_PLL1ON | RCC_CR_PLL2ON | RCC_CR_PLL3ON, RCC->CR );
+    TEST_ASSERT_BITS_LOW( RCC_BDCR_LSEON, RCC->BDCR );
     TEST_ASSERT_EQUAL_HEX32( UT_PWR_VOS_RESET, UT_PWR_VOS_REG & UT_PWR_VOS_MSK );
     TEST_ASSERT_EQUAL_HEX32( UT_PWR_SUPPLY_RESET, UT_PWR_SUPPLY_REG & ~UT_PWR_SUPPLY_MODEL_FLAGS );
     TEST_ASSERT_EQUAL_HEX32( UT_RCC_WS_HSI_VOS3, LL_FLASH_GetLatency() );
@@ -2854,6 +3058,38 @@ void Ut_Rcc_Init_HseNotStarting_ReturnsErrorBeforeSysClkSwitch( void )
 
     TEST_ASSERT_BITS_LOW( RCC_CFGR_SW, RCC->CFGR );
     TEST_ASSERT_BITS_LOW( RCC_CR_PLL1ON, RCC->CR );
+}
+
+
+/**
+ * \brief   Rcc_Init() refuses a configuration out of the limit of the voltage scale before the system clock is switched.
+ *
+ * \details HW model sets ready flags and switch status. Configuration: reset voltage scale, HSE crystal 8 MHz, PLL1
+ *          from HSE 400 MHz (M = 1, N = 100, P = 2) as the system clock, dividers 1 - the AXI clock (HCLK) 400 MHz is
+ *          out of the limit of the voltage scale (85 - 224 MHz) of every device line.
+ *
+ * \note    Bug AB#2079: the system clock was switched to the PLL first and the limit was checked afterwards
+ *          (the device ran out of the limit of the voltage scale).
+ *
+ * \par Expected results
+ * - RCC_REQUEST_ERROR, SWS = HSI (system clock not switched), flash latency of the HSI kept.
+ */
+void Ut_Rcc_Init_HclkOverVoltageScaleLimit_ReturnsErrorBeforeSysClkSwitch( void )
+{
+    rcc_ConfigStruct_t config;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    config.HSE_ClockType     = RCC_HSE_TYPE_CRYSTAL;
+    config.SystemClockSource = RCC_SYSTEM_CLOCK_SOURCE_PLL;
+    Ut_Rcc_Set_PllConfig( &config.Pll_Config[ RCC_PLL_1 ], RCC_PLL_SRC_HSE, 1u, 100u, 2u );
+
+    TEST_ASSERT_EQUAL( REGMEM_REQUEST_OK, RegMem_Set_ModelActive( Ut_Rcc_HwModel ) );
+    UT_PWR_SUPPLY_REG = UT_PWR_SUPPLY_RESET;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Init( &config ) );
+
+    TEST_ASSERT_EQUAL_HEX32( LL_RCC_SYS_CLKSOURCE_STATUS_HSI, RCC->CFGR & RCC_CFGR_SWS );
+    TEST_ASSERT_BITS_LOW( RCC_CFGR_SW, RCC->CFGR );
 }
 
 
@@ -3100,7 +3336,8 @@ void Ut_Rcc_Set_FlashLatency_PllFromHse_LineLatency( void )
  *
  * \par Expected results
  * 1. Trace clock = SYSCLK = 32 MHz (not divided by the system clock prescaler).
- * 2. Trace clock = PLL1 R output = 100 MHz (SYSCLK = PLL1 P = 200 MHz).
+ * 2. Trace clock = PLL1 R output = 100 MHz (SYSCLK = PLL1 P = 200 MHz), SystemCoreClock = 200 MHz
+ *    (Cortex-M4 of the dual-core lines: HCLK = 50 MHz).
  */
 void Ut_Rcc_Get_PeriphClk_TraceClk_FollowsSysClkSource( void )
 {
@@ -3125,7 +3362,11 @@ void Ut_Rcc_Get_PeriphClk_TraceClk_FollowsSysClkSource( void )
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_TRACE, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_PLL_VCO_DEFAULT_HZ / 4u, freq );
+#if defined(CORE_CM4)
+    TEST_ASSERT_EQUAL_UINT32( UT_RCC_PLL_OUT_DEFAULT_HZ / 4u, SystemCoreClock );
+#else
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_PLL_OUT_DEFAULT_HZ, SystemCoreClock );
+#endif
 }
 
 /* ============================ COVERAGE COMPLETION ========================= */
@@ -3222,17 +3463,34 @@ void Ut_Rcc_Get_PllInternalClk_Pll2OutputsAsKernelClock( void )
 
 
 /**
- * \brief   Kernel clock of oscillator sources is reported.
+ * \brief   Kernel clock of oscillator sources is reported while the oscillator runs.
  *
  * \details Kernel clocks of USART1 (CSI), RNG (HSI48), RTC (LSI, LSE), HDMI-CEC
- *          (CSI / 122, devices with HDMI-CEC) and peripheral clock CKPER (HSI).
+ *          (CSI / 122, devices with HDMI-CEC) and peripheral clock CKPER (HSI) with the
+ *          oscillators stopped (registers of the reset), then with their ready flags set.
  *
  * \par Expected results
- * - CSI_VALUE, HSI48_VALUE, LSI_VALUE, LSE_VALUE, CSI_VALUE / 122, HSI_VALUE.
+ * - Oscillators stopped: RCC_REQUEST_OK and 0 Hz (no clock, AB#2241).
+ * - Oscillators running: CSI_VALUE, HSI48_VALUE, LSI_VALUE, LSE_VALUE, CSI_VALUE / 122, HSI_VALUE.
  */
 void Ut_Rcc_Get_PeriphClk_OscillatorSources_NominalFrequency( void )
 {
-    rcc_FreqHz_t freq = 0u;
+    rcc_FreqHz_t freq = UT_RCC_HSI_HZ;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_USART1_CSI, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_RNG_HSI48, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_RTC_LSI, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_RTC_LSE, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_LPCLK_HSI, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+
+    RCC->CR   = RCC_CR_HSION | RCC_CR_HSIRDY | RCC_CR_CSION | RCC_CR_CSIRDY | RCC_CR_HSI48ON | RCC_CR_HSI48RDY;
+    RCC->CSR  = RCC_CSR_LSION | RCC_CSR_LSIRDY;
+    RCC->BDCR = RCC_BDCR_LSEON | RCC_BDCR_LSERDY;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_USART1_CSI, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( CSI_VALUE, freq );
@@ -3254,21 +3512,26 @@ void Ut_Rcc_Get_PeriphClk_OscillatorSources_NominalFrequency( void )
 /**
  * \brief   Kernel clock from peripheral clock CKPER follows the CKPER selection.
  *
- * \details SPI1 clocked by CKPER: CKPER selection HSI (reset value), then CSI. SPI1
- *          clocked by external input (I2S_CKIN).
+ * \details SPI1 clocked by CKPER: CKPER selection HSI (reset value, HSI running), then CSI
+ *          (stopped, then running). SPI1 clocked by external input (I2S_CKIN).
  *
  * \par Expected results
- * - CKPER HSI: 64 MHz, CKPER CSI: CSI_VALUE.
+ * - CKPER HSI: 64 MHz, CKPER CSI stopped: 0 Hz (AB#2241), CKPER CSI running: CSI_VALUE.
  * - External input: RCC_REQUEST_ERROR (frequency unknown).
  */
 void Ut_Rcc_Get_PeriphClk_PerClkAndPinClk_Reported( void )
 {
     rcc_FreqHz_t freq = 0u;
 
+    RCC->CR = RCC_CR_HSION | RCC_CR_HSIRDY;
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_SPI1_LPCLK, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( UT_RCC_HSI_HZ, freq );
 
     LL_RCC_SetCLKPClockSource( LL_RCC_CLKP_CLKSOURCE_CSI );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_SPI1_LPCLK, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+
+    RCC->CR |= RCC_CR_CSION | RCC_CR_CSIRDY;
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_SPI1_LPCLK, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( CSI_VALUE, freq );
 

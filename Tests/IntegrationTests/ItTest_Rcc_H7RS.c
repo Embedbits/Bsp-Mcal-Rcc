@@ -18,7 +18,8 @@
  * - SysTick - core clock based time base
  * - MCO2 pin (PC9) - LSI clock output, not connected on the board, read back
  *   by GPIO input data register, no external wiring
- * - LSE crystal (32.768 kHz) of the board, enabled by StartUp (default configuration)
+ * - LSE crystal (32.768 kHz) of the board, enabled by the test (the default configuration
+ *   of StartUp starts no external oscillator)
  *
  * \note LSI accuracy (STM32H7R / STM32H7S datasheet, over temperature / voltage)
  *       and HSI accuracy define tolerance of the frequency measurement.
@@ -334,11 +335,15 @@ void It_Rcc_Get_PeriphClk_Tim2_MatchesLsiReference( void )
     It_Rcc_Init_Timer( IT_RCC_TIM_FREQ_HZ );
 
     /* Synchronization to rising edge, then counting of LSI periods */
-    for( uint32_t loopIdx = 0u; ( IT_RCC_WAIT_LOOPS > loopIdx ) && ( IT_RCC_LSI_PERIODS >= risingEdges ); loopIdx++ )
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_WAIT_LOOPS > loopIdx ) &&
+         ( IT_RCC_LSI_PERIODS >= risingEdges );
+         loopIdx++ )
     {
         TEST_ASSERT_EQUAL( GPIO_REQUEST_OK, Gpio_Get_PinLevel( IT_RCC_MCO2_PORT, IT_RCC_MCO2_PIN, &pinLevel ) );
 
-        if( ( GPIO_PIN_LEVEL_LOW == prevLevel ) && ( GPIO_PIN_LEVEL_HIGH == pinLevel ) )
+        if( ( GPIO_PIN_LEVEL_LOW  == prevLevel ) &&
+            ( GPIO_PIN_LEVEL_HIGH == pinLevel  )    )
         {
             if( 0u == risingEdges )
             {
@@ -389,21 +394,29 @@ void It_Rcc_Set_OscActive_Lsi_StateReadBack( void )
 /**
  * \brief   LSE crystal enabled by Rcc_Init() becomes ready and is kept by the oscillator interface.
  *
- * \details Rcc is initialized by StartUp with default configuration (LSE crystal, lowest
- *          drive) - LSE is enabled without waiting for the crystal start-up (bug AB#1565 -
- *          LSE could not be activated). The test waits for the ready state (SysTick time
- *          base), activates LSE through the oscillator interface (running LSE is kept),
- *          disables LSE and reads the state. The board must have the 32.768 kHz LSE crystal.
+ * \details Rcc_Init() with default configuration and LSE crystal (lowest drive; the default
+ *          configuration of StartUp starts no LSE, bug AB#2116) - LSE is enabled without
+ *          waiting for the crystal start-up (bug AB#1565 - LSE could not be activated). The
+ *          test waits for the ready state (SysTick time base), activates LSE through the
+ *          oscillator interface (running LSE is kept), disables LSE and reads the state. The
+ *          board must have the 32.768 kHz LSE crystal.
  *
  * \par Expected results
+ * - Rcc_Init(): RCC_REQUEST_OK.
  * - State active within the start-up wait of the test.
  * - Activation of running LSE: RCC_REQUEST_OK, state stays active.
  * - Deactivation: RCC_REQUEST_OK, state inactive.
  */
 void It_Rcc_Set_OscActive_LseCrystal_EnabledByInit( void )
 {
+    rcc_ConfigStruct_t  config;
     rcc_FunctionState_t state     = RCC_FUNCTION_INACTIVE;
     uint32_t            startTick = 0u;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    config.LSE_ClockType = RCC_LSE_TYPE_CRYSTAL;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
 
     It_Rcc_Start_SysTick();
 
@@ -529,7 +542,9 @@ void It_Rcc_Set_ResetSourceClear_AllFlagsInactive( void )
  */
 void It_Rcc_Get_ResetSource_SoftwareReset_OnlySwAndPinFlags( void )
 {
-    if( 0u == IntegrationTesting_Get_Stage() )
+    const integrationTesting_Stage_t testStage = IntegrationTesting_Get_Stage();
+
+    if( 0u == testStage )
     {
         TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ResetSourceClear() );
         IntegrationTesting_Set_ResetExpected();
@@ -610,7 +625,10 @@ static tim_Counter_t It_Rcc_Measure_SysTickPeriod( uint32_t sysTickCnt )
     uint32_t      startTick = itRcc_SysTickCnt;
 
     /* Synchronization to SysTick interrupt */
-    for( uint32_t loopIdx = 0u; ( IT_RCC_WAIT_LOOPS > loopIdx ) && ( startTick == itRcc_SysTickCnt ); loopIdx++ )
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_WAIT_LOOPS > loopIdx ) &&
+         ( startTick == itRcc_SysTickCnt );
+         loopIdx++ )
     {
         /* Wait for next SysTick */
     }
@@ -618,7 +636,10 @@ static tim_Counter_t It_Rcc_Measure_SysTickPeriod( uint32_t sysTickCnt )
     startCnt  = It_Rcc_Get_TimerCounter();
     startTick = itRcc_SysTickCnt;
 
-    for( uint32_t loopIdx = 0u; ( IT_RCC_WAIT_LOOPS > loopIdx ) && ( ( itRcc_SysTickCnt - startTick ) < sysTickCnt ); loopIdx++ )
+    for( uint32_t loopIdx = 0u;
+         ( IT_RCC_WAIT_LOOPS > loopIdx ) &&
+         ( ( itRcc_SysTickCnt - startTick ) < sysTickCnt );
+         loopIdx++ )
     {
         /* Wait for SysTick periods */
     }

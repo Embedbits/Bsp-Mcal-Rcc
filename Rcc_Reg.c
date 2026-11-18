@@ -164,6 +164,9 @@ const rcc_RegList_t                     rcc_RegList[] =
     { .RegId = RCC_REG_APB1HLPENR , .RegAddr = RCC_REG_APB1HLPENR_ADDR }, /**< RCC APB1 sleep clock high word register          */
     { .RegId = RCC_REG_APB2LPENR  , .RegAddr = &(RCC->APB2LPENR ) }, /**< RCC APB2 sleep clock register                        */
     { .RegId = RCC_REG_APB4LPENR  , .RegAddr = &(RCC->APB4LPENR ) }, /**< RCC APB4 sleep clock register                        */
+#if defined(RCC_GCR_WW1RSC)
+    { .RegId = RCC_REG_GCR        , .RegAddr = &(RCC->GCR       ) }, /**< RCC global control register                          */
+#endif
     { .RegId = RCC_REG_FLASH_ACR  , .RegAddr = &(FLASH->ACR     ) }, /**< Flash access control register                        */
 };
 

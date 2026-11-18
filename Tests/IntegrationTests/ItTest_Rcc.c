@@ -26,7 +26,8 @@
  * - STM32H7A3xI / STM32H7A3xIQ - NUCLEO-H7A3ZI-Q (the detection names every
  *   board with ID 0x480 and 2 MB flash STM32H7A3xI, STM32H7A3xIQ by a board file
  *   override)
- * Both are Nucleo-144 boards with HSE 8 MHz MCO of the ST-LINK (digital bypass).
+ * - STM32H755xI - NUCLEO-H755ZI-Q (the test firmware runs on the Cortex-M7 core)
+ * All are Nucleo-144 boards with HSE 8 MHz MCO of the ST-LINK (digital bypass).
  *
  * Used resources (see board configuration below):
  * - IT_RCC_HSE_*      - HSE oscillator of the board
@@ -34,7 +35,8 @@
  *                       Nucleo-144), used by peripheral reset test
  * - PA8 (MCO1), PC9 (MCO2) - clock outputs, the pins output clock during the
  *                       test case (PA8 free / Arduino D10, PC9 free on Nucleo-144)
- * - LSE crystal (32.768 kHz) of the board, enabled by StartUp (default configuration)
+ * - LSE crystal (32.768 kHz) of the board, enabled by the test (the default configuration
+ *   of StartUp starts no external oscillator)
  *
  * \note RTC clock selection (RTCSEL) is write-once until backup domain reset,
  *       which is not available by public API - it is tested by unit tests only.
@@ -58,9 +60,10 @@ static void It_Rcc_Check_BusClocks  ( rcc_FreqHz_t ahbClk, rcc_FreqHz_t apb1Clk,
 /*----------------------------- Board configuration --------------------------*/
 #if defined(IT_BOARD_STM32H723xG)  || \
     defined(IT_BOARD_STM32H7A3xI)  || \
-    defined(IT_BOARD_STM32H7A3xIQ)
+    defined(IT_BOARD_STM32H7A3xIQ) || \
+    defined(IT_BOARD_STM32H755xI)
 
-    /* NUCLEO-H723ZG / NUCLEO-H7A3ZI-Q (Nucleo-144) */
+    /* NUCLEO-H723ZG / NUCLEO-H7A3ZI-Q / NUCLEO-H755ZI-Q (Nucleo-144) */
 
     /** HSE - 8 MHz MCO of the ST-LINK (oscillator bypassed by a digital signal, X3 not fitted) */
     #define IT_RCC_HSE_TYPE                 ( RCC_HSE_TYPE_SIG_DIGITAL_IN )
@@ -75,15 +78,19 @@ static void It_Rcc_Check_BusClocks  ( rcc_FreqHz_t ahbClk, rcc_FreqHz_t apb1Clk,
     #error "Board of Rcc integration tests is not defined (INTEGRATION_TEST_BOARD)."
 #endif
 
-/** Main PLL (PLL1) from HSE: 8 MHz / 2 * 40 = 160 MHz VCO, P 2 = 80 MHz (system clock), Q 4 = 40 MHz */
-#define IT_RCC_HSE_PLL_M                    ( 2u )
-#define IT_RCC_HSE_PLL_N                    ( 40u )
+/** Main PLL (PLL1) from HSE: 8 MHz / 4 = 2 MHz reference * 80 = 160 MHz VCO (medium VCO range, needs a reference
+ *  of 1 - 2 MHz - bug AB#2110), P 2 = 80 MHz (system clock), Q 4 = 40 MHz */
+#define IT_RCC_HSE_PLL_M                    ( 4u )
+#define IT_RCC_HSE_PLL_N                    ( 80u )
 #define IT_RCC_HSE_PLL_P                    ( 2u )
 #define IT_RCC_HSE_PLL_Q                    ( 4u )
 #define IT_RCC_HSE_PLL_SYSCLK_HZ            ( 80000000u )
 #define IT_RCC_HSE_PLL_Q_HZ                 ( 40000000u )
 
-/** Main PLL above the limit of the voltage scale 3: 8 MHz / 2 * 120 = 480 MHz VCO, P 2 = 240 MHz */
+/** Main PLL above the limit of the voltage scale 3: 8 MHz / 2 = 4 MHz reference (wide VCO range) * 120 = 480 MHz
+ *  VCO, P 2 = 240 MHz - own M divider, the M of the HSE PLL configuration (4) gives only 120 MHz, below the VOS3
+ *  limit of STM32H74x / H75x (AB#2206) */
+#define IT_RCC_OVER_PLL_M                   ( 2u )
 #define IT_RCC_OVER_PLL_N                   ( 120u )
 
 /** System clock of default configuration (StartUp) = HSI */
@@ -159,13 +166,17 @@ void It_Rcc_StartUp_DefaultConfig_Hsi64MHzActive( void )
  * \brief   Kernel clocks of default configuration.
  *
  * \par Expected results
- * - IWDG 32 kHz (LSI), SysTick (CPU clock) 64 MHz.
+ * - IWDG 0 Hz while LSI is stopped (reset state, AB#2241), 32 kHz after Rcc_Set_PeriphActive() started LSI.
+ * - SysTick (CPU clock) 64 MHz.
  * - APB1 timer TIM2 and APB2 timer TIM1 64 MHz (APB prescalers 1).
  */
 void It_Rcc_Get_PeriphClk_DefaultConfig_KernelClocks( void )
 {
-    rcc_FreqHz_t freq = 0u;
+    rcc_FreqHz_t freq = IT_RCC_LSI_FREQ_HZ;
 
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_IWDG, &freq ) );
+    TEST_ASSERT_EQUAL_UINT32( 0u, freq );
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_PeriphActive( RCC_PERIPH_IWDG ) );
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_IWDG, &freq ) );
     TEST_ASSERT_EQUAL_UINT32( IT_RCC_LSI_FREQ_HZ, freq );
     TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_PeriphClk( RCC_PERIPH_SYSTICK, &freq ) );
@@ -299,6 +310,7 @@ void It_Rcc_Init_SysClkOverScaleLimit_KeepsHsi( void )
     rcc_FreqHz_t       ahbClk = 0u;
 
     It_Rcc_Get_HsePllConfig( &config );
+    config.Pll_Config[ RCC_PLL_1 ].M_Divider    = IT_RCC_OVER_PLL_M;
     config.Pll_Config[ RCC_PLL_1 ].N_Multiplier = IT_RCC_OVER_PLL_N;
 
     TEST_ASSERT_EQUAL( RCC_REQUEST_ERROR, Rcc_Init( &config ) );
@@ -406,20 +418,28 @@ void It_Rcc_Set_OscActive_Lsi_StartsAndStops( void )
 /**
  * \brief   LSE crystal enabled by Rcc_Init() becomes ready and is kept by the oscillator interface.
  *
- * \details Rcc is initialized by StartUp with default configuration (LSE crystal, lowest
- *          drive) - LSE is enabled without waiting for the crystal start-up (bug AB#1565 -
- *          LSE could not be activated). The test waits for the ready state, activates LSE
- *          through the oscillator interface (running LSE is kept), disables LSE and reads
- *          the state. The board must have the 32.768 kHz LSE crystal.
+ * \details Rcc_Init() with default configuration and LSE crystal (lowest drive; the default
+ *          configuration of StartUp starts no LSE, bug AB#2116) - LSE is enabled without
+ *          waiting for the crystal start-up (bug AB#1565 - LSE could not be activated). The
+ *          test waits for the ready state, activates LSE through the oscillator interface
+ *          (running LSE is kept), disables LSE and reads the state. The board must have the
+ *          32.768 kHz LSE crystal.
  *
  * \par Expected results
+ * - Rcc_Init(): RCC_REQUEST_OK.
  * - State active within the wait of the test.
  * - Activation of running LSE: RCC_REQUEST_OK, state stays active.
  * - Deactivation: RCC_REQUEST_OK, state inactive.
  */
 void It_Rcc_Set_OscActive_LseCrystal_EnabledByInit( void )
 {
+    rcc_ConfigStruct_t  config;
     rcc_FunctionState_t state = RCC_FUNCTION_INACTIVE;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Get_DefaultConfig( &config ) );
+    config.LSE_ClockType = RCC_LSE_TYPE_CRYSTAL;
+
+    TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Init( &config ) );
 
     for( uint32_t loopIdx = 0u;
          ( IT_RCC_LSE_WAIT_LOOPS >  loopIdx ) &&
@@ -751,7 +771,9 @@ void It_Rcc_Get_ResetSource_SoftwareReset_SwFlagActive( void )
 {
     rcc_FlagState_t flagState = RCC_FLAG_ACTIVE;
 
-    if( 0u == IntegrationTesting_Get_Stage() )
+    const integrationTesting_Stage_t testStage = IntegrationTesting_Get_Stage();
+
+    if( 0u == testStage )
     {
         TEST_ASSERT_EQUAL( RCC_REQUEST_OK, Rcc_Set_ResetSourceClear() );
 

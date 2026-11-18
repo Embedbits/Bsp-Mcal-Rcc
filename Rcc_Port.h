@@ -115,6 +115,10 @@ rcc_RequestState_t          Rcc_Get_ClkOutDivider     ( rcc_ClkOut_Id_t outId, r
 rcc_RequestState_t          Rcc_Get_ResetSource       ( rcc_ResetSrc_t resetSrc, rcc_FlagState_t * const flagState );
 rcc_RequestState_t          Rcc_Set_ResetSourceClear  ( void );
 
+/*--------------------------- Window watchdog reset -------------------------*/
+
+rcc_RequestState_t          Rcc_Set_WwdgSystemReset   ( rcc_PeriphId_t periphId );
+
 
 #ifdef __cplusplus
 }
